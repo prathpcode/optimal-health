@@ -79,7 +79,7 @@ export default function ShareAMeal() {
         </View>
       ) : (
         <T tone="secondary" style={{ textAlign: 'center' }}>
-          Your scans show up here.
+          No scans yet :(
         </T>
       )}
     </ScrollView>

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import sample from "../bench/data/shelf-lines.json";
 import type { TextLine } from "./memory";
 import type { ProductFacts } from "./product";
-import { blockSignature, matchProduct, searchTerms, shelfVerdict, textBlocks, type KnownProduct } from "./shelf";
+import { blockSignature, matchProduct, packageFronts, packageOutlines, searchTerms, shelfVerdict, textBlocks, type KnownProduct } from "./shelf";
 import type { Rule } from "./types";
 
 const KNOWN: KnownProduct[] = [
@@ -99,5 +99,41 @@ describe("shelfVerdict", () => {
   it("gives a package the same signature however its words were ordered or cased", () => {
     expect(blockSignature("HEINZ Classic Chicken")).toBe(blockSignature("chicken heinz CLASSIC"));
     expect(searchTerms("HEINZ Classic Chicken & Sweet Corn 400g")).toEqual(["classic", "chicken", "heinz", "sweet"]);
+  });
+});
+
+const obj = (left: number, top: number, right: number, bottom: number, score = 0.8) => ({ box: { left, top, right, bottom }, score });
+
+describe("packageOutlines", () => {
+  it("keeps one outline for a package outlined twice, the surer one", () => {
+    const out = packageOutlines([obj(0.1, 0.1, 0.3, 0.5, 0.6), obj(0.11, 0.1, 0.3, 0.5, 0.9)]);
+    expect(out).toHaveLength(1);
+    expect(out[0].left).toBeCloseTo(0.11);
+  });
+  it("drops an outline around a whole row, and one around most of the picture", () => {
+    const out = packageOutlines([obj(0.1, 0.1, 0.2, 0.3), obj(0.22, 0.1, 0.32, 0.3), obj(0.34, 0.1, 0.44, 0.3), obj(0.09, 0.09, 0.45, 0.31, 0.95), obj(0, 0, 1, 0.9, 0.99)]);
+    expect(out).toHaveLength(3);
+  });
+  it("drops an outline inside a package (its lid), and specks", () => {
+    const out = packageOutlines([obj(0.1, 0.1, 0.3, 0.6), obj(0.15, 0.1, 0.25, 0.16, 0.9), obj(0.5, 0.5, 0.505, 0.505)]);
+    expect(out).toEqual([{ left: 0.1, top: 0.1, right: 0.3, bottom: 0.6 }]);
+  });
+});
+
+describe("packageFronts", () => {
+  it("gives each outlined package its own words, even a single line, and keeps a package with no print", () => {
+    const fronts = packageFronts([line("HEINZ", 0.12, 0.2), line("Minestrone", 0.12, 0.23), line("Tuna", 0.42, 0.2)], [{ left: 0.1, top: 0.1, right: 0.3, bottom: 0.5 }, { left: 0.4, top: 0.1, right: 0.6, bottom: 0.5 }, { left: 0.7, top: 0.1, right: 0.9, bottom: 0.5 }]);
+    expect(fronts.map((f) => [f.text, f.outline])).toEqual([["HEINZ Minestrone", "object"], ["Tuna", "object"], ["", "object"]]);
+    expect(fronts[0].box.right).toBeCloseTo(0.3);
+  });
+  it("still finds a package the detector missed from its print, and is textBlocks when nothing is outlined", () => {
+    const lines = [line("HEINZ", 0.12, 0.2), line("Minestrone", 0.12, 0.225), line("Country", 0.62, 0.2), line("Ladle", 0.62, 0.225)];
+    const fronts = packageFronts(lines, [{ left: 0.1, top: 0.1, right: 0.3, bottom: 0.5 }]);
+    expect(fronts.map((f) => [f.text, f.outline])).toEqual([["HEINZ Minestrone", "object"], ["Country Ladle", "text"]]);
+    expect(packageFronts(lines, []).map((f) => f.text)).toEqual(textBlocks(lines).map((b) => b.text));
+  });
+  it("gives words inside nested outlines to the smaller one", () => {
+    const fronts = packageFronts([line("Oat Drink", 0.22, 0.3)], [{ left: 0.1, top: 0.1, right: 0.6, bottom: 0.6 }, { left: 0.2, top: 0.2, right: 0.35, bottom: 0.55 }]);
+    expect(fronts.find((f) => f.text === "Oat Drink")!.box.left).toBeCloseTo(0.2);
   });
 });

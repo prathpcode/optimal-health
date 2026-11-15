@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { DURATION_OPTIONS_DAYS, ENTRY_OPTIONS_CENTS } from '@engine/challenge';
-import { inviteToChallenge, usd } from '@/components/challenge';
+import { usd } from '@/components/challenge';
 import { Icon, type IconName } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
@@ -36,7 +36,7 @@ const shortDay = (ms: number) => new Date(ms).toLocaleDateString(undefined, { we
  * Start a race in three steps: the prize (what each player pays in; the winner takes the pool), how long it lasts,
  * then a summary to check. A race always starts tomorrow: never today, so everyone can pay in before the first dish
  * counts, and one fixed start keeps the only choice here the length. The race is created and then paid for in Whop's checkout; nobody is in it, you included, until
- * their payment is confirmed.
+ * their payment is confirmed. Afterwards the invite sheet opens over the new race.
  */
 export default function NewChallenge() {
   const insets = useSafeAreaInsets();
@@ -63,7 +63,8 @@ export default function NewChallenge() {
     setBusy(false);
     if (!id) return;
     router.replace({ pathname: '/challenge/[id]', params: { id } });
-    if (ok) setTimeout(() => void inviteToChallenge({ id, days, entryCents: entry }), 600);
+    // Paid or not, the next thing to do is get friends in: open the invite sheet over the new race.
+    if (ok) setTimeout(() => router.push({ pathname: '/challenge/invite/[id]', params: { id } }), 600);
   };
 
   return (

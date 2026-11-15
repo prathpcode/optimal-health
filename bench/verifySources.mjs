@@ -18,6 +18,9 @@ for (const [key, c] of Object.entries(conditions)) {
   for (const r of c.rules) checks.push({ where: `conditions/${key}/${r.tag}`, url: c.source.url, quote: r.quote });
   if (c.note) checks.push({ where: `conditions/${key}/note`, url: c.source.url, quote: c.note.quote });
 }
+for (const [key, p] of Object.entries(read("data/packs.json").packs)) {
+  for (const r of p.rules) checks.push({ where: `packs/${key}/${r.tag}`, url: p.source.url, quote: r.quote });
+}
 const dv = read("data/dailyValues.json");
 for (const [k, val] of Object.entries(dv.values)) checks.push({ where: `dailyValues/${k}`, url: dv.source.url, quote: val.quote });
 checks.push({ where: "dailyValues/bands", url: dv.source.url, quote: dv.bands.quote });

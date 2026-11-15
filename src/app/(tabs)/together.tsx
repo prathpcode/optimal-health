@@ -3,7 +3,7 @@ import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ChallengeRow, PointsKey } from '@/components/challenge';
+import { ChallengeRow, InviteRow, PointsKey } from '@/components/challenge';
 import { RoomIcon } from '@/components/community';
 import { JoinBar, joinRooms, RoomChecklist, usePickedRooms } from '@/components/RoomPicker';
 import { GlassButton, GlassSurface } from '@/components/Glass';
@@ -12,7 +12,7 @@ import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { RoomStatus, SectionTitle, useSignedIn } from '@/components/together';
 import { Skeleton } from '@/components/ui';
-import { useTogether, type RoomView } from '@/lib/community';
+import { useInvites, useTogether, type RoomView } from '@/lib/community';
 import { useLatestPosts } from '@/lib/whopForum';
 import { PostCard } from '@/components/post';
 import { signOutOfWhop, useWhopAccount } from '@/lib/whop';
@@ -128,6 +128,7 @@ function SignedOut({ pickable, pick }: { pickable: RoomView[]; pick: Pick }) {
 function SignedIn({ pickable, pick }: { pickable: RoomView[]; pick: Pick }) {
   const { c } = useTheme();
   const { mine, challenges, loading } = useTogether();
+  const invites = useInvites();
   const reduced = useReducedMotion();
   const top = mine[0]?.slug;
 
@@ -146,6 +147,17 @@ function SignedIn({ pickable, pick }: { pickable: RoomView[]; pick: Pick }) {
         {top ? <BigAction icon="fork" label="Share a meal" onPress={() => router.push({ pathname: '/compose/[slug]', params: { slug: top } })} /> : null}
         <BigAction icon="trophy" label="Start a race" onPress={() => router.push('/challenge/new')} />
       </Animated.View>
+
+      {invites.length ? (
+        <Animated.View entering={enterAt(1, reduced)}>
+          <SectionTitle title="Invites" />
+          <View style={{ gap: space.sm + 2 }}>
+            {invites.map((inv) => (
+              <InviteRow key={inv.id} invite={inv} />
+            ))}
+          </View>
+        </Animated.View>
+      ) : null}
 
       {mine.length ? (
         <Animated.View entering={enterAt(1, reduced)}>

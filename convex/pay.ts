@@ -29,7 +29,7 @@ const RETRY_MINUTES = [1, 10, 60, 6 * 60, 24 * 60];
 
 type Money = { amount?: unknown; currency?: unknown } | null | undefined;
 
-async function whop<T>(path: string, init?: { method?: string; body?: unknown; idempotencyKey?: string }): Promise<T> {
+export async function whop<T>(path: string, init?: { method?: string; body?: unknown; idempotencyKey?: string }): Promise<T> {
   const key = process.env.WHOP_API_KEY;
   if (!key) throw new Error("WHOP_API_KEY is not set on the deployment");
   const base = process.env.WHOP_API_BASE ?? "https://api.whop.com/api/v1";
@@ -47,7 +47,7 @@ async function whop<T>(path: string, init?: { method?: string; body?: unknown; i
   return body as T;
 }
 
-function accountId(): string {
+export function accountId(): string {
   const id = process.env.WHOP_ACCOUNT_ID;
   if (!id) throw new Error("WHOP_ACCOUNT_ID is not set on the deployment");
   return id;
@@ -104,11 +104,11 @@ export const beginEntry = internalMutation({
   },
 });
 
-/** After the webhook: read the payment from Whop and, if it is a paid race entry, record it. */
+/** After the webhook: read the payment from Whop and, if it is a paid race entry or rule pack, record it. */
 export const confirmPayment = internalAction({
   args: { paymentId: v.string(), attempt: v.number() },
   handler: async (ctx, { paymentId, attempt }) => {
-    let p: { status?: string; currency?: string; total?: Money; amount_after_fees?: Money; metadata?: Record<string, unknown> | null };
+    let p: { status?: string; currency?: string; total?: Money; amount_after_fees?: Money; variant_id?: string | null; metadata?: Record<string, unknown> | null };
     try {
       p = await whop(`/payments/${encodeURIComponent(paymentId)}`);
     } catch (e) {
@@ -118,6 +118,11 @@ export const confirmPayment = internalAction({
       return null;
     }
     const meta = p.metadata ?? {};
+    // A rule pack bought on Manage (convex/packs.ts) arrives through the same webhook.
+    if (meta.kind === "rule_pack" && typeof meta.purchaseId === "string") {
+      if (p.status === "paid") await ctx.runMutation(internal.packs.recordPayment, { paymentId, purchaseId: meta.purchaseId, variantId: p.variant_id ?? undefined });
+      return null;
+    }
     if (meta.kind !== "race_entry" || typeof meta.challengeId !== "string" || typeof meta.memberId !== "string") return null;
     if (p.status !== "paid") return null;
     const grossCents = p.currency === "usd" ? centsFromAmount(p.total?.amount) : null;

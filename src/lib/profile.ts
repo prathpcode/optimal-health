@@ -3,7 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { api } from '@convex/_generated/api';
-import { compileRules } from '@engine/compileRules';
+import { compileRules, dedupeByTag } from '@engine/compileRules';
+import { packRules } from '@engine/packs';
 import { tagLabel } from '@engine/tags';
 import type { MedicationStatus, Profile, Rule, RuleLevel } from '@engine/types';
 import { HAS_BACKEND, useDeviceId } from './backend';
@@ -47,14 +48,14 @@ const isEmpty = (p: Profile) => p.allergies.length + p.diets.length + p.medicati
 const LEVEL_ORDER = { never: 0, avoid: 1, limit: 2, keep_steady: 3 } as const;
 
 /**
- * The same merge the backend does in `recompileRules`: rules compiled from the profile, minus any tag the person's
- * own rule owns, plus the rules only the backend can make (read from medication labels) and the person's own ones.
+ * The same merge the backend does in `recompileRules`: rules compiled from the profile and from the rule packs this
+ * phone has bought (`packs`), minus any tag the person's own rule owns, plus the rules only the backend can make (read from medication labels) and the person's own ones.
  * `kept` are those rules; `off` are the ids switched off. Same engine and same data as the backend, so the list it
  * produces for an edited profile is the list that comes back from the save.
  */
-function mergeRules(profile: Profile, kept: ProfileRule[], off: Set<string>): ProfileRule[] {
+function mergeRules(profile: Profile, kept: ProfileRule[], off: Set<string>, packs: string[] = []): ProfileRule[] {
   const owned = new Set(kept.filter((r) => r.custom || r.from.type === 'user').map((r) => r.tag));
-  return [...compileRules(profile).filter((r) => !owned.has(r.tag)), ...kept]
+  return [...dedupeByTag([...compileRules(profile), ...packRules(packs)]).filter((r) => !owned.has(r.tag)), ...kept]
     .map((r) => ({ ...r, enabled: !off.has(r.id) }))
     .sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level] || a.tag.localeCompare(b.tag));
 }
@@ -65,6 +66,7 @@ function useProfileLive(): ProfileState {
   const remote = useQuery(api.profile.get, args);
   const remoteRules = useQuery(api.rules.list, args);
   const remoteMeds = useQuery(api.profile.medications, args);
+  const remotePacks = useQuery(api.packs.list, args);
   const save = useMutation(api.profile.save);
   const updateRule = useMutation(api.rules.update);
   const addCustom = useMutation(api.rules.addCustom);
@@ -96,8 +98,9 @@ function useProfileLive(): ProfileState {
     if (draft === null) return stored;
     const kept = stored.filter((r) => r.custom || r.from.type === 'medication');
     const off = new Set(stored.filter((r) => !r.enabled).map((r) => r.id));
-    return mergeRules(draft, kept, off);
-  }, [stored, draft]);
+    const packs = (remotePacks ?? []).filter((p) => p.state === 'owned').map((p) => p.id);
+    return mergeRules(draft, kept, off, packs);
+  }, [stored, draft, remotePacks]);
   const meds = useMemo(() => remoteMeds ?? [], [remoteMeds]);
 
   const flashSaved = useCallback(() => {

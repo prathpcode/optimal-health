@@ -14,6 +14,7 @@ import { applyRemembered, linesFor, restaurantId, type RememberedAnswer, type Te
 import { fromOpenFoodFacts, hasSubstance, itemFromProduct, mergeFacts, sanitiseNutrients, type ModelTag, type ProductFacts } from "../engine/product";
 import { hidesInTerms } from "../engine/tagMatch";
 import { linesFromVision, type VisionText } from "../engine/textLines";
+import type { FoundObject } from "../engine/shelf";
 import { judgeAvailable, judgeEnabledForScans, judgeItems } from "./judge";
 import { TAGS, tagLabel } from "../engine/tags";
 import { duplicateFindings, warningClauses, warningFindings, withLabelFindings, type ProfileItem, type Taking } from "../engine/otc";
@@ -297,6 +298,66 @@ export async function recogniseLinesIn(content: string): Promise<TextLine[] | nu
     return null;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+// ---- Outlining packages (the shelf view) ----
+
+/** The kinds of package the detector is asked for. It finds what it is told to look for, so these are shapes, not foods. */
+const PACKAGE_WORDS = ["box", "bottle", "can", "jar", "bag", "carton", "pouch", "tub", "packet", "wrapper", "container", "cup", "package"];
+const DETECT_TIMEOUT_MS = 6000;
+
+/** Width and height of a JPEG, from its frame header; null if it is not one. */
+function jpegSize(buf: Buffer): { width: number; height: number } | null {
+  for (let i = 2; i < buf.length - 9; ) {
+    if (buf[i] !== 0xff) {
+      i++;
+      continue;
+    }
+    const m = buf[i + 1];
+    if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+    i += 2 + buf.readUInt16BE(i + 2);
+  }
+  return null;
+}
+
+/**
+ * Every package a detector can see on a photo (base64 JPEG), as boxes in fractions of the photo, or null when
+ * detection is off or fails. The detector is SAM 3 on Roboflow's hosted API: it is given the photo and the
+ * package shapes to look for, and nothing else. It only says where things are; it names nothing and decides
+ * nothing (engine/shelf.ts packageOutlines and packageFronts take it from there).
+ */
+export async function detectObjects(content: string): Promise<FoundObject[] | null> {
+  const key = process.env.ROBOFLOW_API_KEY;
+  if (!key) return null;
+  const size = jpegSize(Buffer.from(content, "base64"));
+  if (!size) return null;
+  try {
+    const res = await fetch("https://serverless.roboflow.com/sam3/concept_segment", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ image: { type: "base64", value: content }, prompts: PACKAGE_WORDS.map((text) => ({ type: "text", text })), output_prob_thresh: 0.3, format: "polygon", nms_iou_threshold: 0.6 }),
+      signal: AbortSignal.timeout(DETECT_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      console.error("detection failed", res.status, (await res.text()).slice(0, 200));
+      return null;
+    }
+    const data = (await res.json()) as { prompt_results?: { predictions?: { masks?: unknown; confidence?: number }[] }[] };
+    const found: FoundObject[] = [];
+    for (const result of data.prompt_results ?? []) {
+      for (const p of result.predictions ?? []) {
+        // One instance is one or more outlines, each a list of [x, y] in pixels; its box is what holds them all.
+        const points = (Array.isArray(p.masks) ? (p.masks as unknown[]).flat() : []).filter((pt): pt is number[] => Array.isArray(pt) && pt.length >= 2 && typeof pt[0] === "number" && typeof pt[1] === "number");
+        if (!points.length) continue;
+        const xs = points.map((pt) => pt[0]), ys = points.map((pt) => pt[1]);
+        found.push({ box: { left: Math.min(...xs) / size.width, top: Math.min(...ys) / size.height, right: Math.max(...xs) / size.width, bottom: Math.max(...ys) / size.height }, score: p.confidence ?? 0 });
+      }
+    }
+    return found;
+  } catch (e) {
+    console.error("detection failed", e);
+    return null;
   }
 }
 

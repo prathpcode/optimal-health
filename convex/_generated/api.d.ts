@@ -10,13 +10,16 @@
 
 import type * as bench from "../bench.js";
 import type * as cache from "../cache.js";
+import type * as crons from "../crons.js";
 import type * as drugRules from "../drugRules.js";
 import type * as followups from "../followups.js";
 import type * as http from "../http.js";
+import type * as invites from "../invites.js";
 import type * as judge from "../judge.js";
 import type * as lookup from "../lookup.js";
 import type * as medications from "../medications.js";
 import type * as members from "../members.js";
+import type * as packs from "../packs.js";
 import type * as pay from "../pay.js";
 import type * as pipeline from "../pipeline.js";
 import type * as profile from "../profile.js";
@@ -37,13 +40,16 @@ import type {
 declare const fullApi: ApiFromModules<{
   bench: typeof bench;
   cache: typeof cache;
+  crons: typeof crons;
   drugRules: typeof drugRules;
   followups: typeof followups;
   http: typeof http;
+  invites: typeof invites;
   judge: typeof judge;
   lookup: typeof lookup;
   medications: typeof medications;
   members: typeof members;
+  packs: typeof packs;
   pay: typeof pay;
   pipeline: typeof pipeline;
   profile: typeof profile;

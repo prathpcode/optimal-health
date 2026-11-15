@@ -75,7 +75,10 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_whopUserId", ["whopUserId"])
-    .index("by_deviceId", ["deviceId"]),
+    .index("by_deviceId", ["deviceId"])
+    // Finding a friend to invite to a race, by their Whop name or username (convex/invites.ts).
+    .searchIndex("search_name", { searchField: "name" })
+    .searchIndex("search_username", { searchField: "username" }),
 
   // A sign-in session. Only a SHA-256 of the token the phone holds is stored.
   sessions: defineTable({ tokenHash: v.string(), memberId: v.id("members") }).index("by_tokenHash", ["tokenHash"]),
@@ -129,6 +132,22 @@ export default defineSchema({
     .index("by_challengeId_and_memberId", ["challengeId", "memberId"])
     .index("by_memberId", ["memberId"]),
 
+  // "Come and race": one member asked another into a challenge, inside the app. At most one per person per
+  // challenge, whoever asked first. It stops showing once they are in, they decline, or the race closes.
+  // The person asked is named by their Whop user id, so someone who has not opened the app yet can be invited and
+  // finds the invite waiting when they sign in.
+  invites: defineTable({ challengeId: v.id("challenges"), fromId: v.id("members"), toWhopUserId: v.string(), at: v.number() })
+    .index("by_toWhopUserId_and_challengeId", ["toWhopUserId", "challengeId"])
+    .index("by_challengeId_and_fromId", ["challengeId", "fromId"]),
+
+  // Whop people known to Fit who can be invited to a race: members of the Fit business on Whop and anyone who has
+  // posted in a room, copied from Whop every few minutes (convex/invites.ts). Only what Whop shows publicly about
+  // them: user id, username, name and picture. Never an email or anything else Whop's member records carry.
+  whopPeople: defineTable({ whopUserId: v.string(), username: v.string(), name: v.string(), avatarUrl: v.optional(v.string()), at: v.number() })
+    .index("by_whopUserId", ["whopUserId"])
+    .searchIndex("search_name", { searchField: "name" })
+    .searchIndex("search_username", { searchField: "username" }),
+
   // Money owed to a player: a prize (a Whop transfer to their account) or a refund of their entry payment.
   // `key` makes each one unique ("prize:<challenge>:<member>", "refund:<payment>"), so nothing is paid twice.
   payouts: defineTable({
@@ -162,6 +181,20 @@ export default defineSchema({
   // Background jobs the shelf view has started (reading a product's ingredients, looking up an unknown package),
   // so the same one is not started again on every camera frame. See convex/shelfData.ts.
   shelfClaims: defineTable({ key: v.string(), at: v.number() }).index("by_key", ["key"]),
+
+  // Rule packs on sale (engine/packs.ts, data/packs.json): the Whop product and variant each one is sold as.
+  // Written once by packs.publish. A pack with no variant yet is not on sale.
+  packListings: defineTable({ packId: v.string(), productId: v.string(), variantId: v.optional(v.string()), priceCents: v.number() }).index("by_packId", ["packId"]),
+
+  // A device's purchase of a rule pack. "pending" from the moment checkout opens; "paid" only once the payment has
+  // been read back from Whop (convex/packs.ts). A paid pack's rules are compiled into `rules` with the profile's.
+  packPurchases: defineTable({
+    deviceId: v.string(),
+    packId: v.string(),
+    status: v.union(v.literal("pending"), v.literal("paid")),
+    paymentId: v.optional(v.string()),
+    at: v.number(),
+  }).index("by_deviceId_and_packId", ["deviceId", "packId"]),
 
   // The compiled and custom rules for a device.
   rules: defineTable({ deviceId: v.string(), custom: v.boolean(), ...ruleFields })

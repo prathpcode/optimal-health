@@ -4,7 +4,7 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { avg, confirmLeave, inviteToChallenge, Leaderboard, PlayFeed, raceLine, StakesCard, usd } from '@/components/challenge';
+import { avg, confirmLeave, Leaderboard, PlayFeed, raceLine, StakesCard, usd } from '@/components/challenge';
 import { GlassButton } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
 import { Podium } from '@/components/Podium';
@@ -55,7 +55,7 @@ export default function ChallengeScreen() {
     );
   }
 
-  const invite = () => void inviteToChallenge(ch);
+  const invite = () => router.push({ pathname: '/challenge/invite/[id]', params: { id: ch.id } });
   const join = async () => {
     setBusy(true);
     const ok = await attempt(joinChallenge(ch.id));

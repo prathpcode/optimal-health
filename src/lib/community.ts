@@ -367,6 +367,46 @@ export function leaveChallenge(id: string): Promise<unknown> {
   return Promise.resolve();
 }
 
+// ── Inviting friends inside the app ──────────────────────────────────────────────────────────────────────────────
+
+/** Someone you could invite to a race: a Whop person known to Fit. Only their Whop user id (`id`), name, username and picture. */
+export type Person = { id: string; name: string; username: string; avatarUrl?: string; state: 'in' | 'invited' | null };
+
+function usePeopleLive(challengeId: string, q: string): Person[] | undefined {
+  const { account } = useWhopAccount();
+  const session = account?.session;
+  const data = useQuery(api.invites.people, session ? { session, id: challengeId as Id<'challenges'>, q } : 'skip');
+  return useMemo(() => data?.map((p) => ({ ...p, avatarUrl: p.avatarUrl ?? undefined })), [data]);
+}
+
+const NOBODY: Person[] = [];
+
+/**
+ * People to invite to a race: matches for what is typed (two letters or more), or with nothing typed the people you
+ * have raced with before. Undefined while loading. Empty in preview, where nobody else is on this phone.
+ */
+export const usePeople: (challengeId: string, q: string) => Person[] | undefined = TOGETHER_LIVE ? usePeopleLive : () => NOBODY;
+
+export function invitePerson(challengeId: string, personId: string): Promise<unknown> {
+  return call((session) => convex!.mutation(api.invites.send, { session, id: challengeId as Id<'challenges'>, to: personId }));
+}
+
+/** A race someone invited you to that you can still get into. */
+export type InviteView = { id: string; days: number; startsAt: number; entryCents: number; playerCount: number; from: { name: string; avatarUrl?: string } };
+
+function useInvitesLive(): InviteView[] {
+  const { session, now } = useHomeLive();
+  const data = useQuery(api.invites.mine, session ? { session, now } : 'skip');
+  return useMemo(() => (data ?? []).map((i) => ({ ...i, from: { name: i.from.name, avatarUrl: i.from.avatarUrl ?? undefined } })), [data]);
+}
+
+const NO_INVITES: InviteView[] = [];
+export const useInvites: () => InviteView[] = TOGETHER_LIVE ? useInvitesLive : () => NO_INVITES;
+
+export function declineInvite(challengeId: string): Promise<unknown> {
+  return call((session) => convex!.mutation(api.invites.decline, { session, id: challengeId as Id<'challenges'> }));
+}
+
 /** Tell the backend the app is open, every 45 s while signed in and live. Mount once, in the root layout. */
 export function usePresenceHeartbeat() {
   const { account } = useWhopAccount();

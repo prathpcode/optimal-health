@@ -3,7 +3,7 @@ import { Alert, Share, StyleSheet, View } from 'react-native';
 
 import { averageScore, MEAL_POINTS, type Play } from '@engine/challenge';
 import type { Fit } from '@engine/types';
-import { countdown, daysOf, leaveChallenge, todayKey, type ChallengeView, type Standing } from '@/lib/community';
+import { countdown, daysOf, declineInvite, leaveChallenge, todayKey, type ChallengeView, type InviteView, type Standing } from '@/lib/community';
 import { haptic } from '@/lib/haptics';
 import { dishEmoji } from '@/lib/emoji';
 import { fitColor } from '@/lib/verdict';
@@ -335,6 +335,41 @@ export function ChallengeRow({ ch }: { ch: ChallengeView }) {
           </T>
         </View>
         <Icon name="chevron" size={14} color={c.textTertiary} />
+      </GlassSurface>
+    </Tap>
+  );
+}
+
+/** An invite in a few words: "7-day race · $10 entry · starts in 1d" (or "on now" for a free race already running). */
+function inviteLine(invite: InviteView): string {
+  const stake = invite.entryCents > 0 ? ` · ${usd(invite.entryCents)} entry` : '';
+  const when = invite.startsAt <= Date.now() ? 'on now' : countdown({ status: 'upcoming', startsAt: invite.startsAt, endsAt: invite.startsAt }).toLowerCase();
+  return `${invite.days}-day race${stake} · ${when}`;
+}
+
+/** A race someone invited you to, on the Together tab: who asked, what it is, and a way to say no. Tap to open it. */
+export function InviteRow({ invite }: { invite: InviteView }) {
+  const { c } = useTheme();
+  const what = inviteLine(invite);
+  return (
+    <Tap
+      accessibilityRole="button"
+      accessibilityLabel={`${invite.from.name} invited you to a ${what}`}
+      onPress={() => router.push({ pathname: '/challenge/[id]', params: { id: invite.id } })}
+      scaleTo={0.98}>
+      <GlassSurface tone="theme" interactive style={styles.row}>
+        <Avatar name={invite.from.name} url={invite.from.avatarUrl} size={44} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <T variant="headline" numberOfLines={1}>
+            {invite.from.name} invited you
+          </T>
+          <T variant="caption" tone="secondary" numberOfLines={1}>
+            {what}
+          </T>
+        </View>
+        <Tap accessibilityRole="button" accessibilityLabel="Decline invite" hitSlop={12} onPress={() => void declineInvite(invite.id).catch(() => {})}>
+          <Icon name="close" size={14} color={c.textTertiary} />
+        </Tap>
       </GlassSurface>
     </Tap>
   );

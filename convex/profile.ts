@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { mutation, query, type MutationCtx } from "./_generated/server";
-import { compileRules } from "../engine/compileRules";
+import { compileRules, dedupeByTag } from "../engine/compileRules";
+import { packRules } from "../engine/packs";
 import { profile as profileValidator } from "./validators";
 import { syncRoomsForDevice } from "./together";
 import type { MedicationStatus, Profile } from "../engine/types";
@@ -48,7 +49,11 @@ export async function recompileRules(ctx: MutationCtx, deviceId: string, profile
     await ctx.db.delete("rules", r._id);
   }
   const customTags = new Set(old.filter((r) => r.custom).map((r) => r.tag));
-  for (const r of compileRules(profile)) {
+  // Rule packs this device has paid for (convex/packs.ts) are compiled in beside the profile's own rules. On a
+  // shared tag the stronger rule stays, and at the same level the profile's.
+  const packs = await ctx.db.query("packPurchases").withIndex("by_deviceId_and_packId", (q) => q.eq("deviceId", deviceId)).take(50);
+  const owned = packs.filter((p) => p.status === "paid").map((p) => p.packId);
+  for (const r of dedupeByTag([...compileRules(profile), ...packRules(owned)])) {
     if (customTags.has(r.tag)) continue; // the user's own rule on this tag wins
     await ctx.db.insert("rules", { deviceId, custom: false, ...r, enabled: !switchedOff.has(r.id) });
   }

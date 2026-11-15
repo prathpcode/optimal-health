@@ -60,6 +60,68 @@ export function textBlocks(lines: TextLine[]): TextBlock[] {
     .sort((a, b) => a.box.top - b.box.top || a.box.left - b.box.left);
 }
 
+// ---- Packages found by looking, not by reading ----
+//
+// A detector (convex/pipeline.ts detectObjects) can outline every package in the picture, including ones whose
+// print is too small or too sparse to group. Its outlines say only WHERE a package is. What it is still comes
+// from the words printed inside the outline, matched as before; an outline with no readable name stays unknown.
+
+/** One thing a detector outlined, with how sure it was (0 to 1). */
+export type FoundObject = { box: Box; score: number };
+
+const area = (b: Box) => Math.max(0, width(b)) * Math.max(0, height(b));
+const shared = (a: Box, b: Box) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+
+/**
+ * The detector's outlines, tidied into one box per package. It is asked for several kinds of thing at once and
+ * answers generously, so: the same package outlined twice is kept once (the surer one); an outline that takes in
+ * several others is a row or a shelf, not a package, and goes; so does one that covers most of the picture; and
+ * an outline sitting inside a package (its lid, its label) goes too. At most `max` are kept, surest first.
+ */
+export function packageOutlines(objects: FoundObject[], max = 150): Box[] {
+  const sane = objects.filter((o) => width(o.box) > 0.012 && height(o.box) > 0.012 && area(o.box) < 0.45).sort((a, b) => b.score - a.score);
+  const kept: FoundObject[] = [];
+  for (const o of sane) {
+    const twin = kept.some((k) => {
+      const both = shared(o.box, k.box);
+      return both / (area(o.box) + area(k.box) - both) > 0.55;
+    });
+    if (!twin) kept.push(o);
+  }
+  const inside = (small: Box, big: Box) => area(small) < area(big) && shared(small, big) / area(small) > 0.8;
+  const single = kept.filter((o) => kept.filter((k) => k !== o && inside(k.box, o.box)).length < 2);
+  return single.filter((o) => !single.some((k) => k !== o && inside(o.box, k.box))).slice(0, max).map((o) => o.box);
+}
+
+/** A package front: where it is, what is printed on it (may be nothing), and how it was found. */
+export type PackageFront = TextBlock & { outline: "object" | "text" };
+
+/**
+ * One front per package. Every line of text whose middle falls inside an outline belongs to that package (the
+ * smallest outline, when they nest), so a package is named from all of its own words and nobody else's. Words
+ * outside every outline are grouped into blocks as before, so a package the detector missed is still found by its
+ * print. With no outlines at all this is exactly `textBlocks`.
+ */
+export function packageFronts(lines: TextLine[], outlines: Box[]): PackageFront[] {
+  const owned = new Map<number, TextLine[]>();
+  const loose: TextLine[] = [];
+  for (const l of lines) {
+    const x = (l.box.left + l.box.right) / 2, y = (l.box.top + l.box.bottom) / 2;
+    let best = -1;
+    outlines.forEach((o, i) => {
+      if (x >= o.left && x <= o.right && y >= o.top && y <= o.bottom && (best < 0 || area(o) < area(outlines[best]))) best = i;
+    });
+    if (best < 0) loose.push(l);
+    else owned.set(best, [...(owned.get(best) ?? []), l]);
+  }
+  const found: PackageFront[] = outlines.map((box, i) => {
+    const mine = (owned.get(i) ?? []).filter((l) => l.text.replace(/[^A-Za-z]/g, "").length >= 3).sort((a, b) => a.box.top - b.box.top || a.box.left - b.box.left);
+    return { box, lines: mine, text: mine.map((l) => l.text).join(" "), outline: "object" };
+  });
+  const read: PackageFront[] = textBlocks(loose).map((b) => ({ ...b, outline: "text" }));
+  return [...found, ...read].sort((a, b) => a.box.top - b.box.top || a.box.left - b.box.left);
+}
+
 export type KnownProduct = { key: string; name: string; brand?: string };
 
 /** Words that say nothing about which product this is. */
@@ -153,6 +215,8 @@ export type ShelfBox = {
   reason?: string;
   /** True while only code has looked at the ingredients; the models' careful reading is still on its way. */
   checking?: boolean;
+  /** "object": `box` is the package's own outline. "text" or absent: it is only the block of words on it. */
+  outline?: "object" | "text";
 };
 
 /**

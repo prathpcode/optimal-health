@@ -1,0 +1,116 @@
+{
+  "_note": "Rule packs sold through Whop (convex/packs.ts). Same shape as a condition in data/rules/conditions.json: every quote is copied from its source page and re-checked by `npm run verify:sources`. Status is \"sourced\": no clinician has reviewed these. Tags come from data/tags.json only.",
+  "packs": {
+    "pregnancy": {
+      "label": "Pregnancy",
+      "blurb": "What to leave out and what to keep low while you are pregnant.",
+      "priceCents": 499,
+      "source": {
+        "title": "Health Tips for Pregnant Women (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/weight-management/healthy-eating-physical-activity-for-life/health-tips-for-pregnant-women"
+      },
+      "rules": [
+        {
+          "level": "never",
+          "tag": "alcohol",
+          "reason": "Alcohol is on the list of things to avoid during pregnancy because it can harm the baby.",
+          "quote": "Do not drink alcohol, such as wine, beer, or hard liquor."
+        },
+        {
+          "level": "avoid",
+          "tag": "raw_or_undercooked",
+          "reason": "Raw and undercooked meat, eggs and seafood can carry germs that cause illness in you or your baby.",
+          "quote": "Avoid soft cheeses made from unpasteurized or raw milk; raw cookie dough; undercooked meats, eggs, and seafood; and deli salads."
+        },
+        {
+          "level": "avoid",
+          "tag": "unpasteurized",
+          "reason": "Cheese and milk that are not pasteurized can carry germs that cause illness in you or your baby.",
+          "quote": "Avoid soft cheeses made from unpasteurized or raw milk; raw cookie dough; undercooked meats, eggs, and seafood; and deli salads."
+        },
+        {
+          "level": "limit",
+          "tag": "caffeine",
+          "reason": "During pregnancy the advice is to keep caffeine under 200 mg a day, about 12 ounces of coffee.",
+          "quote": "limit drinks with caffeine to less than 200 mg per day"
+        }
+      ]
+    },
+    "ibs_low_fodmap": {
+      "label": "IBS, low FODMAP",
+      "blurb": "The foods a low FODMAP diet cuts back on, flagged on every scan.",
+      "priceCents": 499,
+      "source": {
+        "title": "Eating, Diet, & Nutrition for Irritable Bowel Syndrome (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/digestive-diseases/irritable-bowel-syndrome/eating-diet-nutrition"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "onion_garlic",
+          "reason": "Onion and garlic contain FODMAPs, carbohydrates that are hard to digest and are reduced on a low FODMAP diet.",
+          "quote": "vegetables such as artichokes, asparagus, beans, cabbage, cauliflower, garlic and garlic salts, lentils, mushrooms, onions, and sugar snap or snow peas"
+        },
+        {
+          "level": "limit",
+          "tag": "lactose",
+          "reason": "Milk and milk products contain FODMAPs and are reduced on a low FODMAP diet.",
+          "quote": "dairy products such as milk, milk products, soft cheeses, yogurt, custard, and ice cream"
+        },
+        {
+          "level": "limit",
+          "tag": "gluten",
+          "reason": "Some people with IBS have more symptoms after eating gluten, so cutting back on it is one of the changes that may be suggested.",
+          "quote": "Your doctor may recommend avoiding foods that contain gluten"
+        },
+        {
+          "level": "limit",
+          "tag": "honey",
+          "reason": "Honey contains FODMAPs and is reduced on a low FODMAP diet.",
+          "quote": "honey and foods with high-fructose corn syrup"
+        }
+      ]
+    },
+    "hemodialysis": {
+      "label": "Hemodialysis",
+      "blurb": "Potassium, phosphorus and salt between dialysis sessions.",
+      "priceCents": 499,
+      "source": {
+        "title": "Eating & Nutrition for Hemodialysis (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidney-failure/hemodialysis/eating-nutrition"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "high_potassium_food",
+          "reason": "Potassium can build up between dialysis sessions and affect your heartbeat, so potassium-rich foods are kept to small portions.",
+          "quote": "To control potassium levels, limit potassium-rich foods such as avocados, bananas, kiwis, and dried fruit."
+        },
+        {
+          "level": "limit",
+          "tag": "potassium",
+          "reason": "Potassium can build up between dialysis sessions and affect your heartbeat.",
+          "quote": "Eating too much potassium can be dangerous to your heart and may even cause death."
+        },
+        {
+          "level": "limit",
+          "tag": "phosphorus",
+          "reason": "Too much phosphorus in your blood pulls calcium from your bones, and processed and packaged foods are high in it.",
+          "quote": "Processed and packaged foods contain especially high levels of phosphorus."
+        },
+        {
+          "level": "limit",
+          "tag": "sodium",
+          "reason": "Salt makes you thirsty, and extra liquid builds up between dialysis sessions.",
+          "quote": "Avoid salty foods such as chips and pretzels."
+        },
+        {
+          "level": "avoid",
+          "tag": "potassium_salt_substitute",
+          "reason": "Salt substitutes are made with potassium, which builds up between dialysis sessions.",
+          "quote": "Do not use salt substitutes because they contain potassium."
+        }
+      ]
+    }
+  }
+}

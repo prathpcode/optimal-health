@@ -111,7 +111,13 @@ export default function ShelfScreen() {
   // The preview fills the screen, so the still it was taken from is mapped onto the screen the same way.
   const view: Rect | null = useMemo(() => (frame ? coverRect({ width, height }, frame) : null), [frame, width, height]);
   // Each block of words, grown toward the package it is printed on (without running into its neighbours).
-  const rects = useMemo(() => (view ? packageRects(boxes.map((b) => boxToRect(b.box, view))) : []), [boxes, view]);
+  // A box that is already the package's own outline is drawn as it is.
+  const rects = useMemo(() => {
+    if (!view) return [];
+    const raw = boxes.map((b) => boxToRect(b.box, view));
+    const grown = packageRects(raw);
+    return boxes.map((b, i) => (b.outline === 'object' ? raw[i] : grown[i]));
+  }, [boxes, view]);
   const counts = useMemo(() => ({ out: boxes.filter((b) => b.state === 'not_fit').length, ask: boxes.filter((b) => b.state === 'cant_tell').length, known: boxes.filter((b) => b.state !== 'unknown').length }), [boxes]);
 
   const pick = (box: ShelfBox) => {
@@ -167,7 +173,7 @@ export default function ShelfScreen() {
           : counts.known
             ? 'Nothing flagged'
             : boxes.length
-              ? 'No products recognised yet'
+              ? `${boxes.length} ${boxes.length === 1 ? 'item' : 'items'} found`
               : 'Point at a shelf';
 
   return (
@@ -259,6 +265,7 @@ function Mark({ box, rect, reduced, picked, onPress }: { box: ShelfBox; rect: Re
   const col = colour(box.state);
   const flagged = box.state === 'not_fit' || box.state === 'cant_tell';
   const unknown = box.state === 'unknown';
+  const outlined = box.outline === 'object';
   return (
     <Animated.View entering={reduced ? undefined : FadeIn.duration(duration.fast)} style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height }}>
       <Tap accessibilityRole="button" accessibilityLabel={`${box.name ?? 'Unrecognised product'}, ${STATE_TEXT[box.state]}`} feedback="select" hitSlop={4} scaleTo={0.97} onPress={onPress} style={StyleSheet.absoluteFill}>
@@ -270,8 +277,10 @@ function Mark({ box, rect, reduced, picked, onPress }: { box: ShelfBox; rect: Re
               borderRadius: radius.sm,
               borderColor: unknown ? 'rgba(255,255,255,0.9)' : col,
               // The picked box is marked by its heavier line alone; the others stay as they were.
-              borderWidth: picked ? 7 : flagged ? 4.5 : unknown ? 2 : 3.5,
-              borderStyle: (unknown || box.checking) && !picked ? 'dashed' : 'solid',
+              // A package the detector outlined gets a firm line even before it has a name; only a guess from a
+              // block of print, or a check still running, is dashed.
+              borderWidth: picked ? 7 : flagged ? 4.5 : unknown ? (outlined ? 3 : 2) : 3.5,
+              borderStyle: ((unknown && !outlined) || box.checking) && !picked ? 'dashed' : 'solid',
               backgroundColor: flagged ? `${col}59` : box.state === 'okay' || box.state === 'good' ? `${col}40` : unknown ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)',
             }}
           />

@@ -2,9 +2,10 @@
 
 // The shelf view: point the camera along a shelf and see which packages are worth picking up.
 //
-// One still in, boxes out, about once a second. Each still is handled on its own (no tracking): the text on it is
-// recognised, grouped into one block per package front (engine/shelf.ts), and each block is compared with the
-// products the app already knows by barcode. A package it recognises is checked against the person's rules; one it
+// One still in, boxes out, about once a second. Each still is handled on its own (no tracking): a detector
+// outlines every package it can see while the text on the still is recognised; each package gets the words inside
+// its outline (engine/shelf.ts), and those words are compared with the products the app already knows by barcode.
+// With no detector configured, packages are found from blocks of print alone. A package it recognises is checked against the person's rules; one it
 // does not is outlined and, in the background, identified so that a later frame knows it: the photo reader reads
 // its front properly, the product database is searched for it, and the judge picks the record that is the same
 // product (same variety included).
@@ -17,9 +18,9 @@ import { internal } from "./_generated/api";
 import { action, internalAction } from "./_generated/server";
 import { hardRules } from "../engine/pipeline";
 import { hasSubstance, type ProductFacts } from "../engine/product";
-import { blockSignature, matchProduct, searchTerms, shelfVerdict, textBlocks, type KnownProduct, type ShelfBox } from "../engine/shelf";
+import { blockSignature, matchProduct, packageFronts, packageOutlines, searchTerms, shelfVerdict, type KnownProduct, type ShelfBox } from "../engine/shelf";
 import { judgeSameProduct } from "./judge";
-import { answerCache, lookUpProduct, Memo, productOpinions, readPackages, recogniseLinesIn, rememberedProductOpinions, type PackageReading } from "./pipeline";
+import { answerCache, detectObjects, lookUpProduct, Memo, productOpinions, readPackages, recogniseLinesIn, rememberedProductOpinions, type PackageReading } from "./pipeline";
 
 /** A still is small on purpose (about 1300 px a side); anything much bigger is not from the app. */
 const MAX_IMAGE_CHARS = 2_500_000;
@@ -37,10 +38,13 @@ export const look = action({
       return out;
     };
     const steps: Record<string, number> = {};
-    const [lines, context] = await Promise.all([timed("text", recogniseLinesIn(image)), timed("context", ctx.runQuery(internal.shelfData.context, { deviceId }))]);
-    // No text recognition configured, or it failed: say so rather than show an empty shelf as if nothing were there.
-    if (!lines) return { boxes: [], ms: Date.now() - started, reading: false };
-    const blocks = textBlocks(lines);
+    const [lines, objects, context] = await Promise.all([timed("text", recogniseLinesIn(image)), timed("objects", detectObjects(image)), timed("context", ctx.runQuery(internal.shelfData.context, { deviceId }))]);
+    // Neither text recognition nor detection is configured, or both failed: say so rather than show an empty shelf
+    // as if nothing were there.
+    if (!lines && !objects) return { boxes: [], ms: Date.now() - started, reading: false };
+    // Where the packages are (the detector's outlines, or with none, blocks of print), each with the words on it.
+    const blocks = packageFronts(lines ?? [], packageOutlines(objects ?? []));
+    steps.found = objects?.length ?? -1;
     const facts = new Map<string, ProductFacts>();
     for (const p of context.products) {
       try {
@@ -54,7 +58,7 @@ export const look = action({
       ...[...facts].map(([key, f]) => ({ key, name: f.name, ...(f.brand ? { brand: f.brand } : {}) })),
       ...context.fronts.filter((f) => facts.has(f.barcode)).map((f) => ({ key: f.barcode, name: f.name, ...(f.brand ? { brand: f.brand } : {}) })),
     ];
-    const named = blocks.map((b) => ({ block: b, product: matchProduct(b.text, known) }));
+    const named = blocks.map((b) => ({ block: b, product: b.text ? matchProduct(b.text, known) : null }));
 
     // The models' careful reading of each recognised product, where it is already remembered.
     const watch = [...new Set(hardRules(context.rules).map((r) => r.tag))];
@@ -63,9 +67,9 @@ export const look = action({
     const opinions = new Map(seen.map((k, i) => [k, remembered[i]]));
 
     const boxes: ShelfBox[] = named.map(({ block, product }) => {
-      if (!product) return { box: block.box, state: "unknown" };
+      if (!product) return { box: block.box, outline: block.outline, state: "unknown" };
       const f = facts.get(product.key)!;
-      return { box: block.box, key: product.key, name: [f.brand, f.name].filter(Boolean).join(" "), ...shelfVerdict(f, context.rules, opinions.get(product.key) ?? null) };
+      return { box: block.box, outline: block.outline, key: product.key, name: [f.brand, f.name].filter(Boolean).join(" "), ...shelfVerdict(f, context.rules, opinions.get(product.key) ?? null) };
     });
 
     // In the background: read the ingredients of recognised products that have not been read for these rules yet,
