@@ -55,8 +55,9 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
 - App: second menu page (`scans.addPage`), on-device text recognition for dish boxes (`lines`), product Compare,
   condition search and option chips from `lookup`, `rules.notes`, a daily amount on a custom Limit rule. Restaurant
   confirmation and custom rules are built but have not been run on a phone.
-- Backend: the benchmark covers one chain and allergens only; nothing is tested on real phone photos
-  (`npm run bench:readers` is ready for them); condition and medication rules are source-checked but not clinically
+- Backend: the benchmark covers one chain and allergens only; the faster photo reader
+  (`TRANSCRIBE_MODEL=claude-haiku-5-5`) stays off: on four real phone photos it dropped 13 of 65 dishes from a dense
+  menu and changed ingredients in others (`bench/reports/2026-11-15-readers.md`); condition and medication rules are source-checked but not clinically
   reviewed. Judge thresholds are still the starting values: `bench/reports/*-thresholds.md` has what the benchmark
   supports and why adopting it is a product decision, not a drop-in number.
 - Later: "how did that sit?" and a personal response model, health-record import, accounts and sharing, a regulatory

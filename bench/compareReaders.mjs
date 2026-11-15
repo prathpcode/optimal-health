@@ -3,6 +3,8 @@
 // Reading the photo is the only step that sees it: a dish the reader drops is invisible to every later check. So
 // the faster model passes on a photo only if it loses nothing the current reader found. Use photos taken on a
 // phone, in the light and at the angles people really scan in; generated images are too easy.
+// A photo already on the backend (one the app uploaded during a real scan) can be named instead of a file, as
+// id:<storage id>; `npx convex data scans` lists them under imageIds.
 // Each photo costs two reading calls. --base defaults to the reader the backend is configured with.
 import { execFile } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -56,9 +58,12 @@ function compare(a, b) {
 
 const rows = [];
 for (const file of photos) {
-  const uploadUrl = await client.mutation(api.scans.generateUploadUrl, {});
-  const up = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg" }, body: readFileSync(file) });
-  const { storageId } = await up.json();
+  let storageId = file.startsWith("id:") ? file.slice(3) : null;
+  if (!storageId) {
+    const uploadUrl = await client.mutation(api.scans.generateUploadUrl, {});
+    const up = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg" }, body: readFileSync(file) });
+    ({ storageId } = await up.json());
+  }
   const [a, b] = await Promise.all([read(storageId, base), read(storageId, fast)]);
   rows.push({ file: basename(file), a, b, ...compare(a.read, b.read) });
   process.stderr.write(`  ${rows.length}/${photos.length} photos\r`);
