@@ -27,7 +27,6 @@ import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
 import { EarlyHints, MenuOverlay, ScanSweep, TextOutlines } from '@/components/MenuOverlay';
 import { ProductResult } from '@/components/ProductResult';
-import { RestaurantCard } from '@/components/RestaurantCard';
 import { Sheet, type SheetHandle } from '@/components/Sheet';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
@@ -36,7 +35,7 @@ import { haptic } from '@/lib/haptics';
 import { containRect, unionBox, zoomRect } from '@/lib/layout';
 import { goBack } from '@/lib/nav';
 import { MealCard, ShareToRoom } from '@/components/together';
-import { SAMPLE_ID, useScan, useSetRestaurant, type Answer, type ScanView } from '@/lib/scan';
+import { SAMPLE_ID, useScan, type Answer, type ScanView } from '@/lib/scan';
 import { fitColor, SECTION_FIT, SECTION_LABEL } from '@/lib/verdict';
 import { duration, ease, enterAt, onPhoto, radius, space, spring, useTheme } from '@/theme';
 
@@ -64,7 +63,6 @@ export default function ResultScreen() {
   const params = useLocalSearchParams<{ id: string; uri?: string; w?: string; h?: string; share?: string }>();
   const id = params.id;
   const { view, answer } = useScan(id);
-  const setRestaurant = useSetRestaurant();
   const { c } = useTheme();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -229,12 +227,12 @@ export default function ResultScreen() {
       {view && target && shown && !failed && !isProduct ? (
         <Animated.View style={[StyleSheet.absoluteFill, overlayStyle]} pointerEvents="box-none">
           {view.items.some((i) => i.position?.length) ? (
-            <MenuOverlay photo={shown} bounds={{ width, height: area.top + area.height, top: area.top - 8 }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={pickOnPhoto} />
+            <MenuOverlay photo={shown} bounds={{ width, height: area.top + area.height, top: area.top - 8 }} items={view.items} verdicts={view.verdicts} provisional={view.provisional} selectedId={selected} onSelect={pickOnPhoto} />
           ) : (
             // No dish positions (text recognition is off, or found nothing to match): the text that was found, if
             // any, as faint outlines, and verdict chips in a row over the photo.
             <>
-              {view.textBoxes?.length ? <TextOutlines photo={target} boxes={view.textBoxes} /> : null}
+              {view.textBoxes?.length ? <TextOutlines photo={target} lines={view.textBoxes} /> : null}
               {view.earlyHints?.length ? <EarlyHints photo={target} hints={view.earlyHints} /> : null}
               <ChipRow view={view} bottom={height - (area.top + area.height) + space.md} selectedId={selected} onSelect={selectDish} />
             </>
@@ -266,11 +264,6 @@ export default function ResultScreen() {
             <>
               {view?.generic ? <Banner icon="person" text="This is a general answer. Add your allergies and medicines in Manage for one that fits you." onPress={() => router.dismissTo('/me')} /> : null}
               {view?.notice ? <Banner icon="note" text={view.notice} /> : null}
-
-              {/* Offered only once the scan has finished: until then the pipeline is still writing the record. */}
-              {view && setRestaurant && id !== SAMPLE_ID && view.kind === 'menu' && view.status === 'done' ? (
-                <RestaurantCard scanId={id} name={view.restaurant} restaurantId={view.restaurantId} setRestaurant={setRestaurant} />
-              ) : null}
 
               {view && isProduct ? (
                 <ProductResult view={view} onAnswer={answer} />
@@ -335,7 +328,11 @@ export default function ResultScreen() {
                       <T variant="heading">Scan again</T>
                     </GlassSurface>
                   </Tap>
-                  <Button label="Done" onPress={goBack} style={{ flex: 1 }} />
+                  <Tap accessibilityRole="button" accessibilityLabel="Done" feedback="tap" scaleTo={0.97} onPress={goBack} style={{ flex: 1 }}>
+                    <GlassSurface tone="theme" interactive style={styles.footerGlass}>
+                      <T variant="heading">Done</T>
+                    </GlassSurface>
+                  </Tap>
                 </Animated.View>
               ) : null}
             </>
@@ -375,14 +372,20 @@ function StatusPill({ view }: { view: ScanView | undefined }) {
 
 function SheetHeader({ view, working, failed, isProduct }: { view: ScanView | undefined; working: boolean; failed: boolean; isProduct: boolean }) {
   const { c } = useTheme();
+  // One counter per verdict, in the verdict's own colour, so the tiles and the boxes on the photo are the same
+  // thing counted twice. A verdict nothing landed on is left out rather than shown as a zero.
   const counts = useMemo(() => {
-    const ranking = view?.ranking ?? [];
-    return {
-      good: ranking.filter((r) => r.section === 'best' || r.section === 'okay').length,
-      ask: ranking.filter((r) => r.section === 'cant_tell').length,
-      out: ranking.filter((r) => r.section === 'not_fit').length,
-    };
-  }, [view?.ranking]);
+    const verdicts = view?.items.map((i) => view.verdicts[i.id]?.fit).filter(Boolean) ?? [];
+    const tally = (fit: Fit) => verdicts.filter((f) => f === fit).length;
+    return ([
+      { fit: 'good', label: 'Fit you' },
+      { fit: 'okay', label: 'Okay' },
+      { fit: 'cant_tell', label: 'Ask first' },
+      { fit: 'not_fit', label: 'Not a fit' },
+    ] as { fit: Fit; label: string }[])
+      .map((row) => ({ ...row, n: tally(row.fit) }))
+      .filter((row) => row.n > 0);
+  }, [view]);
 
   if (failed) {
     return (
@@ -421,12 +424,12 @@ function SheetHeader({ view, working, failed, isProduct }: { view: ScanView | un
       )}
       {isProduct && !working ? null : (
       <View style={isProduct ? styles.productCounters : styles.counters}>
-        {view && view.ranking.length > 0 && !isProduct ? (
+        {view && counts.length > 0 && !isProduct ? (
           <>
             {view.provisional ? <CheckingTag /> : null}
-            <Counter n={counts.good} label="Fit you" color={c.good} index={0} />
-            <Counter n={counts.ask} label="Ask first" color={c.cantTell} index={1} />
-            <Counter n={counts.out} label="Not a fit" color={c.notFit} index={2} />
+            {counts.map((row, i) => (
+              <Counter key={row.fit} n={row.n} label={row.label} color={fitColor(row.fit, c).solid} index={i} />
+            ))}
           </>
         ) : working && !(isProduct && view?.verdicts && Object.keys(view.verdicts).length) ? (
           <Stepper view={view} />

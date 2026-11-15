@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { api } from '@convex/_generated/api';
 import type { Id } from '@convex/_generated/dataModel';
 import { afterAnswer, buildQuestions, buildRanking, buildVerdicts } from '@engine/pipeline';
-import type { Box, HardCheck, Item, RankedItem, Rule, ScanQuestion, ScanStatus, Verdict } from '@engine/types';
+import type { Box, HardCheck, Item, RankedItem, Rule, ScanQuestion, ScanStatus, TextOutline, Verdict } from '@engine/types';
 import profileJson from '../../fixtures/profile.json';
 import scanJson from '../../fixtures/scan.done.json';
 import { HAS_BACKEND, useDeviceId } from './backend';
@@ -36,9 +36,9 @@ export type ScanView = {
   /** Set once the backend knows which restaurant this is (a name plus a location); answers are remembered against it. */
   restaurantId?: string;
   /** Every line of text found on the photo, shown as faint outlines until the dishes have positions of their own. */
-  textBoxes?: Box[];
+  textBoxes?: TextOutline[];
   /** Lines that already look like trouble, found from the recognised text before the dishes are read (still being checked). */
-  earlyHints?: { box: Box; fit: 'not_fit' | 'cant_tell' }[];
+  earlyHints?: (TextOutline & { fit: 'not_fit' | 'cant_tell' })[];
   /** Fast first-pass verdicts, still being checked (PLAN 7.1). Shown as "checking", no questions yet. */
   provisional: boolean;
   notice?: string;

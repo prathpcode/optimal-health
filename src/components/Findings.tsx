@@ -18,7 +18,7 @@ const RANK: Record<Finding['outcome'], number> = { blocked: 0, ask: 1, confirm: 
  * The reasons behind a verdict. Each shows where it comes from (PLAN 7.1): the person's rule (with its status), the
  * product's own label (`source` + `about`), or the assistant's own unsourced note, labelled as such.
  */
-export function FindingList({ findings, rules, muted = true }: { findings: Finding[]; rules: Rule[]; muted?: boolean }) {
+export function FindingList({ findings, rules, muted = true, compact = false }: { findings: Finding[]; rules: Rule[]; muted?: boolean; compact?: boolean }) {
   const { c } = useTheme();
   const sorted = [...findings].sort((a, b) => RANK[a.outcome] - RANK[b.outcome]);
   return (
@@ -30,8 +30,24 @@ export function FindingList({ findings, rules, muted = true }: { findings: Findi
           <View key={`${f.ruleId ?? f.about ?? 'note'}-${i}`} style={[styles.finding, i > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.hairline } : null]}>
             <Icon name={o.icon} size={17} color={o.color(c)} />
             <View style={{ flex: 1, gap: 4 }}>
-              <T variant="body">{f.because}</T>
-              {f.unsourced ? (
+              <T variant="body">{compact ? short(f.because) : f.because}</T>
+              {compact ? (
+                // On a dish the reason is all that is wanted: the source is named, its quote stays on the full view.
+                f.unsourced ? (
+                  <T variant="caption" tone="tertiary">
+                    Unsourced note
+                  </T>
+                ) : f.source ? (
+                  <T variant="caption" tone="tertiary">
+                    {f.source.title}
+                  </T>
+                ) : rule ? (
+                  <T variant="caption" tone="tertiary">
+                    {rule.from.label}
+                    {rule.status === 'unverified' ? ' · unverified' : ''}
+                  </T>
+                ) : null
+              ) : f.unsourced ? (
                 <T variant="caption" tone="tertiary">
                   Noted by the assistant, no cited source
                 </T>
@@ -68,6 +84,11 @@ export function FindingList({ findings, rules, muted = true }: { findings: Findi
       })}
     </View>
   );
+}
+
+/** The reason without its quoted evidence, for the one-line form. */
+function short(because: string): string {
+  return because.replace(/\s*\([^)]*"[^)]*\)/g, '').replace(/\s+/g, ' ').trim();
 }
 
 const styles = StyleSheet.create({

@@ -34,7 +34,7 @@ export default function DishSheet() {
 
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.xxl, paddingBottom: insets.bottom + space.xxxl, gap: space.xxl }} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={{ padding: space.xxl, paddingBottom: insets.bottom + space.lg, gap: space.xl }} showsVerticalScrollIndicator={false}>
       <View style={{ gap: space.sm }}>
         <T variant="title">{item.name}</T>
         {item.description ? <T tone="secondary">{item.description}</T> : null}
@@ -54,7 +54,7 @@ export default function DishSheet() {
       {verdict && verdict.findings.length > 0 ? (
         <Animated.View entering={enterAt(1, reduced)} style={{ gap: space.sm }}>
           <SectionLabel>Why</SectionLabel>
-          <FindingList findings={verdict.findings} rules={view?.rules ?? []} />
+          <FindingList findings={verdict.findings} rules={view?.rules ?? []} compact />
         </Animated.View>
       ) : null}
 

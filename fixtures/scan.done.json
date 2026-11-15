@@ -100,7 +100,7 @@
       "fit": "good",
       "score": 0.9,
       "findings": [
-        { "ruleId": "r_tree_nuts", "outcome": "confirm", "because": "No tree nuts found in the menu text; menus do not list everything.", "question": "Can you confirm the salmon is prepared without tree nuts?" },
+        { "ruleId": "r_tree_nuts", "outcome": "confirm", "because": "No tree nuts in the menu text.", "question": "Can you confirm the salmon is prepared without tree nuts?" },
         { "ruleId": "r_sodium", "outcome": "note", "because": "Likely low in sodium." }
       ]
     },
@@ -119,7 +119,7 @@
       "score": 0.4,
       "findings": [
         { "ruleId": "r_sodium", "outcome": "note", "because": "Broth-based ramen is usually high in sodium." },
-        { "ruleId": "r_tree_nuts", "outcome": "confirm", "because": "No tree nuts found in the menu text; menus do not list everything.", "question": "Can you confirm the ramen has no tree nuts, including in any chili oil or topping?" },
+        { "ruleId": "r_tree_nuts", "outcome": "confirm", "because": "No tree nuts in the menu text.", "question": "Can you confirm the ramen has no tree nuts, including in any chili oil or topping?" },
         { "outcome": "note", "because": "Some ramen broths are finished with sesame or nut-based pastes.", "unsourced": true }
       ]
     },
@@ -138,12 +138,12 @@
   "questions": [
     { "id": "q1", "itemId": "d2", "ruleId": "r_tree_nuts", "text": "Does the pesto contain pine nuts, walnuts or any other tree nuts?" }
   ],
-  "summary": "The grilled salmon looks like the best fit. Two dishes are out: the walnut salad and the paloma. Ask about the pesto before ordering it.",
+  "summary": "The grilled salmon looks like the best fit, and it is likely low in sodium. Two dishes are out: the walnut salad and the paloma.",
   "explanations": {
-    "d1": "Nothing on the menu points to tree nuts or grapefruit, and it is likely low in sodium. Because menus do not list every ingredient, confirm with your server that it is prepared without tree nuts.",
-    "d2": "Pesto is commonly made with pine nuts or walnuts, and this menu does not say which. Ask before ordering.",
+    "d1": "Nothing on the menu points to tree nuts or grapefruit, and it is likely low in sodium.",
+    "d2": "Pesto is commonly made with pine nuts or walnuts.",
     "d3": "The menu lists candied walnuts, which conflicts with your tree nut allergy.",
-    "d4": "Broth-based ramen is usually high in sodium, which you are limiting. Nothing on the menu points to tree nuts, but confirm with your server.",
+    "d4": "Broth-based ramen is usually high in sodium, which you are limiting.",
     "d5": "The menu lists grapefruit soda, and your rules say to avoid grapefruit because of simvastatin."
   }
 }

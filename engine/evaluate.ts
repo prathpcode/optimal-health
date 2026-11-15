@@ -96,7 +96,7 @@ function evaluateHardRule(item: Item, rule: Rule, check: HardCheck | undefined, 
     return {
       ruleId: rule.id,
       outcome,
-      because: packaged ? `An ingredient may be a source of ${label}; the label does not say outright.` : `May contain ${label}; the menu does not say.`,
+      because: packaged ? `An ingredient may be a source of ${label}.` : `May contain ${label}.`,
       question: packaged ? `Does ${item.name} contain ${label}? Check the full label or ask the maker.` : `Does the ${item.name} contain ${label}?`,
     };
   }
@@ -105,9 +105,9 @@ function evaluateHardRule(item: Item, rule: Rule, check: HardCheck | undefined, 
     outcome: "confirm",
     because: packaged
       ? item.ingredients.some((i) => i.origin === "database")
-        ? `No ${label} found in the product database record, which can be incomplete or out of date.`
-        : `No ${label} found, but the ingredient list could not be read in full.`
-      : `No ${label} found in the menu text, but menus do not list everything.`,
+        ? `No ${label} in the database record.`
+        : `No ${label} found; the ingredient list could not be read in full.`
+      : `No ${label} in the menu text.`,
     question: packaged ? `Check the ingredient list on the package of ${item.name} for ${label}.` : `Can you confirm the ${item.name} is prepared without ${label}?`,
   };
 }

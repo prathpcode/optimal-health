@@ -481,12 +481,19 @@ You may not change, soften or contradict a verdict or a finding. You only order,
 Hard limits on what you write:
 - Never say a dish is "safe". Never tell anyone to take, stop or change a medication. Never give medical advice.
 - Use only the facts in the findings and the dish text. Do not introduce health claims of your own.
-- Plain, short, warm sentences. No lists, no headings, no emoji.`;
+- Plain, short, warm sentences. No lists, no headings, no emoji.
+- Never write the standing caveats. No "menus do not list everything", no "since the menu does not say", no
+  "confirm with your server", no "ask staff to be sure", no cross-contact warning. The app shows every confirm
+  finding and every question in their own places; repeating them as prose is noise the person already knows.`;
 
 const RANK_SYSTEM = `${WORDING_LIMITS}
 
 Return:
 - summary: two or three sentences for the top of the result: what looks best and why, what is out, what to ask.
+  Write it from the counts above, so it describes the menu as the person will see it. When most of the menu fits,
+  say that about the menu as a whole and name the restaurant if it is given ("Plenty fits you at Zaytinya"), then
+  point to the best of it; do not pick two dishes out of a long list as if they were the only ones. When only a few
+  dishes fit, name them and why. When a lot is out, lead with that.
   Talk about the food. The person is choosing what to eat: name dishes, and leave drinks out unless one of them is
   out or needs a question.
 - ranking: for dishes with fit "good", "okay" or "cant_tell" only, best choice first for this person. Food before drinks.
@@ -499,13 +506,16 @@ Return:
 const EXPLAIN_SYSTEM = `${WORDING_LIMITS}
 
 Return:
-- explanations: one or two sentences for each dish listed, built from that dish's findings.
+- explanations: one or two sentences for each dish listed, built from that dish's findings. Write only what this
+  dish's own findings say; never add a clause about confirming, asking, or what the menu does not list.
 - notes: optional. At most one per dish, and only for a real concern that the findings do not already cover and that follows
   from the person's rules. These are shown as "noted by the assistant, no cited source". If in doubt, leave notes empty.`;
 
 const EXPLAIN_CHUNK = 7;
 
-function describeForWording(items: Item[], verdicts: Record<string, Verdict>, rules: Rule[]): string {
+function describeForWording(items: Item[], verdicts: Record<string, Verdict>, rules: Rule[], place?: string): string {
+  const count = (fit: Verdict["fit"]) => items.filter((it) => verdicts[it.id]?.fit === fit).length;
+  const shape = `${items.length} dishes: ${count("good")} a good fit, ${count("okay")} okay, ${count("cant_tell")} need a question, ${count("not_fit")} out.`;
   const ruleText = rules
     .filter((r) => r.enabled)
     .map((r) => `- [${r.id}] ${r.level.toUpperCase()} ${tagLabel(r.tag)} (because: ${r.from.label})`)
@@ -517,7 +527,7 @@ function describeForWording(items: Item[], verdicts: Record<string, Verdict>, ru
       return `- id ${it.id}: ${it.name}${it.description ? ` — ${it.description}` : ""}\n  fit: ${vd.fit}${vd.score !== undefined ? ` (score ${vd.score})` : ""}\n  findings:\n${findings || "    (none)"}`;
     })
     .join("\n");
-  return `The person's rules:\n${ruleText || "(none: no profile yet, so this is a generic reading)"}\n\nDishes and verdicts:\n${dishText}`;
+  return `${place ? `Restaurant: ${place}\n` : ""}${shape}\n\nThe person's rules:\n${ruleText || "(none: no profile yet, so this is a generic reading)"}\n\nDishes and verdicts:\n${dishText}`;
 }
 
 /**
@@ -809,7 +819,7 @@ export const run = internalAction({
 
       // 3. Wording. Ranking (short) and explanations (longer, in chunks) run side by side; the ranking is shown as
       // soon as it lands. If wording fails, the scan is still complete and correct, just plainly worded.
-      const rankStep = ask(client, "explain", RankSchema, RANK_SYSTEM, [{ type: "text", text: describeForWording(items, verdicts, rules) }])
+      const rankStep = ask(client, "explain", RankSchema, RANK_SYSTEM, [{ type: "text", text: describeForWording(items, verdicts, rules, read.restaurantName) }])
         .then(async (ranked) => {
           await ctx.runMutation(internal.scans.patch, {
             scanId, ranking: buildRanking(items, verdicts, rules, ranked.ranking), status: "explaining", ...(ranked.summary.trim() ? { summary: ranked.summary.trim() } : {}),

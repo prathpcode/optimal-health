@@ -6,7 +6,7 @@ import { applyRemembered, dishKey, type RememberedAnswer, type TextLine } from "
 import { withLabelFindings } from "./otc";
 import { codeCheck, containsTerm, literalTags, normalise } from "./tagMatch";
 import { isKnownTag, tagInfo, tagLabel, tagSatisfies } from "./tags";
-import type { Box, HardCheck, Item, ItemTag, RankedItem, Rule, ScanQuestion, Sureness, Verdict } from "./types";
+import type { Box, HardCheck, Item, ItemTag, RankedItem, Rule, ScanQuestion, Sureness, TextOutline, Verdict } from "./types";
 
 // ---- What the reader model returns for a menu ----
 
@@ -78,7 +78,7 @@ export function lineItems(lines: TextLine[]): Item[] {
   return itemsFromReader(lines.map((l) => ({ name: l.text, description: "", ingredients: [], tags: [], levels: [] })), "l");
 }
 
-export type EarlyHint = { box: Box; fit: "not_fit" | "cant_tell" };
+export type EarlyHint = TextOutline & { fit: "not_fit" | "cant_tell" };
 
 /**
  * The lines that already look like trouble for a hard rule: one that names the thing outright ("walnut ice cream"),
@@ -97,7 +97,7 @@ export function earlyHints(lines: TextLine[], rules: Rule[], judge: JudgeOpinion
   const verdicts = buildVerdicts(items, rules, buildChecks(items, rules, [], likely));
   return items.flatMap((item, i) => {
     const fit = verdicts[item.id].fit;
-    return fit === "not_fit" || fit === "cant_tell" ? [{ box: lines[i].box, fit }] : [];
+    return fit === "not_fit" || fit === "cant_tell" ? [{ box: lines[i].box, ...(lines[i].quad?.length === 4 ? { quad: lines[i].quad } : {}), fit }] : [];
   });
 }
 

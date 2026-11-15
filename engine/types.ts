@@ -39,6 +39,9 @@ export type Point = { x: number; y: number };
  */
 export type Quad = Point[];
 
+/** One recognised line of text on the photo: its upright extent, and its corners when they are known. */
+export type TextOutline = { box: Box; quad?: Quad };
+
 export type Item = {
   id: string;
   kind: "dish" | "product" | "supplement" | "otc";
@@ -183,13 +186,13 @@ export type ScanRecord = {
    * of their own (`Item.position`). Lets the app show the menu being found before anything has a name. Absent when
    * text recognition is not configured.
    */
-  textBoxes?: Box[];
+  textBoxes?: TextOutline[];
   /**
    * Lines of the photo that already look like trouble for one of the person's hard rules, found from the recognised
    * text a couple of seconds into a scan, before the dishes have been read. A first signal only: shown as "checking",
    * and gone once the dishes have verdicts of their own. Absent when text recognition is not configured.
    */
-  earlyHints?: { box: Box; fit: "not_fit" | "cant_tell" }[];
+  earlyHints?: (TextOutline & { fit: "not_fit" | "cant_tell" })[];
   /** Something the user should know about this result, e.g. that their medication rules were still being read. */
   notice?: string;
   error?: string;

@@ -17,50 +17,42 @@ import Animated, {
   ZoomIn,
 } from 'react-native-reanimated';
 
-import type { Box, Fit, Item, Rule, Verdict } from '@engine/types';
-import { tagLabel } from '@engine/tags';
-import { boxToRect, estimateChipWidth, tiltedRect, unionBox, type Rect, type Tilted } from '@/lib/layout';
+import type { Fit, Item, TextOutline, Verdict } from '@engine/types';
+import { boxToRect, tiltedRect, unionBox, type Rect, type Tilted } from '@/lib/layout';
 import { fitColor } from '@/lib/verdict';
-import { duration, onPhoto, palette, radius, shadow, space, spring } from '@/theme';
-import { T } from './T';
+import { duration, onPhoto, palette, radius, spring } from '@/theme';
 import { Tap } from './Tap';
-import { VerdictDot } from './ui';
 
 // Labels sit on the photo, so they use the light palette in both themes (like a label stuck on paper).
 const light = palette.light;
-const LABEL_HEIGHT = 52;
-const LABEL_GAP = 6;
 
-/** The second line of a label: whose rule this is, in a few words. */
-function labelReason(verdict: Verdict | undefined, rules: Rule[]): string | null {
-  if (!verdict) return null;
-  const ruleOf = (id?: string) => rules.find((r) => r.id === id);
-  if (verdict.fit === 'not_fit') {
-    const f = verdict.findings.find((x) => x.outcome === 'blocked');
-    const r = ruleOf(f?.ruleId);
-    return r ? `${capital(tagLabel(r.tag))} · ${r.from.label}` : 'Not a fit';
+/**
+ * Where one outline sits on the photo, in the one shape the overlay uses: turned to the angle its text runs at when
+ * the corners are known, upright when they are not. The same padding is used from the first second of a scan to the
+ * final dish boxes, so an outline never jumps shape as the scan fills in.
+ */
+function frameOf(outline: TextOutline, photo: Rect): { frame: { left: number; top: number; width: number; height: number }; angle: number } {
+  const tilt = outline.quad?.length === 4 ? tiltedRect([outline.quad], photo) : null;
+  if (tilt) {
+    return {
+      frame: { left: tilt.cx - tilt.width / 2 - 5, top: tilt.cy - tilt.height / 2 - 4, width: tilt.width + 10, height: tilt.height + 8 },
+      angle: tilt.angle,
+    };
   }
-  if (verdict.fit === 'cant_tell') {
-    const f = verdict.findings.find((x) => x.outcome === 'ask');
-    const r = ruleOf(f?.ruleId);
-    return r ? `Ask about ${tagLabel(r.tag)}` : 'Ask your server';
-  }
-  return verdict.fit === 'good' ? 'Good fit' : 'Okay, with notes';
+  const r = boxToRect(outline.box, photo);
+  return { frame: { left: r.x - 5, top: r.y - 4, width: r.width + 10, height: r.height + 8 }, angle: 0 };
 }
-
-const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
  * A box around each dish on the photo, in its verdict's colour. The boxes carry the result on their own: nothing is
- * laid over the menu's text, so it stays readable. Tapping a box selects the dish, and only the selected dish gets a
- * label, placed just above its box (or below, when there is no room above).
+ * laid over the menu's text, so it stays readable. Tapping a box opens that dish; while it is the chosen one its own
+ * box is drawn brighter, and nothing is drawn over the menu.
  */
 export function MenuOverlay({
   photo,
   bounds,
   items,
   verdicts,
-  rules,
   provisional = false,
   selectedId,
   onSelect,
@@ -70,7 +62,6 @@ export function MenuOverlay({
   bounds: { width: number; height: number; top?: number };
   items: Item[];
   verdicts: Record<string, Verdict>;
-  rules: Rule[];
   /** Fast first-pass verdicts still being checked: boxes are drawn dashed until they are confirmed. */
   provisional?: boolean;
   selectedId: string | null;
@@ -88,7 +79,6 @@ export function MenuOverlay({
   );
 
   if (photo.width === 0) return null;
-  const selected = boxes.find((b) => b.item.id === selectedId);
   const minTop = bounds.top ?? 0;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -107,16 +97,6 @@ export function MenuOverlay({
           onPress={() => onSelect(item.id)}
         />
       ))}
-      {selected ? (
-        <DishLabel
-          key={selected.item.id}
-          name={selected.item.name}
-          fit={verdicts[selected.item.id]?.fit ?? null}
-          reason={labelReason(verdicts[selected.item.id], rules)}
-          rect={selected.rect}
-          bounds={bounds}
-        />
-      ) : null}
     </View>
   );
 }
@@ -156,10 +136,10 @@ function DishBox({ order, item, rect, tilt, fit, checking, selected, hidden, onP
             styles.box,
             {
               borderColor: col,
-              borderWidth: selected ? 3 : strong ? 2.5 : 1.5,
+              borderWidth: selected ? 3.5 : strong ? 2.5 : 1.5,
               borderStyle: checking ? 'dashed' : 'solid',
               // A light wash of the verdict's colour, so a dish reads at a glance without a label.
-              backgroundColor: fit ? `${col}${selected ? '40' : strong ? '2E' : '1F'}` : 'transparent',
+              backgroundColor: fit ? `${col}${selected ? '5A' : strong ? '2E' : '1F'}` : selected ? 'rgba(255,255,255,0.22)' : 'transparent',
             },
           ]}
         />
@@ -168,50 +148,23 @@ function DishBox({ order, item, rect, tilt, fit, checking, selected, hidden, onP
   );
 }
 
-/** The selected dish's name and reason, beside its box rather than over it. */
-function DishLabel({ name, fit, reason, rect, bounds }: { name: string; fit: Fit | null; reason: string | null; rect: Rect; bounds: { width: number; height: number; top?: number } }) {
-  const reduced = useReducedMotion();
-  const col = fit ? fitColor(fit, light).solid : light.cantTell;
-  const width = Math.min(Math.max(140, estimateChipWidth(name, reason)), bounds.width - 20);
-  const above = rect.y - 4 - LABEL_GAP - LABEL_HEIGHT;
-  const below = rect.y + rect.height + 4 + LABEL_GAP;
-  // Above the box when that keeps clear of the top bar; otherwise below it, unless that would go under the sheet.
-  const y = above >= (bounds.top ?? 0) + 4 || below + LABEL_HEIGHT > bounds.height ? Math.max((bounds.top ?? 0) + 4, above) : below;
-  const x = Math.max(10, Math.min(rect.x - 5, bounds.width - 10 - width));
-  return (
-    <Animated.View pointerEvents="none" entering={reduced ? FadeIn.duration(duration.fast) : ZoomIn.springify().damping(16)} exiting={FadeOut.duration(duration.fast)} style={[styles.label, shadow('floating', false), { left: x, top: y, width }]}>
-      <View style={styles.row}>
-        <VerdictDot fit={fit} size={9} />
-        <T variant="caption" color={onPhoto.chipText} numberOfLines={1} style={styles.name}>
-          {name}
-        </T>
-      </View>
-      {reason ? (
-        <T variant="caption" color={col} numberOfLines={1} style={styles.reason}>
-          {reason}
-        </T>
-      ) : null}
-    </Animated.View>
-  );
-}
-
 /**
  * Every line of text found on the photo, as faint outlines. Shown for the first seconds of a scan, before any dish
  * has a name, so the menu is visibly being found; replaced by the dish boxes once they exist.
  */
-export function TextOutlines({ photo, boxes }: { photo: Rect; boxes: Box[] }) {
+export function TextOutlines({ photo, lines }: { photo: Rect; lines: TextOutline[] }) {
   const reduced = useReducedMotion();
   if (photo.width === 0) return null;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {boxes.map((b, i) => {
-        const r = boxToRect(b, photo);
+      {lines.map((line, i) => {
+        const { frame, angle } = frameOf(line, photo);
         return (
           <Animated.View
             key={i}
             entering={reduced ? FadeIn.duration(duration.fast) : FadeIn.duration(duration.base).delay(Math.min(i * 12, 600))}
             exiting={FadeOut.duration(duration.fast)}
-            style={[styles.textLine, { left: r.x - 2, top: r.y - 1, width: r.width + 4, height: r.height + 2 }]}
+            style={[styles.textLine, frame, { transform: [{ rotate: `${angle}rad` }] }]}
           />
         );
       })}
@@ -223,20 +176,20 @@ export function TextOutlines({ photo, boxes }: { photo: Rect; boxes: Box[] }) {
  * Lines that already look like trouble, a couple of seconds into a scan: a dashed box in the colour the dish is
  * likely to end up, drawn over the faint text outlines. Dashed means "still checking", as it does on the dish boxes.
  */
-export function EarlyHints({ photo, hints }: { photo: Rect; hints: { box: Box; fit: 'not_fit' | 'cant_tell' }[] }) {
+export function EarlyHints({ photo, hints }: { photo: Rect; hints: (TextOutline & { fit: 'not_fit' | 'cant_tell' })[] }) {
   const reduced = useReducedMotion();
   if (photo.width === 0) return null;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {hints.map((h, i) => {
-        const r = boxToRect(h.box, photo);
+        const { frame, angle } = frameOf(h, photo);
         const col = fitColor(h.fit, light).solid;
         return (
           <Animated.View
             key={`${h.box.top}-${h.box.left}`}
             entering={reduced ? FadeIn.duration(duration.fast) : ZoomIn.springify().damping(14).delay(Math.min(i * 60, 400))}
             exiting={FadeOut.duration(duration.fast)}
-            style={[styles.hint, { left: r.x - 4, top: r.y - 3, width: r.width + 8, height: r.height + 6, borderColor: col, backgroundColor: `${col}33` }]}
+            style={[styles.hint, frame, { transform: [{ rotate: `${angle}rad` }], borderColor: col, backgroundColor: `${col}33` }]}
           />
         );
       })}
@@ -284,11 +237,7 @@ export function ScanSweep({ photo, active }: { photo: Rect; active: boolean }) {
 
 const styles = StyleSheet.create({
   box: { flex: 1, borderRadius: radius.sm },
-  label: { position: 'absolute', height: LABEL_HEIGHT, backgroundColor: onPhoto.chip, borderRadius: 14, paddingHorizontal: space.md, justifyContent: 'center' },
-  hint: { position: 'absolute', borderWidth: 2, borderRadius: 5, borderStyle: 'dashed' },
-  textLine: { position: 'absolute', borderWidth: 1, borderRadius: 3, borderColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.08)' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  name: { fontWeight: '600', flexShrink: 1 },
-  reason: { marginLeft: 16, marginTop: 1, fontSize: 12, lineHeight: 15 },
+  hint: { position: 'absolute', borderWidth: 2, borderRadius: radius.sm, borderStyle: 'dashed' },
+  textLine: { position: 'absolute', borderWidth: 1, borderRadius: radius.sm, borderColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.08)' },
   sweepLine: { position: 'absolute', left: 0, right: 0, top: 59, height: 2, backgroundColor: 'rgba(255,255,255,0.85)' },
 });

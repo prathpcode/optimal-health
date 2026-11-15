@@ -37,7 +37,7 @@ export function ItemFacts({ ingredients, nutrients, at = 3 }: { ingredients: { n
           </View>
           {guessed.length > 0 ? (
             <T variant="caption" tone="tertiary">
-              Dashed items are guesses from the dish name. The menu does not list them.
+              Dashed items are guesses from the dish name and description.
             </T>
           ) : null}
         </Animated.View>
