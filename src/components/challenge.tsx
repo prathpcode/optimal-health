@@ -1,7 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect } from 'react';
 import { Alert, Share, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { MEAL_POINTS, MEALS_PER_DAY, type Play } from '@engine/challenge';
 import type { Fit } from '@engine/types';
@@ -9,7 +7,7 @@ import { countdown, daysOf, leaveChallenge, todayKey, type ChallengeView, type S
 import { haptic } from '@/lib/haptics';
 import { dishEmoji } from '@/lib/emoji';
 import { fitColor } from '@/lib/verdict';
-import { radius, space, spring, useTheme } from '@/theme';
+import { radius, space, useTheme } from '@/theme';
 import { Avatar } from './community';
 import { GlassSurface } from './Glass';
 import { Icon } from './Icon';
@@ -68,7 +66,6 @@ export function PointsKey() {
 export function HowToWin({ ch }: { ch: ChallengeView }) {
   const { c } = useTheme();
   const plays = (ch.me?.plays ?? []).filter((p) => !p.skipped);
-  const ends = new Date(ch.endsAt - 1).toLocaleDateString(undefined, { weekday: 'long' });
   return (
     <GlassSurface tone="theme" style={styles.card}>
       {TIERS.map((t, i) => {
@@ -98,88 +95,42 @@ export function HowToWin({ ch }: { ch: ChallengeView }) {
           </View>
         );
       })}
-      <View style={[styles.howFoot, { backgroundColor: c.cardMuted }]}>
-        <T variant="caption" tone="secondary">
-          Scan a menu, then tap what you ordered. Up to {MEALS_PER_DAY} dishes a day count. Most points when it ends on {ends} wins.
-        </T>
-      </View>
     </GlassSurface>
   );
 }
 
-/** One player's total as a bar made of their dishes: each counted dish is a segment as wide as its points. */
-function PointsBar({ plays, scale }: { plays: Play[]; scale: number }) {
+/** The standings as a leaderboard: place, who, what they logged, points. `from` skips the places a podium already shows. */
+export function Leaderboard({ ch, from = 0 }: { ch: ChallengeView; from?: number }) {
   const { c } = useTheme();
-  const reduced = useReducedMotion();
-  const counted = plays.filter((p) => p.points > 0);
-  const total = counted.reduce((a, p) => a + p.points, 0);
-  const grow = useSharedValue(0);
-  useEffect(() => {
-    const to = scale > 0 ? total / scale : 0;
-    grow.value = reduced ? to : withSpring(to, spring.gentle);
-  }, [total, scale, grow, reduced]);
-  const width = useAnimatedStyle(() => ({ width: `${grow.value * 100}%` }));
+  const rows = ch.standings.slice(from);
+  if (!rows.length) return null;
   return (
-    <View style={[styles.track, { backgroundColor: c.cardMuted }]}>
-      <Animated.View style={[styles.segments, width]}>
-        {counted.map((p, i) => (
-          <View key={i} style={{ flex: p.points, backgroundColor: fitColor(p.fit, c).solid }} />
-        ))}
-      </Animated.View>
-    </View>
-  );
-}
-
-/** The race: everyone's total, best first, each bar built from the dishes that earned it. */
-export function RaceBoard({ ch }: { ch: ChallengeView }) {
-  const { c } = useTheme();
-  const top = Math.max(1, ...ch.standings.map((p) => p.points));
-  return (
-    <GlassSurface tone="theme" style={[styles.card, { padding: space.lg, gap: space.lg }]}>
-      <T variant="bodyStrong" tone="secondary">
-        {raceLine(ch)}
-      </T>
-      {ch.standings.map((p) => (
-        <PlayerLine key={p.id} p={p} scale={top} winner={ch.status === 'ended' && p.rank === 1 && p.points > 0} />
-      ))}
-      {ch.standings.length > 0 && ch.status !== 'upcoming' ? (
-        <View style={styles.legendRow}>
-          {(['good', 'okay'] as const).map((f) => (
-            <View key={f} style={styles.legendItem}>
-              <View style={[styles.swatch, { backgroundColor: fitColor(f, c).solid }]} />
-              <T variant="caption" tone="tertiary">
-                {PLAIN_FIT[f]}
+    <GlassSurface tone="theme" style={styles.card}>
+      {rows.map((p, i) => {
+        const counts = [p.good && `${p.good} fit`, p.okay && `${p.okay} mostly`, p.notFit && `${p.notFit} didn’t`].filter(Boolean).join(' · ');
+        const winner = ch.status === 'ended' && p.rank === 1 && p.points > 0;
+        return (
+          <View
+            key={p.id}
+            accessibilityLabel={`${p.me ? 'You' : p.name}, place ${p.rank}, ${pts(p.points)}`}
+            style={[styles.leader, p.me ? { backgroundColor: c.cardMuted } : null, i > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.hairline } : null]}>
+            <Rank rank={p.rank} />
+            <Avatar name={p.name} url={p.avatarUrl} size={36} />
+            <View style={{ flex: 1 }}>
+              <T variant="headline" numberOfLines={1}>
+                {p.me ? 'You' : p.name} {winner ? '🏆' : ''}
+              </T>
+              <T variant="caption" tone="tertiary" numberOfLines={1}>
+                {counts || 'No dishes yet'}
               </T>
             </View>
-          ))}
-        </View>
-      ) : null}
+            <T variant="title" style={styles.num} color={p.points ? c.text : c.textTertiary}>
+              {p.points}
+            </T>
+          </View>
+        );
+      })}
     </GlassSurface>
-  );
-}
-
-function PlayerLine({ p, scale, winner }: { p: Standing; scale: number; winner: boolean }) {
-  const { c } = useTheme();
-  const counts = [p.good && `${p.good} good`, p.okay && `${p.okay} okay`, p.notFit && `${p.notFit} not a fit`].filter(Boolean).join(' · ');
-  return (
-    <View style={{ gap: space.sm }} accessibilityLabel={`${p.me ? 'You' : p.name}, place ${p.rank}, ${pts(p.points)}`}>
-      <View style={styles.playerTop}>
-        <Rank rank={p.rank} />
-        <Avatar name={p.name} url={p.avatarUrl} size={32} />
-        <View style={{ flex: 1 }}>
-          <T variant="headline" numberOfLines={1}>
-            {p.me ? 'You' : p.name} {winner ? '🏆' : ''}
-          </T>
-          <T variant="caption" tone="tertiary" numberOfLines={1}>
-            {counts || 'No dishes yet'}
-          </T>
-        </View>
-        <T variant="title" style={styles.num} color={p.points ? c.text : c.textTertiary}>
-          {p.points}
-        </T>
-      </View>
-      <PointsBar plays={p.plays} scale={scale} />
-    </View>
   );
 }
 
@@ -189,13 +140,13 @@ export function raceLine(ch: ChallengeView): string {
   const me = ch.me;
   const name = (p: Standing) => (p.me ? 'You' : p.name);
   if (ch.status === 'upcoming') return `${ch.standings.length} in · everyone starts at 0`;
-  if (ch.standings.length < 2) return me?.points ? 'Just you so far. Invite someone to race.' : 'Log your first dish to get on the board.';
+  if (ch.standings.length < 2) return '';
   if (ch.status === 'ended') {
     if (!first.points) return 'Nobody scored this time.';
     const tied = ch.standings.filter((p) => p.rank === 1);
     return tied.length > 1 ? `Tie for first on ${pts(first.points)}` : `${name(first)} won with ${pts(first.points)}`;
   }
-  if (!first.points) return 'Nobody has scored yet. The first dish that fits takes the lead.';
+  if (!first.points) return 'Nobody has scored yet, so scan a menu to start the board.';
   if (first.points === second.points) {
     const pair = second.me ? `${first.name} and you` : `${name(first)} and ${second.name}`;
     return `${pair} are level on ${pts(first.points)}`;
@@ -311,11 +262,12 @@ export function confirmLeave(ch: Pick<ChallengeView, 'id'>, after?: () => void) 
 export function ChallengeRow({ ch }: { ch: ChallengeView }) {
   const { c } = useTheme();
   const me = ch.me;
-  const place = ch.standings.length > 1 && me ? `${ordinalShort(me.rank)} of ${ch.standings.length}` : null;
+  const ranked = me && ch.status !== 'upcoming' ? me : null;
+  const leading = Boolean(ranked && ranked.rank === 1 && ranked.points > 0);
   return (
     <Tap
       accessibilityRole="button"
-      accessibilityLabel={`${ch.title}, ${pts(me?.points ?? 0)}, ${countdown(ch)}`}
+      accessibilityLabel={`${ch.title}, ${ranked ? `place ${ranked.rank}, ` : ''}${pts(me?.points ?? 0)}, ${countdown(ch)}`}
       accessibilityHint={ch.joined && ch.status !== 'ended' ? 'Long-press to leave' : undefined}
       onPress={() => router.push({ pathname: '/challenge/[id]', params: { id: ch.id } })}
       onLongPress={
@@ -328,20 +280,21 @@ export function ChallengeRow({ ch }: { ch: ChallengeView }) {
       }
       scaleTo={0.98}>
       <GlassSurface tone="theme" interactive style={styles.row}>
-        <View style={[styles.score, { backgroundColor: me?.points ? c.goodSoft : c.cardMuted }]}>
-          <T variant="heading" color={me?.points ? c.good : c.textTertiary} style={styles.num}>
-            {me?.points ?? 0}
-          </T>
-          <T variant="caption" color={me?.points ? c.good : c.textTertiary}>
-            pts
-          </T>
+        <View style={[styles.score, { backgroundColor: leading ? c.goodSoft : c.cardMuted }]}>
+          {ranked ? (
+            <T variant="heading" color={leading ? c.good : c.text} style={styles.num}>
+              #{ranked.rank}
+            </T>
+          ) : (
+            <Icon name="trophy" size={20} color={c.textTertiary} />
+          )}
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <T variant="headline" numberOfLines={1}>
             {ch.days}-day {ch.title.toLowerCase()}
           </T>
           <T variant="caption" tone="secondary" numberOfLines={1}>
-            {[place, countdown(ch)].filter(Boolean).join(' · ')}
+            {countdown(ch)}
           </T>
         </View>
         <Icon name="chevron" size={14} color={c.textTertiary} />
@@ -352,7 +305,7 @@ export function ChallengeRow({ ch }: { ch: ChallengeView }) {
 
 /** Open the share sheet with a challenge's invite link. */
 export function inviteToChallenge(ch: Pick<ChallengeView, 'id' | 'days'>) {
-  return Share.share({ message: `Race me on Second Look: ${ch.days} days, points for every dish that fits you. secondlook://challenge/${ch.id}` });
+  return Share.share({ message: `Join my ${ch.days}-day menu challenge on Second Look. Scan what you order and tap it in. secondlook://challenge/${ch.id}` });
 }
 
 export function ordinalShort(n: number) {
@@ -367,13 +320,7 @@ const styles = StyleSheet.create({
   keyRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   card: { borderRadius: radius.card, overflow: 'hidden' },
   tier: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
-  howFoot: { paddingHorizontal: space.lg, paddingVertical: space.md },
-  playerTop: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  track: { height: 10, borderRadius: 5, overflow: 'hidden' },
-  segments: { height: 10, flexDirection: 'row', gap: 2 },
-  legendRow: { flexDirection: 'row', gap: space.lg },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  swatch: { width: 10, height: 10, borderRadius: 3 },
+  leader: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
   play: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
   emoji: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   medal: { alignItems: 'center', justifyContent: 'center' },

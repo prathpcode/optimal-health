@@ -192,7 +192,7 @@ export function MealCard({ scanId }: { scanId: string }) {
   const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
   if (meal === undefined) return null;
 
-  const open = () => router.push({ pathname: '/ate/[scanId]', params: { scanId } });
+  const open = () => router.push({ pathname: '/share/[scanId]', params: { scanId } });
   return (
     <Tap accessibilityRole="button" accessibilityLabel={meal ? `You ordered ${meal.dishName}. Change` : 'What did you order?'} feedback="tap" scaleTo={0.98} onPress={open}>
       <GlassSurface tone="theme" interactive style={styles.row}>
@@ -204,7 +204,7 @@ export function MealCard({ scanId }: { scanId: string }) {
             {meal ? meal.dishName : 'What did you order?'}
           </T>
           <T variant="caption" tone="secondary">
-            {meal ? 'Logged · tap to change' : 'Log it to score your challenges'}
+            {meal ? 'Logged · tap to change or share' : 'Log it, share it if you like'}
           </T>
         </View>
         <Icon name="chevron" size={14} color={c.textTertiary} />

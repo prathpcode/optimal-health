@@ -69,9 +69,9 @@ export default function RootLayout() {
             <Stack.Screen name="item/[slug]/[id]" />
             <Stack.Screen name="compose/[slug]" options={sheet([0.75, 0.95])} />
             <Stack.Screen name="challenge/new" options={sheet([0.85])} />
+            <Stack.Screen name="challenge/how/[id]" options={sheet([0.7, 0.95])} />
             <Stack.Screen name="join/[slug]" options={sheet([0.5])} />
             <Stack.Screen name="share/[scanId]" options={sheet([0.75, 0.95])} />
-            <Stack.Screen name="ate/[scanId]" options={sheet([0.7, 0.95])} />
           </Stack>
           <CelebrationLayer />
           <Presence />

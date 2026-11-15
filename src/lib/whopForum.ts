@@ -4,6 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import whopRooms from '../../data/whopRooms.json';
+import { createLikes, type LikeView } from './likes';
 import { itemLink, readItemLink, type SharedItem } from './sharedItem';
 import { currentAccount, useWhopAccount, whopAccessToken } from './whop';
 
@@ -97,7 +98,7 @@ type WhopPost = {
   created_at: string;
   parent_id: string | null;
   is_pinned: boolean;
-  like_count: number;
+  like_count: number | null;
   comment_count: number;
   user: { id: string; username?: string | null; name?: string | null } | null;
   attachments?: { url?: string | null; width?: number | null; height?: number | null; content_type?: string | null }[];
@@ -143,11 +144,17 @@ function toPost(p: WhopPost, meId: string | undefined): Post {
       ...inline,
     ],
     dish: parsed?.dish,
-    likes: p.like_count,
+    likes: p.like_count ?? 0,
     comments: p.comment_count,
     pinned: p.is_pinned,
   };
 }
+
+// Whop has no way to delete a forum post, so a deleted post is one its author emptied: the words, title and photos
+// are replaced with this line (which is what Whop then shows), and the app leaves such posts out everywhere.
+const DELETED = '*This post was deleted.*';
+const deleted = new Set<string>();
+const live = (p: WhopPost) => !deleted.has(p.id) && (p.content ?? '').trim() !== DELETED;
 
 // One cache per feed (a room's posts, or a post's comments), so screens open instantly.
 type Feed = { items: Post[]; loaded: boolean; error?: string };
@@ -185,7 +192,7 @@ function useFeed(key: string, load: () => Promise<void>, everyMs: number, enable
 
 async function loadPosts(key: string, query: string, meId: string | undefined, newestFirst: boolean) {
   try {
-    const page = await whop<{ data: WhopPost[] }>(`/forum_posts?${query}&first=40`);
+    const page = { data: (await whop<{ data: WhopPost[] }>(`/forum_posts?${query}&first=40`)).data.filter(live) };
     noteLikes(page.data, meId);
     await Promise.all([...new Set(page.data.map((p) => p.user?.id).filter((x): x is string => Boolean(x)))].map(avatarFor));
     const fresh = page.data.map((p) => toPost(p, meId)).sort((a, b) => (newestFirst ? b.at - a.at : a.at - b.at));
@@ -225,7 +232,7 @@ export function useLatestPosts(slugs: string[], limit = 6): { items: (Post & { r
           .filter((slug) => ROOMS[slug]?.forumId)
           .map(async (slug) => {
             const page = await whop<{ data: WhopPost[] }>(`/forum_posts?experience_id=${ROOMS[slug].forumId}&first=10`);
-            return page.data.map((p) => ({ p, slug }));
+            return page.data.filter(live).map((p) => ({ p, slug }));
           }),
       );
       const all = pages.flat();
@@ -272,7 +279,14 @@ async function uploadPhoto(uri: string): Promise<string> {
   const blob = await (await fetch(small.uri)).blob();
   const put = await fetch(file.upload_url, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg', ...(file.upload_headers ?? {}) }, body: blob });
   if (!put.ok) throw new Error('Photo upload failed');
-  return file.id;
+  // Whop processes the file after the bytes land; attaching it before it is ready is refused.
+  for (let i = 0; i < 40; i++) {
+    const { upload_status } = await whop<{ upload_status?: string }>(`/files/${file.id}`);
+    if (upload_status === 'ready') return file.id;
+    if (upload_status === 'failed') throw new Error('Whop could not process the photo');
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error('The photo is taking too long to upload. Try again in a moment.');
 }
 
 export type NewPost = { title?: string; text?: string; photoUri?: string; dish?: SharedDish };
@@ -329,188 +343,102 @@ export async function commentOn(slug: string, postId: string, text: string, me: 
   void loadPosts(`room:${slug}`, `experience_id=${forum}`, me.id, true);
 }
 
+/** Delete your own post or reply: gone from every feed at once, and emptied on Whop. Comes back if Whop refuses. */
+export async function deletePost(slug: string, post: Pick<Post, 'id' | 'title' | 'dish'>) {
+  const me = currentAccount()?.userId;
+  deleted.add(post.id);
+  const before = new Map<string, Post[]>();
+  for (const [key, feed] of feeds) {
+    if (!feed.items.some((p) => p.id === post.id)) continue;
+    before.set(key, feed.items);
+    setFeed(key, { items: feed.items.filter((p) => p.id !== post.id) });
+  }
+  try {
+    // A title cannot be emptied, so one that exists is replaced too.
+    const hadTitle = Boolean(post.title || post.dish);
+    await whop(`/forum_posts/${post.id}`, { method: 'PATCH', body: { content: DELETED, attachments: [], ...(hadTitle ? { title: 'Deleted' } : {}) } });
+    const forum = ROOMS[slug]?.forumId;
+    if (forum) void loadPosts(`room:${slug}`, `experience_id=${forum}`, me, true); // Reply counts.
+  } catch (e) {
+    deleted.delete(post.id);
+    for (const [key, items] of before) setFeed(key, { items });
+    throw e;
+  }
+}
+
 // ── Likes ────────────────────────────────────────────────────────────────────────────────────────────────────────
 //
-// Whop's posts carry a like count but not whether you liked them, so that is kept here, per post id, for every
-// screen at once (a room, Latest on Together, a post and its comments all read the same state):
-// - `mine` is whether you liked it. It starts from what this phone remembers (SecureStore, per Whop account) and is
-//   checked against the post's reactions on Whop whenever its count is one we have not checked yet.
-// - `counts` is the newest like count any feed has seen.
-// - A tap shows at once and holds until Whop's count moves (or a short while passes), so a poll that lands before
-//   Whop has counted the tap cannot flip the heart back.
+// The rules live in ./likes.ts (and its tests); this is only how they reach Whop and the phone's storage.
 
-const HEART = ':heart:';
-const REMEMBER = 100;
-const HOLD_MS = 20_000;
+type WhopReactions = { data: { id: string; user: { id: string } | null }[]; page_info?: { end_cursor?: string | null; has_next_page?: boolean } };
 
-type Toggle = { liked: boolean; likes: number; base: number; done: boolean; at: number };
+// The biggest page Whop will give; dropped to its default if it refuses the size.
+let reactionPage: number | undefined = 100;
 
-let likeOwner: string | undefined;
-const counts = new Map<string, number>();
-const mine = new Map<string, boolean>();
-const checkedAt = new Map<string, number>();
-const reactionIds = new Map<string, string>();
-const toggles = new Map<string, Toggle>();
-const checking = new Set<string>();
-let likeVersion = 0;
-const likeListeners = new Set<() => void>();
-const emitLikes = () => {
-  likeVersion++;
-  likeListeners.forEach((l) => l());
-};
+const likeStoreKey = (userId: string) => `fit.likes.${userId.replace(/[^A-Za-z0-9._-]/g, '_')}`;
 
-const storeKey = (userId: string) => `fit.likes.${userId.replace(/[^A-Za-z0-9._-]/g, '_')}`;
-
-function rememberLikes() {
-  const owner = likeOwner;
-  if (!owner) return;
-  const ids = [...mine].filter(([, v]) => v).map(([id]) => id).slice(-REMEMBER);
-  SecureStore.setItemAsync(storeKey(owner), JSON.stringify(ids)).catch(() => {});
-}
-
-/** Likes belong to one Whop account: a different sign-in starts clean and reads what this phone remembers for it. */
-function ownLikes(userId: string | undefined) {
-  if (userId === likeOwner) return;
-  likeOwner = userId;
-  mine.clear();
-  checkedAt.clear();
-  reactionIds.clear();
-  toggles.clear();
-  emitLikes();
-  if (!userId) return;
-  SecureStore.getItemAsync(storeKey(userId))
-    .catch(() => null)
-    .then((raw) => {
-      if (likeOwner !== userId || !raw) return;
+const likes = createLikes(
+  {
+    async list(postId, after) {
+      const query = (size: number | undefined) =>
+        `/reactions?resource_id=${encodeURIComponent(postId)}${size ? `&first=${size}` : ''}${after ? `&after=${encodeURIComponent(after)}` : ''}`;
+      let res: WhopReactions;
       try {
-        // Only fills posts not yet checked against Whop; a check always wins.
-        for (const id of JSON.parse(raw) as string[]) if (!mine.has(id)) mine.set(id, true);
-        emitLikes();
-      } catch {
-        // Unreadable: Whop will tell us.
+        res = await whop<WhopReactions>(query(reactionPage));
+      } catch (e) {
+        if (!(e instanceof WhopError) || e.status !== 400 || !reactionPage) throw e;
+        reactionPage = undefined;
+        res = await whop<WhopReactions>(query(undefined));
       }
-    });
-}
+      // In a forum every reaction is a like, whatever emoji it carries.
+      return {
+        reactions: res.data.map((r) => ({ id: r.id, userId: r.user?.id })),
+        next: res.page_info?.has_next_page && res.page_info.end_cursor ? res.page_info.end_cursor : undefined,
+      };
+    },
+    async add(postId) {
+      const r = await whop<{ id?: string }>('/reactions', { method: 'POST', body: { resource_id: postId, emoji: ':heart:' } });
+      return r.id;
+    },
+    async remove(target) {
+      await whop('reactionId' in target ? `/reactions/${target.reactionId}` : `/reactions/${target.postId}?emoji=${encodeURIComponent(':heart:')}`, { method: 'DELETE' });
+    },
+  },
+  {
+    async read(userId) {
+      const raw = await SecureStore.getItemAsync(likeStoreKey(userId));
+      const ids: unknown = raw ? JSON.parse(raw) : [];
+      return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : [];
+    },
+    write(userId, postIds) {
+      SecureStore.setItemAsync(likeStoreKey(userId), JSON.stringify(postIds)).catch(() => {});
+    },
+  },
+  {
+    onError: (e) => {
+      if (__DEV__) console.warn('[likes] could not read reactions from Whop:', e instanceof Error ? e.message : e);
+    },
+  },
+);
 
-function setMine(postId: string, liked: boolean) {
-  // Re-inserting keeps the newest likes last, so the remembered list keeps the most recent ones.
-  mine.delete(postId);
-  mine.set(postId, liked);
-}
-
-/** Whether you have liked one post, from its reactions on Whop (paged; most posts have one page). */
-async function checkLike(postId: string, count: number, userId: string) {
-  if (checking.has(postId)) return;
-  checking.add(postId);
-  const started = Date.now();
-  try {
-    let after: string | undefined;
-    let found: string | undefined;
-    for (let page = 0; page < 5 && !found; page++) {
-      const res = await whop<{ data: { id: string; emoji: string | null; user: { id: string } | null }[]; page_info?: { end_cursor?: string | null; has_next_page?: boolean } }>(
-        `/reactions?resource_id=${postId}&first=100${after ? `&after=${encodeURIComponent(after)}` : ''}`,
-      );
-      found = res.data.find((r) => r.user?.id === userId && (r.emoji === null || r.emoji === HEART))?.id;
-      if (!res.page_info?.has_next_page || !res.page_info.end_cursor) break;
-      after = res.page_info.end_cursor;
-    }
-    // A tap since the check started, or a different account, makes this answer stale.
-    const t = toggles.get(postId);
-    if (likeOwner !== userId || (t && t.at >= started)) return;
-    setMine(postId, Boolean(found));
-    if (found) reactionIds.set(postId, found);
-    else reactionIds.delete(postId);
-    checkedAt.set(postId, count);
-    rememberLikes();
-    emitLikes();
-  } catch {
-    // Try again on the next load.
-  } finally {
-    checking.delete(postId);
-  }
-}
-
-/** Every feed load passes its posts through here: newest counts, settled taps, and a check of anything unchecked. */
 function noteLikes(posts: WhopPost[], userId: string | undefined) {
-  ownLikes(userId);
-  const now = Date.now();
-  const toCheck: [string, number][] = [];
-  for (const p of posts) {
-    counts.set(p.id, p.like_count);
-    const t = toggles.get(p.id);
-    if (t && t.done && (p.like_count !== t.base || now - t.at > HOLD_MS)) toggles.delete(p.id);
-    if (toggles.has(p.id) || !userId) continue;
-    if (p.like_count === 0) {
-      setMine(p.id, false);
-      reactionIds.delete(p.id);
-      checkedAt.set(p.id, 0);
-    } else if (checkedAt.get(p.id) !== p.like_count) {
-      toCheck.push([p.id, p.like_count]);
-    }
-  }
-  emitLikes();
-  if (userId) {
-    // A few at a time, so a fresh room does not fire forty requests at once.
-    void (async () => {
-      for (let i = 0; i < toCheck.length; i += 4) {
-        await Promise.all(toCheck.slice(i, i + 4).map(([id, n]) => checkLike(id, n, userId)));
-      }
-    })();
-  }
-}
-
-function likeOf(postId: string, fallback: number): { liked: boolean; likes: number } {
-  const t = toggles.get(postId);
-  if (t) return { liked: t.liked, likes: t.likes };
-  return { liked: mine.get(postId) ?? false, likes: counts.get(postId) ?? fallback };
+  likes.seen(
+    posts.map((p) => ({ id: p.id, count: p.like_count })),
+    userId,
+  );
 }
 
 /** Whether you liked a post and how many likes it has, the same on every screen. */
-export function useLike(post: Pick<Post, 'id' | 'likes'>): { liked: boolean; likes: number } {
-  useSyncExternalStore(
-    useCallback((l: () => void) => {
-      likeListeners.add(l);
-      return () => likeListeners.delete(l);
-    }, []),
-    () => likeVersion,
-  );
-  return likeOf(post.id, post.likes);
+export function useLike(post: Pick<Post, 'id' | 'likes'>): LikeView {
+  useSyncExternalStore(likes.subscribe, likes.version);
+  return likes.view(post.id, post.likes);
 }
 
 /** Like a post, or take the like back. Shows at once; undone if Whop says no. */
-export async function toggleLike(postId: string) {
+export function toggleLike(postId: string): Promise<void> {
   const userId = currentAccount()?.userId;
-  if (!userId) throw new WhopError(401, 'Sign in with Whop again.');
-  ownLikes(userId);
-  const t = toggles.get(postId);
-  if (t && !t.done) return; // One request per post at a time.
-  const before = likeOf(postId, counts.get(postId) ?? 0);
-  const liked = !before.liked;
-  const base = t ? t.base : (counts.get(postId) ?? before.likes);
-  toggles.set(postId, { liked, likes: Math.max(0, before.likes + (liked ? 1 : -1)), base, done: false, at: Date.now() });
-  emitLikes();
-  try {
-    if (liked) {
-      const r = await whop<{ id?: string }>('/reactions', { method: 'POST', body: { resource_id: postId, emoji: HEART } });
-      if (r.id) reactionIds.set(postId, r.id);
-    } else {
-      const id = reactionIds.get(postId);
-      await whop(id ? `/reactions/${id}` : `/reactions/${postId}?emoji=${encodeURIComponent(HEART)}`, { method: 'DELETE' });
-      reactionIds.delete(postId);
-    }
-    if (likeOwner !== userId) return;
-    setMine(postId, liked);
-    // Check again once the tap settles, in case the post was already liked elsewhere (on Whop, another phone).
-    checkedAt.delete(postId);
-    rememberLikes();
-    const now = toggles.get(postId);
-    if (now) toggles.set(postId, { ...now, done: true });
-    emitLikes();
-  } catch (e) {
-    toggles.delete(postId);
-    emitLikes();
-    throw e;
-  }
+  if (!userId) return Promise.reject(new WhopError(401, 'Sign in with Whop again.'));
+  return likes.toggle(postId, userId);
 }
 
 // ── Access ───────────────────────────────────────────────────────────────────────────────────────────────────────

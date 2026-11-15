@@ -48,7 +48,7 @@ export default function ShareAMeal() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.xxl, paddingBottom: insets.bottom + space.xxxl, gap: space.xl }} showsVerticalScrollIndicator={false}>
-      <View style={{ gap: space.md, zIndex: 10 }}>
+      <View style={{ zIndex: 10 }}>
         <T variant="heading">Share a meal</T>
         <RoomSelect rooms={rooms} value={slug} onChange={setSlug} locked={Boolean(fixed)} />
       </View>

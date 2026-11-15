@@ -11,7 +11,7 @@ export const spring = {
   pop: { damping: 9, stiffness: 320, mass: 0.8 } satisfies WithSpringConfig,
 };
 
-export const duration = { fast: 160, base: 240, slow: 420, ring: 700, sweep: 1400 } as const;
+export const duration = { fast: 160, base: 240, slow: 420, ring: 700, sweep: 1400, /** A celebration's title stays up this long. */ cheer: 2200, /** Confetti drifting from the top of the screen to the bottom. */ confetti: 4200 } as const;
 
 export const ease = Easing.bezier(0.2, 0, 0, 1);
 

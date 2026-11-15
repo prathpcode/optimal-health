@@ -17,6 +17,7 @@ const ICONS = {
   checkCircle: { ios: 'checkmark.circle.fill', android: 'check_circle' },
   block: { ios: 'xmark.octagon.fill', android: 'block' },
   question: { ios: 'questionmark.circle.fill', android: 'help' },
+  info: { ios: 'info', android: 'info' },
   note: { ios: 'info.circle.fill', android: 'info' },
   sparkle: { ios: 'sparkles', android: 'auto_awesome' },
   allergy: { ios: 'allergens', android: 'emergency' },

@@ -4,7 +4,7 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { confirmLeave, HowToWin, inviteToChallenge, ordinalShort, PlayFeed, RaceBoard } from '@/components/challenge';
+import { confirmLeave, inviteToChallenge, Leaderboard, PlayFeed, raceLine } from '@/components/challenge';
 import { GlassButton } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
 import { Podium } from '@/components/Podium';
@@ -12,7 +12,7 @@ import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { attempt, GlassAction, SectionTitle } from '@/components/together';
 import { celebrate } from '@/lib/celebrate';
-import { countdown, joinChallenge, PREVIEW, useChallenge, type ChallengeView } from '@/lib/community';
+import { countdown, joinChallenge, PREVIEW, useChallenge } from '@/lib/community';
 import { goBack } from '@/lib/nav';
 import { enterAt, gutter, radius, space, useTheme } from '@/theme';
 
@@ -58,17 +58,20 @@ export default function ChallengeScreen() {
     ]);
 
   const sub = ch.status === 'live' ? `Day ${ch.dayNumber} of ${ch.days} · ${countdown(ch)}` : countdown(ch);
+  const line = raceLine(ch);
+  const podium = ch.status !== 'upcoming' && ch.standings.length > 0;
   const alone = ch.standings.length <= 1 && ch.status !== 'ended';
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + space.md, paddingHorizontal: gutter, paddingBottom: insets.bottom + 62 + space.huge, gap: space.xxxl }}
+        contentContainerStyle={{ paddingTop: insets.top + space.md, paddingHorizontal: gutter, paddingBottom: insets.bottom + 62 + space.huge, gap: space.xxl }}
         showsVerticalScrollIndicator={false}>
-        <View style={{ gap: space.xl }}>
+        <View style={{ gap: space.lg }}>
           <View style={styles.topBar}>
             <GlassButton tone="theme" icon="back" label="Back" onPress={goBack} />
             <View style={styles.topActions}>
+              <GlassButton tone="theme" icon="info" label="How scoring works" onPress={() => router.push({ pathname: '/challenge/how/[id]', params: { id: ch.id } })} />
               {ch.status !== 'ended' ? <GlassButton tone="theme" icon="share" label="Invite friends" onPress={invite} /> : null}
               {canLeave ? <GlassButton tone="theme" icon="more" label="Race options" onPress={options} /> : null}
             </View>
@@ -83,19 +86,15 @@ export default function ChallengeScreen() {
           </View>
         </View>
 
-        <Animated.View entering={enterAt(0, reduced)} style={{ gap: space.lg }}>
-          <Total ch={ch} />
-          <View>
-            <SectionTitle title="How to win" />
-            <HowToWin ch={ch} />
-          </View>
-        </Animated.View>
-
-        <Animated.View entering={enterAt(1, reduced)}>
-          <SectionTitle title={ch.status === 'ended' ? 'Final standings' : 'Standings'} />
-          <View style={{ gap: space.sm }}>
-            {ch.status !== 'upcoming' && ch.standings.length ? <Podium standings={ch.standings} /> : null}
-            <RaceBoard ch={ch} />
+        <Animated.View entering={enterAt(0, reduced)}>
+          <View style={{ gap: space.md }}>
+            {line ? (
+              <T variant="bodyStrong" tone="secondary">
+                {line}
+              </T>
+            ) : null}
+            {podium ? <Podium standings={ch.standings} /> : null}
+            <Leaderboard ch={ch} from={podium ? 3 : 0} />
             {alone ? (
               <Tap accessibilityRole="button" accessibilityLabel="Invite a friend" onPress={invite} scaleTo={0.98}>
                 <View style={[styles.invite, { borderColor: c.hairline }]}>
@@ -110,8 +109,8 @@ export default function ChallengeScreen() {
         </Animated.View>
 
         {ch.status !== 'upcoming' ? (
-          <Animated.View entering={enterAt(2, reduced)}>
-            <SectionTitle title="What everyone ordered" />
+          <Animated.View entering={enterAt(1, reduced)}>
+            <SectionTitle title="Food history" />
             <PlayFeed ch={ch} />
           </Animated.View>
         ) : null}
@@ -131,48 +130,9 @@ export default function ChallengeScreen() {
   );
 }
 
-/** Your points, big, with where they put you. Before the start, the countdown. */
-function Total({ ch }: { ch: ChallengeView }) {
-  const me = ch.me;
-  if (ch.status === 'upcoming') {
-    return (
-      <View style={styles.totalRow}>
-        <T variant="heroBold" style={styles.big}>
-          {countdown(ch).replace('Starts in ', '')}
-        </T>
-        <T variant="hero" tone="secondary" style={styles.unit}>
-          to go
-        </T>
-      </View>
-    );
-  }
-  const place = me && ch.standings.length > 1 ? `${ordinalShort(me.rank)} of ${ch.standings.length}` : null;
-  return (
-    <View style={{ gap: space.xs }} accessibilityLabel={me ? `${me.points} points${place ? `, ${place}` : ''}` : `${ch.standings.length} racing`}>
-      <View style={styles.totalRow}>
-        <T variant="heroBold" style={styles.big}>
-          {me ? me.points : ch.standings.length}
-        </T>
-        <T variant="hero" tone="secondary" style={styles.unit}>
-          {me ? (me.points === 1 ? 'point' : 'points') : 'racing'}
-        </T>
-      </View>
-      {place ? (
-        <T variant="bodyStrong" tone="secondary">
-          {place}
-        </T>
-      ) : null}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   topActions: { flexDirection: 'row', gap: space.sm },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  totalRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
-  big: { fontSize: 72, lineHeight: 78, letterSpacing: -2, fontVariant: ['tabular-nums'] },
-  unit: { fontSize: 28, lineHeight: 34 },
   invite: { flexDirection: 'row', gap: space.sm, height: 56, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
-  leave: { height: 44, alignItems: 'center', justifyContent: 'center' },
   cta: { position: 'absolute', left: gutter, right: gutter },
 });

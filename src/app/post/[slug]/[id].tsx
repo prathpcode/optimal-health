@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/community';
 import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
-import { PostCard, timeAgo } from '@/components/post';
+import { PostCard, PostMenu, timeAgo } from '@/components/post';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { postWithWhop } from '@/components/together';
@@ -48,7 +48,7 @@ export default function PostScreen() {
             <T variant="heading">{comments.length ? `${comments.length} ${comments.length === 1 ? 'reply' : 'replies'}` : loaded ? 'No replies yet' : 'Replies'}</T>
           </View>
         }
-        renderItem={({ item }) => <Comment p={item} />}
+        renderItem={({ item }) => <Comment p={item} slug={slug} />}
         ItemSeparatorComponent={Gap}
         contentContainerStyle={{ paddingHorizontal: gutter, paddingBottom: space.xl }}
         keyboardDismissMode="interactive"
@@ -79,7 +79,7 @@ function Gap() {
   return <View style={{ height: space.md }} />;
 }
 
-function Comment({ p }: { p: Post }) {
+function Comment({ p, slug }: { p: Post; slug: string }) {
   return (
     <View style={[styles.comment, p.pending ? { opacity: 0.55 } : null]}>
       <Avatar name={p.author} url={p.avatarUrl} size={30} />
@@ -92,6 +92,7 @@ function Comment({ p }: { p: Post }) {
         </View>
         <T>{p.text}</T>
       </View>
+      <PostMenu post={p} slug={slug} />
     </View>
   );
 }
