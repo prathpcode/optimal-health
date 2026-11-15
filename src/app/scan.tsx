@@ -1,4 +1,4 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -189,12 +189,44 @@ export default function ScanScreen() {
     }
   };
 
-  // One camera, no mode picker (PLAN 5): a product barcode fires on its own with a haptic tap.
-  const onBarcode = async ({ data }: { data: string }) => {
+  // ---- Barcodes. One camera, no mode picker, but a barcode in view is only pointed out, not acted on: with two
+  // products on a table, or a shelf edge full of price tags, the camera cannot know which one is meant. Each
+  // barcode it sees is outlined where it is, and tapping one scans that one.
+  const [codes, setCodes] = useState<{ data: string; rect: Rect; at: number }[]>([]);
+  const sawBarcode = (found: BarcodeScanningResult) => {
+    if (!found.data || barcodeSeen.current || capturing.current) return;
+    // Where it is on the screen: its corners when the camera gives them, otherwise the area it reports.
+    const xs = found.cornerPoints?.map((p) => p.x) ?? [];
+    const ys = found.cornerPoints?.map((p) => p.y) ?? [];
+    const rect: Rect =
+      xs.length >= 3
+        ? { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) }
+        : { x: found.bounds?.origin?.x ?? 0, y: found.bounds?.origin?.y ?? 0, width: found.bounds?.size?.width ?? 0, height: found.bounds?.size?.height ?? 0 };
+    const now = Date.now();
+    setCodes((prev) => {
+      const old = prev.find((c) => c.data === found.data);
+      // The camera reports the same barcode many times a second: only redraw when it has moved or been a while.
+      if (old && now - old.at < 250 && Math.abs(old.rect.x - rect.x) < 6 && Math.abs(old.rect.y - rect.y) < 6) return prev;
+      return [...prev.filter((c) => c.data !== found.data && now - c.at < 1500), { data: found.data, rect, at: now }];
+    });
+  };
+  // A barcode that has left the picture loses its outline.
+  useEffect(() => {
+    if (!codes.length) return;
+    const t = setTimeout(() => setCodes((prev) => prev.filter((c) => Date.now() - c.at < 1500)), 600);
+    return () => clearTimeout(t);
+  }, [codes]);
+
+  const scanBarcode = async (data: string) => {
     if (!startBarcode || !deviceId || barcodeSeen.current || phase !== 'live' || capturing.current) return;
     barcodeSeen.current = true;
     haptic.success();
+    setCodes([]);
+    setPicked(null);
+    setShelfBoxes([]);
     setPhase('uploading');
+    // If the look loop is in the middle of a still, let it finish: the camera takes one picture at a time.
+    await lookShot.current;
     // Take a photo of the product at the same moment, so the scan has a picture (for Home and for sharing it).
     // It doesn't hold up the scan, and the scan still works from the barcode alone if the photo fails.
     const shot = camera.current
@@ -322,7 +354,7 @@ export default function ScanScreen() {
         animateShutter={false}
         onCameraReady={() => setReady(true)}
         barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'] }}
-        onBarcodeScanned={startBarcode && phase === 'live' ? onBarcode : undefined}
+        onBarcodeScanned={startBarcode && phase === 'live' ? sawBarcode : undefined}
       />
 
       {/* Frozen photo, drawn exactly as the result screen will draw it, so the hand-off has no jump. */}
@@ -336,7 +368,29 @@ export default function ScanScreen() {
       {/* On a shelf the boxes are the frame: the brackets and the framing hint step aside. */}
       {onShelf ? <ShelfMarks boxes={shelfBoxes} rects={shelfRects} picked={picked} reduced={!!reduced} onPick={(b) => (haptic.tap(), setPicked(b))} /> : <Brackets rect={stillRect ?? liveFrame} breathing={phase === 'live'} />}
 
-      {hint && phase === 'live' && !onShelf ? (
+      {/* Each barcode in view, outlined where it is. Tapping one scans it. */}
+      {phase === 'live'
+        ? codes.map((code) => {
+            // Never so small that it cannot be tapped, wherever the barcode is and however far away.
+            const w = Math.max(code.rect.width + 20, 72), h = Math.max(code.rect.height + 20, 56);
+            const cx = code.rect.x + code.rect.width / 2, cy = code.rect.y + code.rect.height / 2;
+            return (
+              <Animated.View key={code.data} entering={reduced ? undefined : FadeIn.duration(duration.fast)} exiting={FadeOut.duration(duration.fast)} style={{ position: 'absolute', left: cx - w / 2, top: cy - h / 2, width: w, alignItems: 'center' }}>
+                <Tap accessibilityRole="button" accessibilityLabel="Scan this barcode" feedback="tap" hitSlop={10} scaleTo={0.96} onPress={() => scanBarcode(code.data)} style={{ alignItems: 'center', gap: 6 }}>
+                  <View style={[styles.code, { width: w, height: h }]} />
+                  <View style={styles.codeTag}>
+                    <Icon name="barcode" size={13} color={onPhoto.chipText} />
+                    <T variant="caption" color={onPhoto.chipText} style={{ fontWeight: '700' }}>
+                      Tap to scan
+                    </T>
+                  </View>
+                </Tap>
+              </Animated.View>
+            );
+          })
+        : null}
+
+      {hint && phase === 'live' && !onShelf && !codes.length ? (
         <Animated.View entering={FadeIn.delay(400)} exiting={FadeOut.duration(duration.base)} style={[styles.hint, { top: liveFrame.y + liveFrame.height / 2 - 18 }]} pointerEvents="none">
           <GlassSurface style={styles.hintPill}>
             <T variant="bodyStrong" color={onPhoto.text}>
@@ -407,7 +461,7 @@ export default function ScanScreen() {
 
         {picked && onShelf ? null : (
           <T variant="caption" color={onPhoto.textSecondary}>
-            {onShelf ? 'Tap a box for the product' : 'Menu, shelf, item or barcode'}
+            {codes.length ? (codes.length === 1 ? 'Tap the barcode to scan it' : 'Tap the barcode you want to scan') : onShelf ? 'Tap a box for the product' : 'Menu, shelf, item or barcode'}
           </T>
         )}
       </View>
@@ -421,6 +475,8 @@ const styles = StyleSheet.create({
   hint: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   hintPill: { paddingHorizontal: space.lg, paddingVertical: space.sm + 2 },
   shelfPill: { height: 40, paddingHorizontal: space.lg, justifyContent: 'center', maxWidth: 240 },
+  code: { borderRadius: radius.sm + 2, borderWidth: 3.5, borderColor: onPhoto.text, backgroundColor: 'rgba(255,255,255,0.18)', boxShadow: '0 0 0 1.5px rgba(0,0,0,0.55)' },
+  codeTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: onPhoto.chip, borderRadius: radius.chip, paddingHorizontal: 10, paddingVertical: 5 },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', gap: space.xl },
   shutterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch', paddingHorizontal: space.xxxl + space.sm },
   shutter: { width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: onPhoto.text, alignItems: 'center', justifyContent: 'center' },
