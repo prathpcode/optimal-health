@@ -1,0 +1,50 @@
+{
+  "about": "Group challenge templates. Curated only: no free-text goals, nothing about medications, fasting or weight. proof 'scans' is counted from the player's own scans; 'checkin' from a daily yes/no the whole group can see. minToPlacePct is the share of the maximum points a player needs before they can place.",
+  "templates": [
+    {
+      "id": "scan_before_order",
+      "title": "Scan before you order",
+      "blurb": "Check at least one menu or product every day.",
+      "proof": "scans",
+      "count": "days",
+      "perDayMax": 1,
+      "minToPlacePct": 70
+    },
+    {
+      "id": "scan_every_meal_out",
+      "title": "Scan every meal out",
+      "blurb": "A point for every scan, up to three a day.",
+      "proof": "scans",
+      "count": "scans",
+      "perDayMax": 3,
+      "minToPlacePct": 50
+    },
+    {
+      "id": "no_added_sugar",
+      "title": "No added sugar",
+      "blurb": "Check in each day you skipped added sugar.",
+      "proof": "checkin",
+      "count": "days",
+      "perDayMax": 1,
+      "minToPlacePct": 70
+    },
+    {
+      "id": "under_sodium_limit",
+      "title": "Stay under your salt limit",
+      "blurb": "Check in each day you kept to your sodium limit.",
+      "proof": "checkin",
+      "count": "days",
+      "perDayMax": 1,
+      "minToPlacePct": 70
+    },
+    {
+      "id": "cook_at_home",
+      "title": "Cook at home",
+      "blurb": "Check in each day you cooked a meal yourself.",
+      "proof": "checkin",
+      "count": "days",
+      "perDayMax": 1,
+      "minToPlacePct": 70
+    }
+  ]
+}
