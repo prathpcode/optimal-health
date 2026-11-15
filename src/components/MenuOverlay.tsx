@@ -19,38 +19,42 @@ import Animated, {
 
 import type { Box, Fit, Item, Rule, Verdict } from '@engine/types';
 import { tagLabel } from '@engine/tags';
-import { boxToRect, DOT, estimateChipWidth, placeChips, unionBox, type Rect } from '@/lib/layout';
+import { boxToRect, estimateChipWidth, unionBox, type Rect } from '@/lib/layout';
 import { fitColor } from '@/lib/verdict';
 import { duration, onPhoto, palette, radius, shadow, space, spring } from '@/theme';
 import { T } from './T';
 import { Tap } from './Tap';
 import { VerdictDot } from './ui';
 
-// Chip heights: 7 + 18 + 7 padding plus a 2 pt border each side; the second line adds 16.
-const CHIP_ONE = 36;
-const CHIP_TWO = 52;
-// Chips sit on the photo, so they use the light palette in both themes (like a label stuck on paper).
+// Labels sit on the photo, so they use the light palette in both themes (like a label stuck on paper).
 const light = palette.light;
+const LABEL_HEIGHT = 52;
+const LABEL_GAP = 6;
 
-/** The second line of a chip: whose rule this is, in a few words. */
-function chipReason(verdict: Verdict | undefined, rules: Rule[]): string | null {
+/** The second line of a label: whose rule this is, in a few words. */
+function labelReason(verdict: Verdict | undefined, rules: Rule[]): string | null {
   if (!verdict) return null;
   const ruleOf = (id?: string) => rules.find((r) => r.id === id);
   if (verdict.fit === 'not_fit') {
     const f = verdict.findings.find((x) => x.outcome === 'blocked');
     const r = ruleOf(f?.ruleId);
-    return r ? `${capital(tagLabel(r.tag))} · ${r.from.label}` : null;
+    return r ? `${capital(tagLabel(r.tag))} · ${r.from.label}` : 'Not a fit';
   }
   if (verdict.fit === 'cant_tell') {
     const f = verdict.findings.find((x) => x.outcome === 'ask');
     const r = ruleOf(f?.ruleId);
     return r ? `Ask about ${tagLabel(r.tag)}` : 'Ask your server';
   }
-  return null;
+  return verdict.fit === 'good' ? 'Good fit' : 'Okay, with notes';
 }
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+/**
+ * A box around each dish on the photo, in its verdict's colour. The boxes carry the result on their own: nothing is
+ * laid over the menu's text, so it stays readable. Tapping a box selects the dish, and only the selected dish gets a
+ * label, placed just above its box (or below, when there is no room above).
+ */
 export function MenuOverlay({
   photo,
   bounds,
@@ -62,161 +66,125 @@ export function MenuOverlay({
   onSelect,
 }: {
   photo: Rect;
-  bounds: { width: number; height: number };
+  /** The part of the screen the overlay may draw in: `top` is where the top bar ends, `height` where the sheet begins. */
+  bounds: { width: number; height: number; top?: number };
   items: Item[];
   verdicts: Record<string, Verdict>;
   rules: Rule[];
-  /** Fast first-pass verdicts still being checked: each chip says "checking". */
+  /** Fast first-pass verdicts still being checked: boxes are drawn dashed until they are confirmed. */
   provisional?: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
-  const chips = useMemo(() => {
-    const withBox = items.filter((i) => i.position?.[0]);
-    const inputs = withBox.map((i) => {
-      const reason = chipReason(verdicts[i.id], rules);
-      const fit = verdicts[i.id]?.fit;
-      return {
-        id: i.id,
-        // The whole dish: its name and the description lines under it.
-        box: unionBox(i.position!),
-        height: reason ? CHIP_TWO : CHIP_ONE,
-        width: estimateChipWidth(i.name, reason),
-        important: fit === 'not_fit' || fit === 'cant_tell',
-      };
-    });
-    return placeChips(inputs, photo, bounds);
-  }, [items, verdicts, rules, photo, bounds]);
+  const boxes = useMemo(
+    () =>
+      items
+        .filter((i) => i.position?.[0])
+        // The whole dish: its name and the description lines under it. Top to bottom, so the stagger reads down the menu.
+        .map((i) => ({ item: i, rect: boxToRect(unionBox(i.position!), photo) }))
+        .sort((a, b) => a.rect.y - b.rect.y),
+    [items, photo],
+  );
 
   if (photo.width === 0) return null;
+  const selected = boxes.find((b) => b.item.id === selectedId);
+  const minTop = bounds.top ?? 0;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {chips.map((p, order) => {
-        const item = items.find((i) => i.id === p.id)!;
-        const verdict = verdicts[p.id];
-        return (
-          <DishMarker
-            key={p.id}
-            order={order}
-            item={item}
-            fit={verdict?.fit ?? null}
-            reason={chipReason(verdict, rules)}
-            mode={p.mode}
-            checking={provisional && !!verdict}
-            x={p.x}
-            y={p.y}
-            maxWidth={p.width}
-            outline={p.outline}
-            selected={selectedId === p.id}
-            onPress={() => onSelect(p.id)}
-          />
-        );
-      })}
+      {boxes.map(({ item, rect }, order) => (
+        <DishBox
+          key={item.id}
+          order={order}
+          item={item}
+          rect={rect}
+          fit={verdicts[item.id]?.fit ?? null}
+          checking={provisional && !!verdicts[item.id]}
+          selected={selectedId === item.id}
+          // A box that has slid under the top bar or the sheet is not a target.
+          hidden={rect.y + rect.height < minTop || rect.y > bounds.height}
+          onPress={() => onSelect(item.id)}
+        />
+      ))}
+      {selected ? (
+        <DishLabel
+          key={selected.item.id}
+          name={selected.item.name}
+          fit={verdicts[selected.item.id]?.fit ?? null}
+          reason={labelReason(verdicts[selected.item.id], rules)}
+          rect={selected.rect}
+          bounds={bounds}
+        />
+      ) : null}
     </View>
   );
 }
 
-function DishMarker({
-  order,
-  item,
-  fit,
-  reason,
-  mode,
-  checking,
-  x,
-  y,
-  maxWidth,
-  outline,
-  selected,
-  onPress,
-}: {
-  order: number;
-  item: Item;
-  fit: Fit | null;
-  reason: string | null;
-  mode: 'chip' | 'dot';
-  checking: boolean;
-  x: number;
-  y: number;
-  maxWidth: number;
-  outline: Rect;
-  selected: boolean;
-  onPress: () => void;
-}) {
+function DishBox({ order, item, rect, fit, checking, selected, hidden, onPress }: { order: number; item: Item; rect: Rect; fit: Fit | null; checking: boolean; selected: boolean; hidden: boolean; onPress: () => void }) {
   const reduced = useReducedMotion();
   const pop = useSharedValue(1);
-  const outlineOpacity = useSharedValue(0);
-  const top = useSharedValue(y);
+  const opacity = useSharedValue(0);
   const hadFit = useRef(fit !== null);
   const col = fit ? fitColor(fit, light).solid : onPhoto.textSecondary;
+  // Dishes that are out or need a question carry more weight than the ones that are fine.
+  const strong = fit === 'not_fit' || fit === 'cant_tell';
 
-  // The verdict "pop": once, when a verdict first lands on this chip, staggered down the menu.
   useEffect(() => {
+    // The verdict "pop": once, when a verdict first lands on this box, staggered down the menu.
     if (fit && !hadFit.current && !reduced) {
-      pop.value = withDelay(order * 60, withSequence(withTiming(1.07, { duration: 140 }), withSpring(1, spring.pop)));
+      pop.value = withDelay(order * 50, withSequence(withTiming(1.04, { duration: 140 }), withSpring(1, spring.pop)));
     }
     // The box is there as soon as the dish has a name: faint and grey until a verdict colours it.
-    outlineOpacity.value = withDelay(order * 60, withTiming(fit ? 1 : 0.6, { duration: 300 }));
+    opacity.value = withDelay(order * 50, withTiming(fit ? 1 : 0.6, { duration: 300 }));
     hadFit.current = fit !== null;
-  }, [fit, order, reduced, pop, outlineOpacity]);
+  }, [fit, order, reduced, pop, opacity]);
 
-  // Chips glide when the layout changes (a second line appears and pushes the ones below).
-  useEffect(() => {
-    top.value = reduced ? y : withSpring(y, spring.gentle);
-  }, [y, reduced, top]);
-
-  const chipStyle = useAnimatedStyle(() => ({ top: top.value, transform: [{ scale: pop.value }] }));
-  const outlineStyle = useAnimatedStyle(() => ({ opacity: outlineOpacity.value * (selected ? 1 : 0.8) }));
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: pop.value }] }));
+  if (hidden) return null;
 
   return (
-    <>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.outline,
-          // A light wash of the verdict's colour inside the box, so a dish reads at a glance even without a label.
-          { left: outline.x - 4, top: outline.y - 4, width: outline.width + 8, height: outline.height + 8, borderColor: col, backgroundColor: fit ? `${col}26` : 'transparent' },
-          outlineStyle,
-        ]}
-      />
-      {mode === 'dot' ? (
-        <Animated.View
-          key="dot"
-          entering={reduced ? FadeIn.duration(duration.fast) : ZoomIn.springify().damping(14).delay(order * 30)}
-          style={[styles.chipWrap, { left: x }, chipStyle]}>
-          <Tap accessibilityRole="button" accessibilityLabel={`${item.name}${fit ? `, ${fit.replace('_', ' ')}` : ''}`} feedback="select" onPress={onPress} hitSlop={10} scaleTo={0.85}>
-            <View style={[styles.dot, { backgroundColor: col }, shadow('floating', false), selected ? styles.dotSelected : null]} />
-          </Tap>
-        </Animated.View>
-      ) : (
-      <Animated.View key="chip" entering={reduced ? FadeIn.duration(duration.fast) : ZoomIn.springify().damping(14).delay(order * 50)} style={[styles.chipWrap, { left: x, maxWidth }, chipStyle]}>
-        <Tap accessibilityRole="button" accessibilityLabel={`${item.name}${fit ? `, ${fit.replace('_', ' ')}` : ''}`} feedback="select" onPress={onPress} scaleTo={0.94}>
-          <View style={[styles.chip, shadow('floating', false), selected ? { borderColor: light.text, borderWidth: 2 } : null]}>
-            <View style={styles.row}>
-              <VerdictDot fit={fit} size={9} />
-              <T variant="caption" color={onPhoto.chipText} numberOfLines={1} style={styles.name}>
-                {item.name}
-              </T>
-              {checking ? (
-                <Animated.View entering={FadeIn.duration(duration.fast)} exiting={FadeOut.duration(duration.base)}>
-                  <T variant="caption" color={onPhoto.chipTextSecondary} style={{ fontSize: 11 }}>
-                    checking…
-                  </T>
-                </Animated.View>
-              ) : null}
-            </View>
-            {reason ? (
-              <Animated.View entering={FadeIn.duration(duration.base)}>
-                <T variant="caption" color={col} numberOfLines={1} style={styles.reason}>
-                  {reason}
-                </T>
-              </Animated.View>
-            ) : null}
-          </View>
-        </Tap>
-      </Animated.View>
-      )}
-    </>
+    <Animated.View style={[{ position: 'absolute', left: rect.x - 5, top: rect.y - 4, width: rect.width + 10, height: rect.height + 8 }, style]}>
+      <Tap accessibilityRole="button" accessibilityLabel={`${item.name}${fit ? `, ${fit.replace('_', ' ')}` : ''}`} feedback="select" onPress={onPress} hitSlop={6} scaleTo={0.98} style={StyleSheet.absoluteFill}>
+        <View
+          style={[
+            styles.box,
+            {
+              borderColor: col,
+              borderWidth: selected ? 3 : strong ? 2.5 : 1.5,
+              borderStyle: checking ? 'dashed' : 'solid',
+              // A light wash of the verdict's colour, so a dish reads at a glance without a label.
+              backgroundColor: fit ? `${col}${selected ? '40' : strong ? '2E' : '1F'}` : 'transparent',
+            },
+          ]}
+        />
+      </Tap>
+    </Animated.View>
+  );
+}
+
+/** The selected dish's name and reason, beside its box rather than over it. */
+function DishLabel({ name, fit, reason, rect, bounds }: { name: string; fit: Fit | null; reason: string | null; rect: Rect; bounds: { width: number; height: number; top?: number } }) {
+  const reduced = useReducedMotion();
+  const col = fit ? fitColor(fit, light).solid : light.cantTell;
+  const width = Math.min(Math.max(140, estimateChipWidth(name, reason)), bounds.width - 20);
+  const above = rect.y - 4 - LABEL_GAP - LABEL_HEIGHT;
+  const below = rect.y + rect.height + 4 + LABEL_GAP;
+  // Above the box when that keeps clear of the top bar; otherwise below it, unless that would go under the sheet.
+  const y = above >= (bounds.top ?? 0) + 4 || below + LABEL_HEIGHT > bounds.height ? Math.max((bounds.top ?? 0) + 4, above) : below;
+  const x = Math.max(10, Math.min(rect.x - 5, bounds.width - 10 - width));
+  return (
+    <Animated.View pointerEvents="none" entering={reduced ? FadeIn.duration(duration.fast) : ZoomIn.springify().damping(16)} exiting={FadeOut.duration(duration.fast)} style={[styles.label, shadow('floating', false), { left: x, top: y, width }]}>
+      <View style={styles.row}>
+        <VerdictDot fit={fit} size={9} />
+        <T variant="caption" color={onPhoto.chipText} numberOfLines={1} style={styles.name}>
+          {name}
+        </T>
+      </View>
+      {reason ? (
+        <T variant="caption" color={col} numberOfLines={1} style={styles.reason}>
+          {reason}
+        </T>
+      ) : null}
+    </Animated.View>
   );
 }
 
@@ -283,19 +251,9 @@ export function ScanSweep({ photo, active }: { photo: Rect; active: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  outline: { position: 'absolute', borderWidth: 2, borderRadius: radius.sm },
+  box: { flex: 1, borderRadius: radius.sm },
+  label: { position: 'absolute', height: LABEL_HEIGHT, backgroundColor: onPhoto.chip, borderRadius: 14, paddingHorizontal: space.md, justifyContent: 'center' },
   textLine: { position: 'absolute', borderWidth: 1, borderRadius: 3, borderColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.08)' },
-  chipWrap: { position: 'absolute' },
-  dot: { width: DOT, height: DOT, borderRadius: DOT / 2, borderWidth: 2.5, borderColor: onPhoto.chip },
-  dotSelected: { transform: [{ scale: 1.25 }] },
-  chip: {
-    backgroundColor: onPhoto.chip,
-    borderRadius: 14,
-    paddingHorizontal: space.md,
-    paddingVertical: 7,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
   row: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   name: { fontWeight: '600', flexShrink: 1 },
   reason: { marginLeft: 16, marginTop: 1, fontSize: 12, lineHeight: 15 },

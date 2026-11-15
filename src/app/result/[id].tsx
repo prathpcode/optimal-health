@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -99,6 +100,7 @@ export default function ResultScreen() {
   useEffect(() => {
     zoom.value = closeUp ? (reduced ? withTiming(1, { duration: duration.base }) : withSpring(1, { ...spring.gentle, damping: 26 })) : 0;
   }, [closeUp, reduced, zoom]);
+  const scrimStyle = useAnimatedStyle(() => ({ opacity: interpolate(zoom.value, [0, 0.4], [0, 1], Extrapolation.CLAMP) }));
   // Where the photo ends up, for laying the boxes over it.
   const shown = closeUp ?? target;
 
@@ -198,11 +200,19 @@ export default function ResultScreen() {
         </View>
       )}
 
-      {/* Verdict chips over the dishes */}
+      {/* A close-up photo is bigger than the space it sits in: keep it from running up under the status and top bars. */}
+      {closeUp ? (
+        <Animated.View pointerEvents="none" style={[styles.topScrim, { height: area.top - 6 }, scrimStyle]}>
+          <View style={{ flex: 1, backgroundColor: onPhoto.black }} />
+          <LinearGradient colors={[onPhoto.black, 'rgba(0,0,0,0)']} style={{ height: 14, marginBottom: -14 }} />
+        </Animated.View>
+      ) : null}
+
+      {/* Verdict boxes over the dishes */}
       {view && target && shown && !failed && !isProduct ? (
         <Animated.View style={[StyleSheet.absoluteFill, overlayStyle]} pointerEvents="box-none">
           {view.items.some((i) => i.position?.length) ? (
-            <MenuOverlay photo={shown} bounds={{ width, height: area.top + area.height }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={selectDish} />
+            <MenuOverlay photo={shown} bounds={{ width, height: area.top + area.height, top: area.top - 8 }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={selectDish} />
           ) : (
             // No dish positions (text recognition is off, or found nothing to match): the text that was found, if
             // any, as faint outlines, and verdict chips in a row over the photo.
@@ -624,6 +634,7 @@ function Missing() {
 }
 
 const styles = StyleSheet.create({
+  topScrim: { position: 'absolute', left: 0, right: 0, top: 0 },
   noPhoto: { position: 'absolute', left: space.xxl, right: space.xxl, alignItems: 'center', justifyContent: 'center', gap: space.md },
   checking: { borderRadius: radius.chip, paddingHorizontal: space.md, justifyContent: 'center', position: 'absolute', right: 0, top: -30 },
   checkingSmall: { borderRadius: radius.chip, paddingHorizontal: 7, paddingVertical: 3 },

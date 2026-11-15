@@ -83,6 +83,15 @@ describe("positionsFor", () => {
   it("gives no box to a dish whose words are not on the photo", () => {
     expect(positionsFor([{ name: "Lobster Thermidor" }], lines)).toEqual([undefined]);
   });
+  it("prefers the line that is the dish's name to an earlier line that only mentions it", () => {
+    const box = (top: number) => ({ top, left: 0.1, bottom: top + 0.02, right: 0.6 });
+    const lines = [
+      { text: "NON-ALCOHOLIC BEVERAGES INCLUDES (Excludes house-made sodas)", box: box(0.6) },
+      { text: "Sodas", box: box(0.64) },
+      { text: "Iced tea", box: box(0.67) },
+    ];
+    expect(positionsFor([{ name: "Sodas", description: "" }], lines)).toEqual([[box(0.64)]]);
+  });
   it("does not give two dishes the same line", () => {
     const twice = positionsFor([{ name: "Fresh Lemonade" }, { name: "Fresh Lemonade" }], lines);
     expect(twice[0]).toEqual([box(5)]);
