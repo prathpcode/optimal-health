@@ -111,7 +111,10 @@ export default function ScanScreen() {
   const shelfRects = useMemo(() => {
     if (!shelfFrame || !shelfBoxes.length) return [];
     const view = coverRect({ width, height }, shelfFrame);
-    return packageRects(shelfBoxes.map((b) => boxToRect(b.box, view)));
+    const placed = shelfBoxes.map((b) => boxToRect(b.box, view));
+    // A box the judge drew already surrounds its package; one made from a package's words is grown toward it.
+    const grown = packageRects(placed);
+    return shelfBoxes.map((b, i) => (b.whole ? placed[i] : grown[i]));
   }, [shelfBoxes, shelfFrame, width, height]);
   const onShelf = shelfBoxes.length > 0 && phase === 'live';
   const shelfStatus = useMemo(() => {
@@ -120,7 +123,7 @@ export default function ScanScreen() {
     const good = shelfBoxes.filter((b) => b.state === 'good').length;
     if (out || ask) return [out ? `${out} not a fit` : null, ask ? `${ask} to check` : null].filter(Boolean).join(' · ');
     if (good) return `${good} good ${good === 1 ? 'fit' : 'fits'}`;
-    return shelfBoxes.some((b) => b.state !== 'unknown') ? 'Checking' : 'Not recognised yet';
+    return shelfBoxes.some((b) => b.state !== 'unknown') ? 'Checking' : 'Finding out what this is';
   }, [shelfBoxes]);
 
   const openPicked = async () => {

@@ -92,27 +92,21 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
   (`engine/memory.ts`), and its box takes the verdict's colour as verdicts land. The service only locates text; it
   decides nothing. With no key, or if the call fails, the app falls back to chips in a row. A phone that sends
   `lines` itself (on-device recognition, needs a development build) skips the service.
-- Packages on a shelf (`src/app/scan.tsx`, `src/components/ShelfMarks.tsx`, `convex/shelf.ts`, `engine/shelf.ts`):
-  there is no separate mode. While the scan camera is open it sends a still to `shelf.look` every so often; when
-  the still shows a shelf (`looksLikeShelf`: many short blocks of words side by side, or a product it knows) the
-  answer is a box per package and the camera keeps looking about once a second. For a menu, a label or anything
-  else it answers with nothing, and the camera behaves as it always did. Packages are found by grouping the recognised text into one
-  block per package front, and named by matching those words against products already known by barcode
-  (`productCache`); the matcher refuses when two products fit equally or the brand differs. Each still stands alone,
-  so nothing is tracked between frames. A recognised product is shown as a good fit only after the careful
-  reading of its ingredients is in (the same verdict a barcode scan gives, with the same "confirm" note when a Never
-  rule is in play); until then it is "unflagged". Unknown packages get a dashed outline and are identified in the background (`shelf.identify`): the photo
-  reader reads each front properly, the product database is searched for it, and a record is accepted only if the
-  word match and the judge (Jev: "same product, same variety?") both agree. Nothing is inferred about a product
-  that is not in the database. Needs
-  `GOOGLE_VISION_API_KEY`. Built and checked against a shelf photo; not yet run on a phone in a store.
-- Money races (`convex/pay.ts`, `engine/challenge.ts` `settlePot`): a race can have an entry price; every player pays
-  it through a Whop checkout and the winner takes the pool. An entry is "pending" until Whop's webhook
-  (`/whop/webhook`) reports the payment and we read it back from Whop's API; only then is the player in. Entries
-  close at the start, and leaving before then refunds. An hour after the end the pool (what reached us after Whop's
-  fee, in integer cents) goes to first place by Whop transfer; a tie splits it; with fewer than two paid players or
-  no dish logged, every payment is refunded. Off unless `MONEY_CHALLENGES=on` (see `.env.example`). Built and
-  unit-tested; not yet run against Whop, not even its sandbox.
+- Packages in the scan camera (`src/app/scan.tsx`, `src/components/ShelfMarks.tsx`, `convex/shelf.ts`,
+  `convex/identify.ts`, `engine/shelf.ts`): there is no separate mode. While the camera is open it sends a still to
+  `shelf.look` every so often, and each still is handled on its own:
+  1. The judge (Jev) looks at the picture: no packaged product, one, or several. "None" ends there, in about a
+     tenth of a second, without the text being read.
+  2. One package gets the judge's own box; several get one box per block of recognised text (Google Vision).
+  3. A package whose words match a product known by barcode gets its real verdict. It is shown as a good fit only
+     once the careful reading of its ingredients is in; until then it is "unflagged".
+  4. Any other package gets a first colour from the judge's opinion of the words on its front ("Snickers":
+     peanuts). That can raise a flag, never clear one, and is drawn dashed.
+  5. In the background the photo reader reads each unknown front, the product database is searched, and a record
+     is kept only if the judge is nearly sure it is the same product and variety AND its words fit. Nothing is
+     inferred about a product that is not in the database.
+  A photo of a package's front taken with the shutter goes through the same step 5 (`convex/pipeline.ts`).
+  Checked against photos of shelves and single cans; not yet run on a phone in a store.
 - A custom rule replaces every rule on its tag. The app will not swap a switched-on profile rule for a weaker custom
   one (`engine/customRules.ts`).
 - Cache (`convex/cache.ts`): the answer to one exact tagging or second-pass request is reused for 30 days, a barcode's

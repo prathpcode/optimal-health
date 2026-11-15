@@ -6,10 +6,11 @@
 // that have been scanned by barcode, so their ingredients are real). Nothing here guesses: a block that does not
 // clearly match one known product is left unnamed.
 
-import { evaluate } from "./evaluate";
+import { DEFAULT_THRESHOLDS, evaluate } from "./evaluate";
 import type { TextLine } from "./memory";
-import { buildChecks, defaultLine, type ReaderOpinion } from "./pipeline";
+import { buildChecks, defaultLine, lineItems, type JudgeOpinion, type ReaderOpinion } from "./pipeline";
 import { itemFromProduct, type ModelTag, type ProductFacts } from "./product";
+import { tagLabel } from "./tags";
 import type { Box, Rule } from "./types";
 
 export type TextBlock = { text: string; box: Box; lines: TextLine[] };
@@ -174,6 +175,8 @@ export type ShelfBox = {
   reason?: string;
   /** True while only code has looked at the ingredients; the models' careful reading is still on its way. */
   checking?: boolean;
+  /** True when `box` already surrounds the whole package (the judge drew it), not just the words on it. */
+  whole?: boolean;
 };
 
 /**
@@ -200,4 +203,38 @@ export function blockSignature(text: string): string {
 /** The words worth searching a product database for: the longest few, which are the least likely to be fragments. */
 export function searchTerms(text: string, max = 4): string[] {
   return tokens(text).filter((w) => w.length >= 4 && !/\d/.test(w)).sort((a, b) => b.length - a.length).slice(0, max);
+}
+
+// ---- A first colour for a package that has not been identified yet ----
+
+/** One item per package front, made of the words read off it, so the judge can be asked about each. */
+export function frontItems(fronts: string[]) {
+  return lineItems(fronts.map((text) => ({ text, box: { top: 0, left: 0, bottom: 1, right: 1 } })));
+}
+
+/**
+ * What can be said about a package from the words on its front alone, before anyone knows which product it is.
+ * Code's own reading of the words ("almond" printed on the front) and the judge's opinion of what such a product
+ * commonly contains ("Snickers": peanuts) can raise a flag; nothing here can call a package fine, so a front with
+ * nothing against it gets no answer at all. Whatever this returns is provisional and is shown as still being
+ * checked: the product's real ingredients replace it once it has been identified.
+ */
+export function frontHints(fronts: string[], rules: Rule[], judge: JudgeOpinion[] = []): ({ state: "not_fit" | "cant_tell"; reason: string } | null)[] {
+  const items = frontItems(fronts);
+  const levelOf = new Map(rules.map((r) => [r.id, r.level]));
+  // As on a menu's raw lines: only a judge that thinks it likely counts. Unsure is the normal state for a few words.
+  const likely = judge.filter((j) => {
+    const level = levelOf.get(j.ruleId);
+    return (level === "never" || level === "avoid") && j.p >= DEFAULT_THRESHOLDS[level].high;
+  });
+  const checks = buildChecks(items, rules, [], likely);
+  return items.map((item) => {
+    const verdict = evaluate(item, rules, checks);
+    if (verdict.fit !== "not_fit" && verdict.fit !== "cant_tell") return null;
+    // Worded as the guess it is: nobody has seen this product's ingredients yet.
+    const finding = verdict.findings.find((f) => f.outcome === (verdict.fit === "not_fit" ? "blocked" : "ask"));
+    const rule = rules.find((r) => r.id === finding?.ruleId);
+    const what = rule ? tagLabel(rule.tag) : "something in your rules";
+    return { state: verdict.fit, reason: verdict.fit === "not_fit" ? `Likely contains ${what}.` : `May contain ${what}.` };
+  });
 }

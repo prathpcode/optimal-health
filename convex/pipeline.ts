@@ -15,6 +15,7 @@ import { applyRemembered, linesFor, restaurantId, type RememberedAnswer, type Te
 import { fromOpenFoodFacts, hasSubstance, itemFromProduct, mergeFacts, sanitiseNutrients, type ModelTag, type ProductFacts } from "../engine/product";
 import { hidesInTerms } from "../engine/tagMatch";
 import { linesFromVision, type VisionText } from "../engine/textLines";
+import { findProduct, type PackageReading } from "./identify";
 import { judgeAvailable, judgeEnabledForScans, judgeItems } from "./judge";
 import { TAGS, tagLabel } from "../engine/tags";
 import { duplicateFindings, warningClauses, warningFindings, withLabelFindings, type ProfileItem, type Taking } from "../engine/otc";
@@ -228,11 +229,13 @@ cut short or misspelt. For each entry, find that package in the photo and read i
 - name: the product's name, exactly as printed.
 - variety: the flavour or variety that tells it apart from its neighbours (for example "Chicken & Pasta"), exactly as
   printed, or "" if none is printed.
-- readable: false if you cannot find the package, or cannot read its name with confidence. Then leave the rest "".
-Copy what is printed. Do not guess a product from its colours or shape, do not complete a name you cannot read, and
-do not add anything about ingredients. Return one entry per number.`;
+- readable: false if you cannot find the package, or cannot tell what its front says. Then leave the rest "".
+Read what is printed. A brand's own logo or lettering that you recognise counts as read, even when the package is
+turned so that part of it is out of view (a can showing "ca-Cola" in that script is Coca-Cola). But do not name a
+product from its colours or shape alone, with no lettering to go on, and do not add anything about ingredients:
+the reading is only used to look the product up, and the record found is checked against it afterwards.
+Return one entry per number.`;
 
-export type PackageReading = { index: number; brand: string; name: string; variety: string };
 
 /**
  * Have the photo reader name packages the shelf view could not recognise. `fronts` are the rough words read off
@@ -243,9 +246,12 @@ export async function readPackages(client: Anthropic, imageUrl: string, fronts: 
     { type: "image", source: { type: "url", url: imageUrl } },
     { type: "text", text: `Packages to read:\n${fronts.map((f, i) => `${i + 1}. ${f}`).join("\n")}` },
   ]);
+  // The numbering is the reader's own; when it returned one entry per package, their order is the surer guide.
+  const inOrder = out.packages.length === fronts.length;
   return out.packages
-    .filter((p) => p.readable && p.name.trim() && p.index >= 1 && p.index <= fronts.length)
-    .map((p) => ({ index: p.index - 1, brand: p.brand.trim(), name: p.name.trim(), variety: p.variety.trim() }));
+    .map((p, i) => ({ index: inOrder ? i : p.index - 1, readable: p.readable, brand: p.brand.trim(), name: p.name.trim(), variety: p.variety.trim() }))
+    .filter((p) => p.readable && (p.name || p.brand) && p.index >= 0 && p.index < fronts.length)
+    .map(({ readable: _r, ...p }) => ({ ...p, name: p.name || p.brand }));
 }
 
 /** The model that reads photos when nothing overrides it. */
@@ -699,7 +705,21 @@ export const run = internalAction({
               ),
             }
           : null;
-        const dbFacts = scan.barcode ? await lookUpProduct(ctx, scan.barcode).catch(() => null) : null;
+        let dbFacts = scan.barcode ? await lookUpProduct(ctx, scan.barcode).catch(() => null) : null;
+        // A photo of a package's front, with no ingredient list in view and no barcode: find the product from what
+        // its front says, the same way the camera does for a package on a shelf. The record has to pass the same
+        // two checks (convex/identify.ts); if none does, the person is asked for the ingredient list as before.
+        if (!dbFacts && !hasSubstance(labelFacts) && l && (l.productName.trim() || l.brand.trim())) {
+          const { matches } = await findProduct({ index: 0, brand: l.brand.trim(), name: l.productName.trim() || l.brand.trim(), variety: "" }).catch(() => ({ matches: [] }));
+          for (const match of matches.slice(0, 4)) {
+            const found = await lookUpProduct(ctx, match.key).catch(() => null);
+            if (found && hasSubstance(found)) {
+              dbFacts = found;
+              await ctx.runMutation(internal.shelfData.nameFront, { barcode: match.key, name: l.productName.trim() || l.brand.trim(), ...(l.brand.trim() ? { brand: l.brand.trim() } : {}) });
+              break;
+            }
+          }
+        }
         const labelHasSubstance = hasSubstance(labelFacts);
         const facts = mergeFacts(labelFacts && (labelHasSubstance || labelFacts.name) ? labelFacts : null, dbFacts);
         const kind = labelHasSubstance ? "label" : "product";

@@ -19,7 +19,7 @@ export const SHELF_STATE_TEXT: Record<ShelfState, string> = {
   cant_tell: 'Check before you buy',
   okay: 'Okay, with notes',
   unflagged: 'Nothing flagged so far',
-  unknown: 'Not recognised yet',
+  unknown: 'Looking it up',
 };
 
 function colour(state: ShelfState): string {
@@ -86,19 +86,19 @@ export function ShelfCard({ box, opening, onOpen, onClose }: { box: ShelfBox; op
           <View style={[styles.dot, { backgroundColor: colour(box.state) }]} />
           <T variant="caption" color={onPhoto.textSecondary} style={{ flex: 1 }}>
             {SHELF_STATE_TEXT[box.state]}
-            {box.checking ? ' · still checking' : ''}
+            {box.checking ? (box.key ? ' · still checking' : ' · a first guess') : ''}
           </T>
           <Tap accessibilityRole="button" accessibilityLabel="Close" feedback="tap" hitSlop={12} onPress={onClose}>
             <Icon name="close" size={14} color={onPhoto.textSecondary} />
           </Tap>
         </View>
         <T variant="heading" color={onPhoto.text} numberOfLines={2}>
-          {box.name ?? 'A product Second Look doesn’t know yet'}
+          {box.name ?? 'Finding out what this is'}
         </T>
         <T variant="body" color={onPhoto.textSecondary}>
           {box.reason ??
             (box.state === 'unknown'
-              ? 'Hold its barcode up to the camera once and it will be recognised on the shelf from then on.'
+              ? 'Keep it in view for a few seconds while it is looked up, or hold its barcode up to the camera.'
               : box.state === 'good'
                 ? 'Nothing in its ingredients is against your rules.'
                 : box.state === 'unflagged'

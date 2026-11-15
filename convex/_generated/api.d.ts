@@ -13,6 +13,7 @@ import type * as cache from "../cache.js";
 import type * as drugRules from "../drugRules.js";
 import type * as followups from "../followups.js";
 import type * as http from "../http.js";
+import type * as identify from "../identify.js";
 import type * as judge from "../judge.js";
 import type * as lookup from "../lookup.js";
 import type * as medications from "../medications.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   drugRules: typeof drugRules;
   followups: typeof followups;
   http: typeof http;
+  identify: typeof identify;
   judge: typeof judge;
   lookup: typeof lookup;
   medications: typeof medications;
