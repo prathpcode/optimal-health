@@ -98,7 +98,10 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
   (`productCache`); the matcher refuses when two products fit equally or the brand differs. Each still stands alone,
   so nothing is tracked between frames. A recognised product is shown as a good fit only after the careful
   reading of its ingredients is in (the same verdict a barcode scan gives, with the same "confirm" note when a Never
-  rule is in play); until then it is "unflagged". Unknown packages get a faint outline and one database lookup in the background. Needs
+  rule is in play); until then it is "unflagged". Unknown packages get a dashed outline and are identified in the background (`shelf.identify`): the photo
+  reader reads each front properly, the product database is searched for it, and a record is accepted only if the
+  word match and the judge (Jev: "same product, same variety?") both agree. Nothing is inferred about a product
+  that is not in the database. Needs
   `GOOGLE_VISION_API_KEY`. Built and checked against a shelf photo; not yet run on a phone in a store.
 - A custom rule replaces every rule on its tag. The app will not swap a switched-on profile rule for a weaker custom
   one (`engine/customRules.ts`).

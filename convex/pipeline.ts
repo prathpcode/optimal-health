@@ -216,6 +216,37 @@ export async function transcribe(client: Anthropic, imageUrls: string[], model?:
   );
 }
 
+const PackagesSchema = z.object({
+  packages: z.array(z.object({ index: z.number(), readable: z.boolean(), brand: z.string(), name: z.string(), variety: z.string() })),
+});
+
+const PACKAGES_SYSTEM = `You read the fronts of packaged foods in a photo of a shop shelf, for an app that looks the products up afterwards.
+You are given a numbered list. Each entry is the text a rough text reader got off ONE package front; the words are often
+cut short or misspelt. For each entry, find that package in the photo and read its front properly.
+- brand: the maker's or range's name, exactly as printed.
+- name: the product's name, exactly as printed.
+- variety: the flavour or variety that tells it apart from its neighbours (for example "Chicken & Pasta"), exactly as
+  printed, or "" if none is printed.
+- readable: false if you cannot find the package, or cannot read its name with confidence. Then leave the rest "".
+Copy what is printed. Do not guess a product from its colours or shape, do not complete a name you cannot read, and
+do not add anything about ingredients. Return one entry per number.`;
+
+export type PackageReading = { index: number; brand: string; name: string; variety: string };
+
+/**
+ * Have the photo reader name packages the shelf view could not recognise. `fronts` are the rough words read off
+ * each one, which is how the reader is told which packages are meant. Only packages it could read are returned.
+ */
+export async function readPackages(client: Anthropic, imageUrl: string, fronts: string[]): Promise<PackageReading[]> {
+  const out = await ask(client, "transcribe", PackagesSchema, PACKAGES_SYSTEM, [
+    { type: "image", source: { type: "url", url: imageUrl } },
+    { type: "text", text: `Packages to read:\n${fronts.map((f, i) => `${i + 1}. ${f}`).join("\n")}` },
+  ]);
+  return out.packages
+    .filter((p) => p.readable && p.name.trim() && p.index >= 1 && p.index <= fronts.length)
+    .map((p) => ({ index: p.index - 1, brand: p.brand.trim(), name: p.name.trim(), variety: p.variety.trim() }));
+}
+
 /** The model that reads photos when nothing overrides it. */
 export const readerModel = () => MODELS.transcribe();
 

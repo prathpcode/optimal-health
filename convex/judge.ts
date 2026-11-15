@@ -100,3 +100,39 @@ export async function judgeItems(items: Item[], hard: Rule[]): Promise<JudgeOpin
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, items.length) }, worker));
   return out;
 }
+
+/**
+ * For the shelf view: of several database records, which is the same product as a package whose front has been
+ * read? One yes/no question per candidate, all in one request. Returns a probability per candidate, or null when
+ * the judge is not configured or the call fails (the caller then relies on its own word matching).
+ */
+export async function judgeSameProduct(front: { brand: string; name: string; variety: string }, candidates: { brand?: string; name: string }[]): Promise<number[] | null> {
+  const key = process.env.TYPESAFE_API_KEY;
+  if (!key || !candidates.length) return null;
+  const questions: Record<string, unknown> = {};
+  candidates.forEach((_, i) => {
+    questions[`q${i}`] = {
+      type: "noul",
+      instructions: `Is \`candidates[${i}]\` the same product as \`package\`, including the same flavour or variety?`,
+      criteria: {
+        true: "Same maker or range, same product, and the same flavour or variety. Differences in spelling, word order, size or wording such as 'soup' being added do not matter.",
+        false: "A different product, a different maker, or a different flavour or variety of the same range.",
+      },
+    };
+  });
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: process.env.JUDGE_MODEL || "jev-latest", state: { package: front, candidates: candidates.map((c) => ({ brand: c.brand ?? "", name: c.name })) }, questions }),
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) throw new Error(`judge HTTP ${res.status}`);
+    const data = (await res.json()) as { answers?: Record<string, { noul?: number }> };
+    const ps = candidates.map((_, i) => data.answers?.[`q${i}`]?.noul);
+    return ps.every((p) => typeof p === "number" && Number.isFinite(p)) ? (ps as number[]) : null;
+  } catch (e) {
+    console.error("judge call failed", e);
+    return null;
+  }
+}

@@ -119,6 +119,11 @@ export default defineSchema({
     .index("by_deviceId_and_at", ["deviceId", "at"])
     .index("by_scanId", ["scanId"]),
 
+  // What a product's FRONT says, as the photo reader read it off a shelf ("Campbell's Country Ladle Chicken &
+  // Pasta"), kept beside the database's own name for it, which is often worded differently. The shelf view matches
+  // package fronts against both.
+  shelfNames: defineTable({ barcode: v.string(), brand: v.optional(v.string()), name: v.string(), at: v.number() }).index("by_barcode", ["barcode"]),
+
   // Background jobs the shelf view has started (reading a product's ingredients, looking up an unknown package),
   // so the same one is not started again on every camera frame. See convex/shelfData.ts.
   shelfClaims: defineTable({ key: v.string(), at: v.number() }).index("by_key", ["key"]),
