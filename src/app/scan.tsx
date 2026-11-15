@@ -132,7 +132,9 @@ export default function ScanScreen() {
     try {
       const id = await startBarcode(picked.key, deviceId);
       setPicked(null);
-      router.push({ pathname: '/result/[id]', params: { id, ...(share ? { share } : {}) } });
+      // Sharing a meal: straight to picking what was ordered, like the other two ways into a scan from a room.
+      if (share) router.replace({ pathname: '/share/[scanId]', params: { scanId: id, room: share, fixed: '1' } });
+      else router.push({ pathname: '/result/[id]', params: { id } });
     } catch {
       haptic.error();
     } finally {
