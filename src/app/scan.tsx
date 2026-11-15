@@ -19,7 +19,7 @@ import { haptic } from '@/lib/haptics';
 import { containRect, type Rect } from '@/lib/layout';
 import { lastLocation, locate } from '@/lib/location';
 import { goBack } from '@/lib/nav';
-import { restartSample, SAMPLE_ID } from '@/lib/scan';
+import { rememberPhoto, restartSample, SAMPLE_ID } from '@/lib/scan';
 import { prepareImage, useStartBarcode, useStartScan, type Prepared } from '@/lib/upload';
 import { duration, onPhoto, radius, space, spring } from '@/theme';
 
@@ -97,8 +97,15 @@ export default function ScanScreen() {
     barcodeSeen.current = true;
     haptic.success();
     setPhase('uploading');
+    // Take a photo of the product at the same moment, so the scan has a picture (for Home and for sharing it).
+    // It doesn't hold up the scan, and the scan still works from the barcode alone if the photo fails.
+    const shot = camera.current
+      ?.takePictureAsync({ quality: 0.7, shutterSound: false })
+      .then((pic) => prepareImage(pic.uri))
+      .catch(() => null);
     try {
       const id = await startBarcode(data, deviceId);
+      void shot?.then((photo) => photo && rememberPhoto(id, photo));
       router.replace({ pathname: '/result/[id]', params: { id, ...(share ? { share } : {}) } });
     } catch {
       barcodeSeen.current = false;
