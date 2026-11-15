@@ -4,6 +4,7 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 const ICONS = {
   back: { ios: 'chevron.left', android: 'arrow_back' },
   close: { ios: 'xmark', android: 'close' },
+  down: { ios: 'chevron.down', android: 'keyboard_arrow_down' },
   chevron: { ios: 'chevron.right', android: 'chevron_right' },
   plus: { ios: 'plus', android: 'add' },
   flash: { ios: 'bolt.fill', android: 'flash_on' },
