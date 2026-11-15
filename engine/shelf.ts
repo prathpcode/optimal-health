@@ -6,8 +6,11 @@
 // that have been scanned by barcode, so their ingredients are real). Nothing here guesses: a block that does not
 // clearly match one known product is left unnamed.
 
+import { evaluate } from "./evaluate";
 import type { TextLine } from "./memory";
-import type { Box } from "./types";
+import { buildChecks, defaultLine, type ReaderOpinion } from "./pipeline";
+import { itemFromProduct, type ModelTag, type ProductFacts } from "./product";
+import type { Box, Rule } from "./types";
 
 export type TextBlock = { text: string; box: Box; lines: TextLine[] };
 
@@ -93,8 +96,8 @@ function sameStart(seen: string, real: string): boolean {
 }
 
 /**
- * The known product a block of text is the front of, or null. A product matches when at least half of the words in
- * its name and brand can be found in the block. When what was read fits two products equally well (two varieties whose
+ * The known product a block of text is the front of, or null. A product matches when most of the words of its own
+ * name, and at least half of its name and brand together, can be found in the block. When what was read fits two products equally well (two varieties whose
  * distinguishing word could not be read), neither is chosen: showing the wrong variety's verdict is worse than
  * showing none.
  */
@@ -109,16 +112,64 @@ export function matchProduct(block: string, products: KnownProduct[]): KnownProd
       const brand = tokens(p.brand ?? "");
       // A package that shows some other known brand is not this product, however many other words agree:
       // "Country Chicken" from one maker is not "Country ... Chicken" from another.
-      if (brandsSeen.size && brand.length && !brand.some((b) => brandsSeen.has(b))) return { p, hit: 0, share: 0 };
+      if (brandsSeen.size && brand.length && !brand.some((b) => brandsSeen.has(b))) return { p, hit: 0, share: 0, named: false };
       const want = tokens(`${p.brand ?? ""} ${p.name}`);
       const hit = want.filter((w) => seen.some((s) => agree(s, w)) || (brand.includes(w) && brandsSeen.has(w))).length;
-      return { p, hit, share: want.length ? hit / want.length : 0 };
+      // The product's own name has to be there, not just its maker's range: every tin in a brand's line shares the
+      // brand's words, and it is the name that says which one this is.
+      const own = tokens(p.name).filter((w) => !brand.includes(w));
+      const ownHit = own.filter((w) => seen.some((s) => agree(s, w))).length;
+      return { p, hit, share: want.length ? hit / want.length : 0, named: own.length > 0 && ownHit / own.length >= 0.6 };
     })
     .sort((x, y) => y.hit - x.hit || y.share - x.share);
   // At least two of its words, and at least half of them: the brand is often the word that cannot be read.
-  const best = scored.find((x) => x.hit >= 2 && x.share >= 0.5);
-  if (!best || best !== scored[0]) return null;
+  const best = scored.find((x) => x.named && x.hit >= 2 && x.share >= 0.5);
+  if (!best) return null;
   // Everything that was read fits another product just as well: the word that would settle it was not read.
   if (scored.some((x) => x.p.key !== best.p.key && x.hit >= best.hit)) return null;
   return best.p;
+}
+
+// ---- What to show for a package that has been named ----
+
+/**
+ * How a package is marked on the shelf view. There is deliberately no "good" here: from across an aisle the app
+ * knows a product only by its database record, which can say an allergen is there but not that it is not. So the
+ * best a package can be is "unflagged" (nothing against it so far; pick it up and scan it to be sure).
+ */
+export type ShelfState = "not_fit" | "cant_tell" | "okay" | "unflagged" | "unknown";
+
+export type ShelfBox = {
+  box: Box;
+  state: ShelfState;
+  /** The product's barcode and name, when the package was recognised. */
+  key?: string;
+  name?: string;
+  /** A few words on why, for a package that is flagged. */
+  reason?: string;
+  /** True while only code has looked at the ingredients; the models' careful reading is still on its way. */
+  checking?: boolean;
+};
+
+/**
+ * Apply the person's rules to a recognised product. `opinions` are the models' reading of its ingredient list when
+ * that is already known (the product has been scanned before); without them only code's own reading of the words
+ * is used, and the result is marked as still being checked.
+ */
+export function shelfVerdict(facts: ProductFacts, rules: Rule[], opinions: { modelTags: ModelTag[]; opinions: ReaderOpinion[] } | null): Pick<ShelfBox, "state" | "reason" | "checking"> {
+  const item = itemFromProduct(facts, opinions?.modelTags ?? []);
+  const verdict = evaluate(item, rules, buildChecks([item], rules, opinions?.opinions ?? []));
+  const state: ShelfState = verdict.fit === "good" ? "unflagged" : verdict.fit;
+  const flagged = state === "not_fit" || state === "cant_tell";
+  return { state, ...(flagged ? { reason: defaultLine(verdict, rules) } : {}), ...(opinions ? {} : { checking: true }) };
+}
+
+/** A stable name for a block of words, so the same unrecognised package is not looked up again and again. */
+export function blockSignature(text: string): string {
+  return tokens(text).sort().join(" ");
+}
+
+/** The words worth searching a product database for: the longest few, which are the least likely to be fragments. */
+export function searchTerms(text: string, max = 4): string[] {
+  return tokens(text).filter((w) => w.length >= 4 && !/\d/.test(w)).sort((a, b) => b.length - a.length).slice(0, max);
 }

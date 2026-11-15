@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import sample from "../bench/data/shelf-lines.json";
 import type { TextLine } from "./memory";
-import { matchProduct, textBlocks, type KnownProduct } from "./shelf";
+import type { ProductFacts } from "./product";
+import { blockSignature, matchProduct, searchTerms, shelfVerdict, textBlocks, type KnownProduct } from "./shelf";
+import type { Rule } from "./types";
 
 const KNOWN: KnownProduct[] = [
   { key: "a", brand: "Campbell's", name: "Country Ladle Chicken & Pasta" },
@@ -49,6 +51,13 @@ describe("matchProduct", () => {
   it("chooses nothing when the word that tells two varieties apart could not be read", () => {
     expect(matchProduct("Camph Country Ladle Chicken", KNOWN)).toBeNull();
   });
+  it("does not take a tin for the one variety it knows, just because the brand's words match", () => {
+    const only = [{ key: "m", brand: "Campbell's Country Ladle", name: "Minestrone" }, { key: "s", brand: "Heinz", name: "Classic Chicken & Sweetcorn soup" }];
+    expect(matchProduct("Campbells Country Ladle Chicken Pasta", only)).toBeNull();
+    expect(matchProduct("Campbell Country Ladle Minestrone", only)?.key).toBe("m");
+    expect(matchProduct("HEINZ Classic Country Chicken", only)).toBeNull();
+    expect(matchProduct("HEINZ Classic Chicken & Sweet Corn", only)?.key).toBe("s");
+  });
   it("chooses nothing for a shelf label or a product it has never seen", () => {
     expect(matchProduct("Farm Picked Produce", KNOWN)).toBeNull();
     expect(matchProduct("Kellogg's Corn Flakes cereal", KNOWN)).toBeNull();
@@ -61,5 +70,28 @@ describe("matchProduct", () => {
       const heinz = /hein|einz/i.test(b.text);
       expect(p!.brand === "Heinz", b.text).toBe(heinz);
     }
+  });
+});
+
+describe("shelfVerdict", () => {
+  const NUTS: Rule = { id: "nuts", level: "never", tag: "tree_nuts", reason: "t", source: { title: "t", url: "u" }, from: { type: "allergy", label: "tree nut allergy" }, status: "library", enabled: true };
+  const bar: ProductFacts = { source: "database", name: "Almond Crunch Bar", brand: "Nutty", ingredientsText: "oats, almonds, honey" };
+  const soup: ProductFacts = { source: "database", name: "Chicken & Sweet Corn Soup", brand: "Heinz", ingredientsText: "water, sweet corn, chicken, salt" };
+  it("flags a product whose ingredients name the allergen, and says why", () => {
+    expect(shelfVerdict(bar, [NUTS], null)).toMatchObject({ state: "not_fit", checking: true });
+    expect(shelfVerdict(bar, [NUTS], null).reason).toMatch(/tree nuts/i);
+  });
+  it("never calls a product fine: with nothing against it, it is only unflagged", () => {
+    expect(shelfVerdict(soup, [NUTS], { modelTags: [], opinions: [{ itemId: "p1", tag: "tree_nuts", answer: "no" }] })).toEqual({ state: "unflagged" });
+  });
+  it("is marked as still being checked until the models' reading is known", () => {
+    expect(shelfVerdict(soup, [NUTS], null)).toEqual({ state: "unflagged", checking: true });
+  });
+  it("turns to a question when the careful reading is unsure", () => {
+    expect(shelfVerdict(soup, [NUTS], { modelTags: [], opinions: [{ itemId: "p1", tag: "tree_nuts", answer: "maybe" }] }).state).toBe("cant_tell");
+  });
+  it("gives a package the same signature however its words were ordered or cased", () => {
+    expect(blockSignature("HEINZ Classic Chicken")).toBe(blockSignature("chicken heinz CLASSIC"));
+    expect(searchTerms("HEINZ Classic Chicken & Sweet Corn 400g")).toEqual(["classic", "chicken", "heinz", "sweet"]);
   });
 });

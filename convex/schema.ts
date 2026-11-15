@@ -61,6 +61,10 @@ export default defineSchema({
   // What the food database returned for a barcode (ProductFacts as JSON).
   productCache: defineTable({ barcode: v.string(), facts: v.string(), at: v.number() }).index("by_barcode", ["barcode"]),
 
+  // Background jobs the shelf view has started (reading a product's ingredients, looking up an unknown package),
+  // so the same one is not started again on every camera frame. See convex/shelfData.ts.
+  shelfClaims: defineTable({ key: v.string(), at: v.number() }).index("by_key", ["key"]),
+
   // The compiled and custom rules for a device.
   rules: defineTable({ deviceId: v.string(), custom: v.boolean(), ...ruleFields })
     .index("by_deviceId", ["deviceId"])

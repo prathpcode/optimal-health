@@ -74,7 +74,7 @@ export type AnswerCache = {
 
 const cacheOn = () => process.env.SCAN_CACHE !== "off";
 
-function answerCache(ctx: ActionCtx): AnswerCache | null {
+export function answerCache(ctx: ActionCtx): AnswerCache | null {
   if (!cacheOn()) return null;
   return {
     get: async (keys) => {
@@ -100,7 +100,7 @@ function cacheKey(step: Step, system: string, text: string): string {
 export class Memo {
   private hits = new Map<string, string>();
   private fresh: { key: string; step: string; value: string }[] = [];
-  constructor(private client: Anthropic, private cache: AnswerCache | null) {}
+  constructor(private client: Anthropic | null, private cache: AnswerCache | null) {}
 
   async prime(requests: { step: Step; system: string; text: string }[]): Promise<void> {
     if (!this.cache || !requests.length) return;
@@ -122,9 +122,22 @@ export class Memo {
         // An entry that no longer parses is treated as absent and replaced below.
       }
     }
+    if (!this.client) throw new Error("This memo can only read the cache");
     const answer = await ask(this.client, step, schema, system, [{ type: "text", text }]);
     if (this.cache) this.fresh.push({ key, step, value: JSON.stringify(answer) });
     return answer;
+  }
+
+  /** The remembered answer to a request, if `prime` found one; never asks the model. */
+  peek<T extends z.ZodType>(step: Step, schema: T, system: string, text: string): z.infer<T> | undefined {
+    const hit = this.hits.get(cacheKey(step, system, text));
+    if (hit === undefined) return undefined;
+    try {
+      const parsed = schema.safeParse(JSON.parse(hit));
+      return parsed.success ? parsed.data : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   async flush(): Promise<void> {
@@ -217,14 +230,24 @@ export const readerModel = () => MODELS.transcribe();
 const LINES_TIMEOUT_MS = 6000;
 
 async function recogniseLines(imageUrl: string): Promise<TextLine[] | null> {
+  if (!process.env.GOOGLE_VISION_API_KEY) return null;
+  try {
+    const photo = await fetch(imageUrl, { signal: AbortSignal.timeout(LINES_TIMEOUT_MS) });
+    if (!photo.ok) return null;
+    return await recogniseLinesIn(Buffer.from(await photo.arrayBuffer()).toString("base64"));
+  } catch (e) {
+    console.error("text recognition failed", e);
+    return null;
+  }
+}
+
+/** The lines of text on a photo given as base64 JPEG or PNG, or null when recognition is off or fails. */
+export async function recogniseLinesIn(content: string): Promise<TextLine[] | null> {
   const key = process.env.GOOGLE_VISION_API_KEY;
   if (!key) return null;
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), LINES_TIMEOUT_MS);
   try {
-    const photo = await fetch(imageUrl, { signal: abort.signal });
-    if (!photo.ok) return null;
-    const content = Buffer.from(await photo.arrayBuffer()).toString("base64");
     const res = await fetch("https://vision.googleapis.com/v1/images:annotate", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key },
@@ -361,8 +384,64 @@ async function fetchProduct(barcode: string): Promise<ProductFacts | null> {
   return fromOpenFoodFacts(await res.json());
 }
 
+/** A product's ingredients as the text the models are shown, or null when there is nothing to show them. */
+function productListing(facts: ProductFacts): string | null {
+  const list = [...(facts.actives ?? []).map((a) => `${a.name}${a.amount ? ` ${a.amount}` : ""}`), facts.ingredientsText?.trim() ?? ""].filter(Boolean).join(", ");
+  if (!list) return null;
+  return `Product: ${facts.name}\nIngredients: ${list}${facts.contains ? `\n${facts.contains}` : ""}${facts.mayContain ? `\n${facts.mayContain}` : ""}`;
+}
+
+const productCheckText = (tag: string, listing: string) => `Thing to watch for: ${tagLabel(tag)}.\n\n${listing}`;
+
+export type ProductOpinions = { modelTags: ModelTag[]; opinions: ReaderOpinion[] };
+
+/**
+ * What the models make of a product's ingredient list: tags a name match misses, and one answer per thing to watch
+ * for. Asked through the memo, so a product read before is not read again.
+ */
+export async function productOpinions(memo: Memo, facts: ProductFacts, watch: string[]): Promise<ProductOpinions> {
+  const listing = productListing(facts);
+  if (!listing) return { modelTags: [], opinions: [] };
+  const checkTexts = watch.map((t) => productCheckText(t, listing));
+  await memo.prime([{ step: "tag", system: PRODUCT_TAG_SYSTEM, text: listing }, ...checkTexts.map((text) => ({ step: "check" as const, system: PRODUCT_CHECK_SYSTEM, text }))]);
+  const [tagged, flaggedPerTag] = await Promise.all([
+    // A tagging call that failed is answered with nothing for this scan, and is not remembered.
+    memo.ask("tag", TagSchema, PRODUCT_TAG_SYSTEM, listing).catch((e) => {
+      console.error("product tagging failed", e);
+      return { dishes: [] };
+    }),
+    Promise.all(checkTexts.map((text) => memo.ask("check", SecondPassSchema, PRODUCT_CHECK_SYSTEM, text))),
+  ]);
+  await memo.flush();
+  return {
+    modelTags: tagged.dishes.flatMap((d) => d.tags),
+    opinions: watch.map((tag, k) => ({ itemId: "p1", tag, answer: flaggedPerTag[k].flagged[0]?.answer ?? ("no" as const) })),
+  };
+}
+
+/**
+ * The same, for several products at once and from memory only: null for a product whose answers are not all
+ * remembered yet. Lets the shelf view show a product's careful verdict the instant it is recognised, without ever
+ * waiting on a model.
+ */
+export async function rememberedProductOpinions(cache: AnswerCache | null, products: ProductFacts[], watch: string[]): Promise<(ProductOpinions | null)[]> {
+  const memo = new Memo(null, cache);
+  const listings = products.map(productListing);
+  await memo.prime(listings.flatMap((listing) => (listing ? [{ step: "tag" as const, system: PRODUCT_TAG_SYSTEM, text: listing }, ...watch.map((t) => ({ step: "check" as const, system: PRODUCT_CHECK_SYSTEM, text: productCheckText(t, listing) }))] : [])));
+  return listings.map((listing) => {
+    if (!listing) return { modelTags: [], opinions: [] };
+    const tagged = memo.peek("tag", TagSchema, PRODUCT_TAG_SYSTEM, listing);
+    const flagged = watch.map((t) => memo.peek("check", SecondPassSchema, PRODUCT_CHECK_SYSTEM, productCheckText(t, listing)));
+    if (!tagged || flagged.some((f) => !f)) return null;
+    return {
+      modelTags: tagged.dishes.flatMap((d) => d.tags),
+      opinions: watch.map((tag, k) => ({ itemId: "p1", tag, answer: flagged[k]!.flagged[0]?.answer ?? ("no" as const) })),
+    };
+  });
+}
+
 /** The database's record for a barcode, from the cache when it is recent. Only records with something in them are kept. */
-async function lookUpProduct(ctx: ActionCtx, barcode: string): Promise<ProductFacts | null> {
+export async function lookUpProduct(ctx: ActionCtx, barcode: string): Promise<ProductFacts | null> {
   const code = barcode.replace(/\D/g, "");
   if (!code) return null;
   if (cacheOn()) {
@@ -611,26 +690,8 @@ export const run = internalAction({
           }
         }
         const watch = [...new Set(hard.map((r) => r.tag))];
-        const list = [...(facts.actives ?? []).map((a) => `${a.name}${a.amount ? ` ${a.amount}` : ""}`), facts.ingredientsText?.trim() ?? ""].filter(Boolean).join(", ");
-        let modelTags: ModelTag[] = [];
-        let opinions: ReaderOpinion[] = [];
-        if (list) {
-          const listing = `Product: ${facts.name}\nIngredients: ${list}${facts.contains ? `\n${facts.contains}` : ""}${facts.mayContain ? `\n${facts.mayContain}` : ""}`;
-          const checkTexts = watch.map((t) => `Thing to watch for: ${tagLabel(t)}.\n\n${listing}`);
-          const memo = new Memo(client, answerCache(ctx));
-          await memo.prime([{ step: "tag", system: PRODUCT_TAG_SYSTEM, text: listing }, ...checkTexts.map((text) => ({ step: "check" as const, system: PRODUCT_CHECK_SYSTEM, text }))]);
-          const [tagged, flaggedPerTag] = await Promise.all([
-            // A tagging call that failed is answered with nothing for this scan, and is not remembered.
-            memo.ask("tag", TagSchema, PRODUCT_TAG_SYSTEM, listing).catch((e) => {
-              console.error("product tagging failed", e);
-              return { dishes: [] };
-            }),
-            Promise.all(checkTexts.map((text) => memo.ask("check", SecondPassSchema, PRODUCT_CHECK_SYSTEM, text))),
-          ]);
-          await memo.flush();
-          modelTags = tagged.dishes.flatMap((d) => d.tags);
-          opinions = watch.map((tag, k) => ({ itemId: "p1", tag, answer: flaggedPerTag[k].flagged[0]?.answer ?? ("no" as const) }));
-        }
+        const list = productListing(facts) !== null;
+        const { modelTags, opinions } = await productOpinions(new Memo(client, answerCache(ctx)), facts, watch);
         const item = itemFromProduct(facts, modelTags);
         const checks = buildChecks([item], rules, opinions, list && judgeEnabledForScans() ? await judgeItems([item], hard) : []);
         let verdicts = buildVerdicts([item], rules, checks);
