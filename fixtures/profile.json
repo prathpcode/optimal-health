@@ -1,0 +1,52 @@
+{
+  "_note": "Fixture for building screens. Sources here are placeholders, not real citations; no rule in this file has been reviewed.",
+  "profile": {
+    "medications": [{ "name": "simvastatin" }, { "name": "lisinopril" }],
+    "conditions": [{ "name": "High blood pressure", "key": "hypertension" }],
+    "allergies": ["tree_nuts"],
+    "diets": []
+  },
+  "rules": [
+    {
+      "id": "r_tree_nuts",
+      "level": "never",
+      "tag": "tree_nuts",
+      "reason": "You listed a tree nut allergy.",
+      "source": { "title": "FIXTURE: your own entry", "url": "https://example.invalid/fixture" },
+      "from": { "type": "allergy", "label": "tree nut allergy" },
+      "status": "unverified",
+      "enabled": true
+    },
+    {
+      "id": "r_grapefruit",
+      "level": "avoid",
+      "tag": "grapefruit",
+      "reason": "Grapefruit can change how simvastatin is processed.",
+      "source": { "title": "FIXTURE: placeholder source", "url": "https://example.invalid/fixture" },
+      "from": { "type": "medication", "label": "simvastatin" },
+      "status": "unverified",
+      "enabled": true
+    },
+    {
+      "id": "r_sodium",
+      "level": "limit",
+      "tag": "sodium",
+      "budget": { "nutrient": "sodiumMg", "amount": 1500, "unit": "mg", "per": "day" },
+      "reason": "Lower sodium is commonly advised with high blood pressure.",
+      "source": { "title": "FIXTURE: placeholder source", "url": "https://example.invalid/fixture" },
+      "from": { "type": "condition", "label": "high blood pressure" },
+      "status": "unverified",
+      "enabled": true
+    },
+    {
+      "id": "r_potassium_salt",
+      "level": "limit",
+      "tag": "potassium_salt_substitute",
+      "reason": "Potassium-based salt substitutes can add to the potassium-raising effect of lisinopril.",
+      "source": { "title": "FIXTURE: placeholder source", "url": "https://example.invalid/fixture" },
+      "from": { "type": "medication", "label": "lisinopril" },
+      "status": "unverified",
+      "enabled": true
+    }
+  ]
+}

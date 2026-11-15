@@ -1,0 +1,137 @@
+{
+  "_note": "Names of supplement ingredients, by tag. Applied ONLY to scanned supplements and OTC products, never to food: calcium in a glass of milk is not a calcium supplement. Terms are lowercase, already normalised.",
+  "names": {
+    "st_johns_wort": [
+      "st john's wort",
+      "st johns wort",
+      "st. john's wort",
+      "hypericum",
+      "hypericum perforatum"
+    ],
+    "potassium_supplement": [
+      "potassium",
+      "potassium chloride",
+      "potassium citrate",
+      "potassium gluconate"
+    ],
+    "calcium_supplement": [
+      "calcium",
+      "calcium carbonate",
+      "calcium citrate",
+      "calcium phosphate"
+    ],
+    "iron_supplement": [
+      "iron",
+      "ferrous sulfate",
+      "ferrous fumarate",
+      "ferrous gluconate",
+      "ferrous bisglycinate",
+      "carbonyl iron"
+    ],
+    "magnesium_supplement": [
+      "magnesium",
+      "magnesium oxide",
+      "magnesium citrate",
+      "magnesium glycinate",
+      "magnesium hydroxide"
+    ],
+    "zinc_supplement": [
+      "zinc",
+      "zinc gluconate",
+      "zinc oxide",
+      "zinc citrate",
+      "zinc picolinate"
+    ],
+    "vitamin_k_supplement": [
+      "vitamin k",
+      "vitamin k1",
+      "vitamin k2",
+      "phytonadione",
+      "menaquinone",
+      "phylloquinone"
+    ],
+    "vitamin_e_supplement": [
+      "vitamin e",
+      "tocopherol",
+      "d alpha tocopherol",
+      "dl alpha tocopheryl acetate",
+      "tocopheryl"
+    ],
+    "vitamin_a_supplement": [
+      "vitamin a",
+      "retinyl palmitate",
+      "retinol",
+      "beta carotene"
+    ],
+    "ginkgo": [
+      "ginkgo",
+      "ginkgo biloba"
+    ],
+    "garlic_supplement": [
+      "garlic",
+      "garlic extract",
+      "allium sativum"
+    ],
+    "ginseng": [
+      "ginseng",
+      "panax ginseng"
+    ],
+    "fish_oil": [
+      "fish oil",
+      "omega 3",
+      "omega 3 fatty acids",
+      "epa",
+      "dha",
+      "krill oil",
+      "cod liver oil"
+    ],
+    "echinacea": [
+      "echinacea"
+    ],
+    "goldenseal": [
+      "goldenseal"
+    ],
+    "melatonin": [
+      "melatonin"
+    ],
+    "biotin": [
+      "biotin"
+    ],
+    "niacin_supplement": [
+      "niacin",
+      "nicotinic acid",
+      "niacinamide"
+    ],
+    "coenzyme_q10": [
+      "coenzyme q10",
+      "coq10",
+      "ubiquinone",
+      "ubiquinol"
+    ],
+    "turmeric_supplement": [
+      "turmeric",
+      "curcumin",
+      "curcuma longa"
+    ],
+    "fiber_supplement": [
+      "psyllium",
+      "psyllium husk",
+      "methylcellulose",
+      "inulin"
+    ],
+    "licorice": [
+      "licorice",
+      "licorice root",
+      "glycyrrhiza"
+    ],
+    "caffeine": [
+      "caffeine",
+      "guarana",
+      "green tea extract"
+    ],
+    "grapefruit": [
+      "grapefruit seed extract",
+      "grapefruit"
+    ]
+  }
+}

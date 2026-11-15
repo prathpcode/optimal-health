@@ -13,5 +13,8 @@
       "mcp__plugin_coagent_coagent__proposal_respond",
       "EnterWorktree"
     ]
+  },
+  "enabledPlugins": {
+    "expo@claude-plugins-official": true
   }
 }

@@ -1,0 +1,30 @@
+{
+  "_note": "FDA Daily Values used as the reference amount when a Limit rule has no budget of its own, and FDA's guide for reading a percentage. Checked by `npm run verify:sources`.",
+  "source": {
+    "title": "Daily Value on the Nutrition and Supplement Facts Labels (FDA)",
+    "url": "https://www.fda.gov/food/nutrition-facts-label/daily-value-nutrition-and-supplement-facts-labels"
+  },
+  "values": {
+    "sodiumMg": {
+      "amount": 2300,
+      "unit": "mg",
+      "quote": "Sodium 2300mg"
+    },
+    "satFatG": {
+      "amount": 20,
+      "unit": "g",
+      "quote": "Saturated fat 20g"
+    },
+    "sugarG": {
+      "amount": 50,
+      "unit": "g",
+      "quote": "Added sugars 50g",
+      "caveat": "The Daily Value is for added sugars; a label's total sugars can include natural ones."
+    }
+  },
+  "bands": {
+    "low": 0.05,
+    "high": 0.2,
+    "quote": "5% DV or less of a nutrient per serving is considered low. 20% DV or more of a nutrient per serving is considered high."
+  }
+}

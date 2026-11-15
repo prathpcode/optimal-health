@@ -1,0 +1,3606 @@
+{
+ "chain": "Chick-fil-A",
+ "source": "https://www.chick-fil-a.com/nutrition-allergens",
+ "fetched": "2026-11-14",
+ "note": "Allergen declarations published by the chain, read from the data embedded in its nutrition and allergens page. Item names only; the page gives no descriptions. Size variants of the same item are collapsed.",
+ "tags": [
+  "dairy",
+  "egg",
+  "soy",
+  "wheat",
+  "sesame",
+  "tree_nuts",
+  "peanuts",
+  "fish"
+ ],
+ "items": [
+  {
+   "name": "1% Chocolate Milk",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "1% Milk",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "6 pack Chocolate Chunk Cookie",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "American Cheese",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Avocado Lime Ranch Dressing",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Bacon",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Bacon, Egg & Cheese Biscuit",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Bacon, Egg & Cheese Muffin",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Bag of Ice",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Barbeque Sauce",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Berry Parfait",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Berry Parfait w/ Cookie Crumbs",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Berry Parfait w/ Granola",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Beverages",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Blue Cheese Crumbles",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Bottled Diet Lemonade",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Bottled Lemonade",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Bottled Sweet Tea",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Bottled Unsweet Tea",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Bowl of Chicken Noodle Soup",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Breakfast Breads",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Breakfast Waffle",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Buddy Fruits Apple Sauce",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Buttery Biscuit",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Buttery White Bun",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Caramel Cream Cold Brew",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Caramel Frosted Coffee",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Caramel Iced Coffee",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Catering Coffee",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Breakfast Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Chick-n-Minis",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Chick-n-Minis Football-Shaped Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Chick-n-Strips",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Chicken Biscuit",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Chicken Sandwich",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Cool Wrap",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Cool Wrap Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Cool Wrap Trays",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Deluxe Sandwich",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Deluxe Sandwich w/ American",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Deluxe Sandwich w/ Colby Jack",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Deluxe Sandwich w/ No Cheese",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Deluxe Sandwich w/ Pepper Jack",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Diet Lemonade",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Grilled Chicken Club Sandwich",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Iced Tea (1/2 Sweet Tea, 1/2 Unsweet Tea)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Icedream Cone",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Icedream Cup",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Lemonade",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Lemonade (1/2 Lemonade, 1/2 Diet Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Nugget Trays",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Nuggets",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Nuggets Football-Shaped Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Nuggets Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Sauce",
+   "truth": {
+    "dairy": false,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Sauce Flavored Waffle Potato Chips",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-A Waffle Potato Fries",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-fil-ANuggets Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-n-Strips Kid's Meal",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-n-Strips Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chick-n-Strips Trays",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chicken & Waffles Breakfast Sandwich w/ Chick-fil-A Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chicken & Waffles Breakfast Sandwich w/ Grilled Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chicken & Waffles Breakfast Sandwich w/ Spicy Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chicken & Waffles Sandwich w/ Chick-fil-A Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chicken & Waffles Sandwich w/ Grilled Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chicken & Waffles Sandwich w/ Spicy Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chicken Noodle Soup",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chicken Tortilla Soup",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chicken, Egg & Cheese Biscuit",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chicken, Egg & Cheese Muffin",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chili Lime Pepitas",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chilled Chick-fil-A Nugget Trays",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chilled Chick-fil-A Nuggets Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chilled Chick-n-Strips (Cooked & Chilled for Later) Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chilled Chick-n-Strips Trays",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chilled Grilled Chicken Sub Sandwich",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chilled Grilled Chicken Sub Sandwich Tray",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chocolate Chunk Cookie",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chocolate Chunk Cookie and Chocolate Fudge Brownie Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chocolate Chunk Cookie Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chocolate Fudge Brownie",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chocolate Fudge Brownie Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Chocolate Milkshake",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Classic Syrup",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cobb Salad",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cobb Salad w/ Chick-fil-A Chick-n-Strips",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cobb Salad w/ Grilled Filet (Cold)",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cobb Salad w/ Grilled Filet (Warm)",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cobb Salad w/ Grilled Nuggets",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cobb Salad w/ No Chicken",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cobb Salad w/ Nuggets",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cobb Salad w/ Spicy Grilled Filet (Cold)",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Coca-Cola",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Colby Jack Cheese",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cookie & Brownie Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cookies & Cream Milkshake",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cream Cold Brew",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Creamy Salsa Dressing",
+   "truth": {
+    "dairy": false,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Crispy Bell Peppers",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Cup of Chicken Noodle Soup",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "DASANI Bottled Water",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Dr Pepper",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Dr Pepper Float",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Egg White Grill",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "English Muffin",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Fat-Free Honey Mustard Dressing",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Freshly-Brewed Iced Tea Sweetened",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Freshly-Brewed Iced Tea Unsweetened",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Freshly-Brewed Sweetened Iced Tea",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Freshly-Brewed Unsweetened Iced Tea",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Barq’s Red Flash",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Barq’s Root Beer",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Caffeine Free Barq’s Root Beer",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Caffeine Free Diet Coke",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Coca-Cola Cherry",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Coffee",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Coke",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Coke Zero Sugar",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Diet Coke",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Diet Dr Pepper",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Dr Pepper",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Fanta Orange",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Fanta Strawberry",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Hi-C Fruit Punch",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Hi-C Orange",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Lemonade",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Lemonade w/ Diet Lemonade",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Mello Yello",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Powerade Mountain Berry Blast",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Sodas",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Frosted Sprite",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Fruit Cup",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Fruit Tray",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Garden Herb Ranch Dressing",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Garden Herb Ranch Sauce",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Garden Salad Tray",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Gluten Free Bun",
+   "truth": {
+    "dairy": false,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Grilled Breakfast Filet",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Grilled Chicken Bundle",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Grilled Chicken Club w/ American",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Grilled Chicken Club w/ Colby Jack",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Grilled Chicken Club w/ No Cheese",
+   "truth": {
+    "dairy": false,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Grilled Chicken Club w/ Pepper Jack",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Grilled Chicken Sandwich",
+   "truth": {
+    "dairy": false,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Grilled Filet",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Grilled Nuggets",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Grilled Nuggets Kid's Meal",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Harvest Nut Granola",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ Bacon",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ Bacon - no hash browns",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ Grilled Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ Grilled Filet - no hash browns",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ No Meat",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ No Meat - no hash browns",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ Nuggets",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ Nuggets - no hash browns",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ Sausage",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ Sausage - no hash browns",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ Spicy Chicken",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Bowl w/ Spicy Chicken - no hash browns",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/  Sausage",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/ Bacon",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/ Bacon - no hash browns",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/ Grilled Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/ Grilled Filet - no hash brown",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/ No Meat",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/ No Meat - no hash browns",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/ Nuggets",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/ Nuggets - no hash browns",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/ Sausage - no hash browns",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/ Spicy Chicken",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Brown Scramble Burrito w/ Spicy Chicken - no hash browns",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hash Browns",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Honest Kids Apple Juice",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Honey Mustard Sauce",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Honey Roasted BBQ Sauce",
+   "truth": {
+    "dairy": false,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Hot Coffee",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Iced Coffee",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Kale Crunch Side",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Kale Crunch Side Tray",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Lettuce",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Light Balsamic Vinaigrette Dressing",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Light Italian Dressing",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Mac & Cheese",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Mac & Cheese Kid’s Meal",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Mac & Cheese Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Market Salad",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Market Salad w/ Chick-fil-A Chick-n-Strips",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Market Salad w/ Grilled Filet (Cold)",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Market Salad w/ Grilled Filet (Warm)",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Market Salad w/ Grilled Nuggets",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Market Salad w/ No Chicken",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Market Salad w/ Nuggets",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Market Salad w/ Spicy Grilled Filet (Cold)",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Mini Yeast Rolls",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Mocha Cream Cold Brew",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Mocha Frosted Coffee",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Mocha Iced Coffee",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Multigrain Brioche Bun",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Nuggets Kid's Meal",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Original Flavor Waffle Potato Chips",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pepper Jack Cheese",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Peppermint Chip Frosted Coffee",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit & Sprite",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Diet Lemonade",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Frosted Lemonade",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Frosted Lemonade w/ Diet Lemonade",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Lemonade",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Sunjoy (1/2 Sweet Tea, 1/2 Diet Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Sunjoy (1/2 Sweet Tea, 1/2 Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Sunjoy (1/2 Unsweet Tea, 1/2 Diet Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Sunjoy (1/2 Unsweet Tea, 1/2 Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Sunjoy (Sweet Tea, Diet Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Sunjoy (Sweet Tea, Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Sunjoy (Unsweet Tea, Diet Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Sunjoy (Unsweet Tea, Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Sweet Tea",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Pineapple Dragonfruit Unsweet Tea",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Polynesian Sauce",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Roasted Nut Blend",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": true,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Saltines",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Sausage",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Sausage, Egg & Cheese Biscuit",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Sausage, Egg & Cheese Muffin",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Seasonal Gallon Beverages",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Seasoned Tortilla Strips",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Side Salad",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Simply Orange",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Southwest Veggie Wrap Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Southwest Veggie Wrap Trays",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Breakfast Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Chicken Biscuit",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Chicken Sandwich",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Chilled Grilled Chicken Sub Sandwich",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Chilled Grilled Chicken Sub Sandwich Tray",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Cool Wrap Tray",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Cool Wrap Trays",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Deluxe Sandwich",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Deluxe Sandwich w/ American",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Deluxe Sandwich w/ Colby Jack",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Deluxe Sandwich w/ No Cheese",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Deluxe Sandwich w/ Pepper Jack",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Filet",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Southwest Salad",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Southwest Salad w/ Chick-fil-A Chick-n-Strips",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Southwest Salad w/ Grilled Filet (Cold)",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Southwest Salad w/ Grilled Filet (Warm)",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Southwest Salad w/ Grilled Nuggets",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Southwest Salad w/ No Chicken",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Southwest Salad w/ Nuggets",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Spicy Southwest Salad w/ Spicy Grilled Filet (Cold)",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Strawberry Milkshake",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Sunjoy (1/2 Sweet Tea, 1/2 Diet Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Sunjoy (1/2 Sweet Tea, 1/2 Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Sunjoy (1/2 Unsweet Tea, 1/2 Diet Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Sunjoy (1/2 Unsweet Tea, 1/2 Lemonade)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Sweet & Spicy Sriracha Sauce",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "S’mores Frosted Coffee",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "S’mores Milkshake",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Toasted Marshmallow Cream Cold Brew",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Toasted Marshmallow Hot Coffee",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Toasted Marshmallow Iced Coffee",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Toasted Marshmallow Whipped Topping",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Tomato",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Vanilla Cream Cold Brew",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Vanilla Frosted Coffee",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Vanilla Iced Coffee",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Vanilla Milkshake",
+   "truth": {
+    "dairy": true,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Waffle",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": true,
+    "wheat": true,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "White Bun (Unbuttered)",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": true,
+    "sesame": true,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Zesty Apple Cider Vinaigrette Dressing",
+   "truth": {
+    "dairy": false,
+    "egg": false,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  },
+  {
+   "name": "Zesty Buffalo Sauce",
+   "truth": {
+    "dairy": true,
+    "egg": true,
+    "soy": false,
+    "wheat": false,
+    "sesame": false,
+    "tree_nuts": false,
+    "peanuts": false,
+    "fish": false
+   }
+  }
+ ]
+}
