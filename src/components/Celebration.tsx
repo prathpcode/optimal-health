@@ -13,7 +13,8 @@ import Animated, {
 
 import { clearCelebration, useCelebration, type Celebration as C } from '@/lib/celebrate';
 import { haptic } from '@/lib/haptics';
-import { roomAccent, shadow, space, spring, useTheme } from '@/theme';
+import { roomAccent, space, spring, useTheme } from '@/theme';
+import { GlassSurface } from './Glass';
 import { T } from './T';
 
 const COUNT = 36;
@@ -62,7 +63,7 @@ function seeded(seed: number) {
 type Piece = { angle: number; speed: number; size: number; color: string; spin: number; round: boolean; delay: number };
 
 function Burst({ c: celebration }: { c: C }) {
-  const { c, dark } = useTheme();
+  const { c } = useTheme();
   const reduced = useReducedMotion();
   const { width, height } = useWindowDimensions();
 
@@ -104,8 +105,8 @@ function Burst({ c: celebration }: { c: C }) {
         ? null
         : pieces.map((p, i) => <Particle key={i} p={p} originX={width / 2} originY={height * 0.42} />)}
       <Animated.View style={[styles.center, { top: height * 0.42 - 60 }, titleStyle]}>
-        <View style={[styles.badge, { backgroundColor: c.card }, shadow('floating', dark)]}>
-          <T variant="display" color={accent} style={styles.title}>
+        <GlassSurface tone="theme" style={styles.badge}>
+          <T variant="heroBold" color={accent} style={styles.title}>
             {celebration.title}
           </T>
           {celebration.subtitle ? (
@@ -113,7 +114,7 @@ function Burst({ c: celebration }: { c: C }) {
               {celebration.subtitle}
             </T>
           ) : null}
-        </View>
+        </GlassSurface>
       </Animated.View>
     </View>
   );
@@ -149,6 +150,6 @@ function Particle({ p, originX, originY }: { p: Piece; originX: number; originY:
 const styles = StyleSheet.create({
   piece: { position: 'absolute', left: 0, top: 0 },
   center: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-  badge: { paddingHorizontal: space.xxl, paddingVertical: space.lg, borderRadius: 28, alignItems: 'center', gap: space.xs, minWidth: 160 },
-  title: { fontSize: 44, lineHeight: 50, textAlign: 'center' },
+  badge: { paddingHorizontal: space.xxl, paddingVertical: space.lg, borderRadius: 32, alignItems: 'center', gap: space.xs, minWidth: 168 },
+  title: { fontSize: 48, lineHeight: 56, letterSpacing: -1.2, textAlign: 'center' },
 });

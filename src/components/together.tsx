@@ -1,54 +1,44 @@
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { useEffect } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import { useEffect, useState, type ReactNode } from 'react';
+import { ActionSheetIOS, ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 
-import { useActiveChallenges, useMealForScan, useTopRoom, type Reaction, type RoomView } from '@/lib/community';
+import { celebrate } from '@/lib/celebrate';
+import { useMealForScan, useTopRoom, type Reaction, type RoomView } from '@/lib/community';
 import { useWhopAccount } from '@/lib/whop';
-import { radius, roomAccent, shadow, space, tint, useTheme } from '@/theme';
+import { joinOnWhop, needsMembership } from '@/lib/whopForum';
+import { radius, roomAccent, space, spring, useTheme } from '@/theme';
+import { GlassSurface } from './Glass';
 import { Icon, type IconName } from './Icon';
 import { T } from './T';
 import { Tap } from './Tap';
 
-const ORBIT: { icon: IconName; color: string }[] = [
-  { icon: 'heart', color: roomAccent['heart-health'] },
-  { icon: 'leaf', color: roomAccent['gluten-free'] },
-  { icon: 'drop', color: roomAccent['kidney-health'] },
-  { icon: 'chart', color: roomAccent.diabetes },
-  { icon: 'flame', color: roomAccent['gut-health'] },
-  { icon: 'shield', color: roomAccent['liver-health'] },
-];
-
-/** Room icons circling a centre mark, slowly. Used only when there is no matched room to lead with. */
-export function Orbit({ size = 240 }: { size?: number }) {
-  const { c, dark } = useTheme();
-  const reduced = useReducedMotion();
-  const spin = useSharedValue(0);
-
-  useEffect(() => {
-    if (reduced) return;
-    spin.value = withRepeat(withTiming(1, { duration: 40_000, easing: Easing.linear }), -1);
-  }, [reduced, spin]);
-
-  const ring = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 360}deg` }] }));
-  const upright = useAnimatedStyle(() => ({ transform: [{ rotate: `${-spin.value * 360}deg` }] }));
-
-  const r = size / 2 - 28;
+/** The full-width glass button, like Scan on Home. */
+export function GlassAction({ label, icon, onPress, loading, disabled }: { label: string; icon?: IconName; onPress: () => void; loading?: boolean; disabled?: boolean }) {
+  const { c } = useTheme();
   return (
-    <View style={{ width: size, height: size, alignSelf: 'center', alignItems: 'center', justifyContent: 'center' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Animated.View style={[StyleSheet.absoluteFill, ring]}>
-        {ORBIT.map((o, i) => {
-          const a = (i / ORBIT.length) * Math.PI * 2;
-          return (
-            <Animated.View key={o.icon} style={[styles.bubble, { left: size / 2 + Math.cos(a) * r - 22, top: size / 2 + Math.sin(a) * r - 22, backgroundColor: o.color }, upright]}>
-              <Icon name={o.icon} size={18} color="#FFFFFF" />
-            </Animated.View>
-          );
-        })}
-      </Animated.View>
-      <View style={[styles.core, { backgroundColor: c.primary }, shadow('floating', dark)]}>
-        <Icon name="people" size={30} color={c.onPrimary} />
-      </View>
+    <Tap accessibilityRole="button" accessibilityLabel={label} feedback="tap" scaleTo={0.97} onPress={onPress} disabled={disabled || loading}>
+      <GlassSurface tone="theme" interactive style={styles.action}>
+        {loading ? (
+          <ActivityIndicator color={c.text} />
+        ) : (
+          <>
+            {icon ? <Icon name={icon} size={20} color={c.text} /> : null}
+            <T variant="heading">{label}</T>
+          </>
+        )}
+      </GlassSurface>
+    </Tap>
+  );
+}
+
+/** A section's title, as on Manage, with an optional small action on the right. */
+export function SectionTitle({ title, action }: { title: string; action?: ReactNode }) {
+  return (
+    <View style={styles.section}>
+      <T variant="heading">{title}</T>
+      {action}
     </View>
   );
 }
@@ -72,7 +62,7 @@ export function PulseDot({ color, size = 8 }: { color: string; size?: number }) 
 
 const compact = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(n));
 
-/** The one real fact under a room's name: who's online, else how many members, else why you're in it. */
+/** The one real fact under a room's name: who's online, else how many members, else why you're in it. Never invented. */
 export function RoomStatus({ room }: { room: RoomView }) {
   const { c } = useTheme();
   if (room.online > 0) {
@@ -85,8 +75,7 @@ export function RoomStatus({ room }: { room: RoomView }) {
       </View>
     );
   }
-  const text =
-    room.members > 0 ? `${compact(room.members)} ${room.members === 1 ? 'member' : 'members'}` : room.reasons[0] ? `For your ${room.reasons[0].toLowerCase()}` : '';
+  const text = room.members > 0 ? `${compact(room.members)} ${room.members === 1 ? 'member' : 'members'}` : room.reasons[0] ? `For your ${room.reasons[0].toLowerCase()}` : '';
   if (!text) return null;
   return (
     <T variant="caption" tone="secondary" numberOfLines={1}>
@@ -95,45 +84,7 @@ export function RoomStatus({ room }: { room: RoomView }) {
   );
 }
 
-/** A room as a tile in its accent colour. */
-export function RoomTile({ room, width = 148 }: { room: RoomView; width?: number }) {
-  const { dark } = useTheme();
-  const accent = roomAccent[room.slug] ?? '#888888';
-  return (
-    <Tap
-      accessibilityRole="button"
-      accessibilityLabel={room.title}
-      onPress={() => router.push({ pathname: '/community/[slug]', params: { slug: room.slug } })}
-      scaleTo={0.96}
-      feedback="tap">
-      <View style={[styles.tile, { width, backgroundColor: tint(accent, dark ? 0.2 : 0.11) }]}>
-        <View style={[styles.tileIcon, { backgroundColor: accent }]}>
-          <Icon name={room.icon as IconName} size={20} color="#FFFFFF" />
-        </View>
-        <View style={{ gap: space.xs }}>
-          <T variant="headline" numberOfLines={2}>
-            {room.title}
-          </T>
-          <RoomStatus room={room} />
-        </View>
-      </View>
-    </Tap>
-  );
-}
-
-/** The last tile in the rooms carousel: find another room. */
-export function AddTile({ width = 88 }: { width?: number }) {
-  const { c } = useTheme();
-  return (
-    <Tap accessibilityRole="button" accessibilityLabel="Find more rooms" onPress={() => router.push('/rooms')} scaleTo={0.95} feedback="tap">
-      <View style={[styles.tile, styles.add, { width, borderColor: c.hairline }]}>
-        <Icon name="plus" size={20} color={c.textSecondary} weight="bold" />
-      </View>
-    </Tap>
-  );
-}
-
-/** Run a Together action; if the server refuses, say why in a short alert. Resolves to whether it worked. */
+/** Run a Together action; if it fails, say why in a short alert. Resolves to whether it worked. */
 export async function attempt(action: Promise<unknown>): Promise<boolean> {
   try {
     await action;
@@ -149,121 +100,176 @@ export async function attempt(action: Promise<unknown>): Promise<boolean> {
 
 export const REACTION_LABEL: Record<Reaction, string> = { loved: 'Loved it', okay: 'It was okay', nope: 'Wouldn’t again' };
 
-/** Home's way into Together, led by your matched room. */
-export function TogetherCard() {
-  const { c, dark } = useTheme();
+/** Pick a meal photo: take one or choose one. Resolves to a local uri, or null. */
+export function pickPhoto(): Promise<string | null> {
+  const fromCamera = async () => {
+    const p = await ImagePicker.requestCameraPermissionsAsync();
+    if (!p.granted) return null;
+    const r = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.85 });
+    return r.canceled ? null : (r.assets[0]?.uri ?? null);
+  };
+  const fromLibrary = async () => {
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.85 });
+    return r.canceled ? null : (r.assets[0]?.uri ?? null);
+  };
+  return new Promise((resolve) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions({ options: ['Take photo', 'Choose from library', 'Cancel'], cancelButtonIndex: 2 }, (i) => {
+        if (i === 0) void fromCamera().then(resolve);
+        else if (i === 1) void fromLibrary().then(resolve);
+        else resolve(null);
+      });
+    } else {
+      Alert.alert('Add a photo', undefined, [
+        { text: 'Take photo', onPress: () => void fromCamera().then(resolve) },
+        { text: 'Choose from library', onPress: () => void fromLibrary().then(resolve) },
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(null) },
+      ]);
+    }
+  });
+}
+
+/**
+ * Post to Whop. Rooms are public forums, so this usually just works; if Whop asks for membership first, offer the
+ * one free step ("Join Fit on Whop"), then try again. Resolves to whether it posted.
+ */
+export async function postWithWhop(run: () => Promise<unknown>): Promise<boolean> {
+  try {
+    await run();
+    return true;
+  } catch (e) {
+    if (!needsMembership(e)) return attempt(Promise.reject(e));
+    const join = await new Promise<boolean>((resolve) =>
+      Alert.alert('Join Fit on Whop', 'Free, and only once. Then you can post in every room.', [
+        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Join', onPress: () => resolve(true) },
+      ]),
+    );
+    if (!join) return false;
+    await joinOnWhop();
+    const ok = await attempt(run());
+    if (ok) celebrate({ title: 'You’re in', subtitle: 'Post in any room', tone: 'great' });
+    return ok;
+  }
+}
+
+/** Home's way into Together: a glass pill with your matched room, top left, opposite the profile button. */
+export function HomeRoomPill() {
+  const { c } = useTheme();
   const { account } = useWhopAccount();
   const room = useTopRoom();
-  const live = useActiveChallenges()[0];
-  const score = live?.me?.score;
-  const card = [styles.home, { backgroundColor: c.card }, dark ? { borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline } : null, shadow('card', dark)];
-
   if (!room) {
     return (
-      <Tap accessibilityRole="button" accessibilityLabel="Add a condition to find your people" onPress={() => router.navigate('/me')} scaleTo={0.98}>
-        <View style={card}>
-          <View style={[styles.homeIcon, { backgroundColor: c.cardMuted }]}>
-            <Icon name="people" size={18} color={c.text} />
-          </View>
-          <T variant="bodyStrong" style={{ flex: 1 }}>
-            Add a condition to find your people
-          </T>
-          <Icon name="chevron" size={14} color={c.textTertiary} />
-        </View>
+      <Tap accessibilityRole="button" accessibilityLabel="Eat healthier with people like you" feedback="tap" hitSlop={8} onPress={() => router.navigate('/together')}>
+        <GlassSurface tone="theme" interactive style={styles.pillRound}>
+          <Icon name="people" size={18} color={c.text} />
+        </GlassSurface>
       </Tap>
     );
   }
-
   const accent = roomAccent[room.slug] ?? c.text;
   const open = () => (account ? router.push({ pathname: '/community/[slug]', params: { slug: room.slug } }) : router.navigate('/together'));
   return (
-    <Tap accessibilityRole="button" accessibilityLabel={`${room.title}, people with ${room.reasons[0] ?? 'your conditions'}`} onPress={open} scaleTo={0.98}>
-      <View style={card}>
-        <View style={[styles.homeIcon, { backgroundColor: accent }]}>
-          <Icon name={room.icon as IconName} size={18} color="#FFFFFF" />
+    <Tap accessibilityRole="button" accessibilityLabel={room.online > 0 ? `${room.title}, ${room.online} online` : room.title} feedback="tap" hitSlop={8} onPress={open}>
+      <GlassSurface tone="theme" interactive style={styles.pill}>
+        <View style={[styles.pillIcon, { backgroundColor: accent }]}>
+          <Icon name={room.icon as IconName} size={13} color="#FFFFFF" />
         </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <T variant="headline" numberOfLines={1}>
-            {room.title}
-          </T>
-          {room.online > 0 ? (
-            <RoomStatus room={room} />
-          ) : (
-            <T variant="caption" tone="secondary" numberOfLines={1}>
-              {room.reasons[0] ? `For your ${room.reasons[0].toLowerCase()}` : 'Your room'}
-            </T>
-          )}
-        </View>
-        {live && score != null ? (
-          <View style={[styles.chip, { backgroundColor: c.goodSoft }]}>
-            <Icon name="trophy" size={11} color={c.good} />
+        <T variant="bodyStrong" numberOfLines={1}>
+          {room.title}
+        </T>
+        {room.online > 0 ? (
+          <View style={styles.live}>
+            <PulseDot color={c.good} size={6} />
             <T variant="caption" color={c.good}>
-              {score}%
+              {room.online}
             </T>
           </View>
-        ) : (
-          <Icon name="chevron" size={14} color={c.textTertiary} />
-        )}
-      </View>
+        ) : null}
+      </GlassSurface>
     </Tap>
   );
 }
 
-/** On a finished scan: "What did you order?", or what you logged, with a way to change it. */
+/** On a finished scan: "What did you order?", or what you logged. */
 export function MealCard({ scanId }: { scanId: string }) {
-  const { c, dark } = useTheme();
+  const { c } = useTheme();
   const meal = useMealForScan(scanId);
   const reduced = useReducedMotion();
-  const nudge = useSharedValue(0);
+  const pop = useSharedValue(0.9);
   useEffect(() => {
-    if (reduced || meal !== null) return;
-    nudge.value = withRepeat(withSequence(withTiming(1, { duration: 900 }), withTiming(0, { duration: 900 })), 3);
-  }, [meal, nudge, reduced]);
-  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + nudge.value * 0.1 }] }));
+    pop.value = reduced ? 1 : withSpring(1, spring.pop);
+  }, [meal, pop, reduced]);
+  const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
   if (meal === undefined) return null;
 
   const open = () => router.push({ pathname: '/ate/[scanId]', params: { scanId } });
   return (
     <Tap accessibilityRole="button" accessibilityLabel={meal ? `You ordered ${meal.dishName}. Change` : 'What did you order?'} feedback="tap" scaleTo={0.98} onPress={open}>
-      <View
-        style={[
-          styles.row,
-          { backgroundColor: meal ? c.card : c.primary },
-          dark && meal ? { borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline } : null,
-          shadow('card', dark),
-        ]}>
-        <Animated.View style={[styles.rowIcon, { backgroundColor: meal ? c.goodSoft : tint(c.onPrimary, 0.15) }, iconStyle]}>
-          <Icon name={meal ? 'check' : 'fork'} size={16} color={meal ? c.good : c.onPrimary} weight="bold" />
+      <GlassSurface tone="theme" interactive style={styles.row}>
+        <Animated.View style={[styles.rowIcon, { backgroundColor: meal ? c.goodSoft : c.primary }, iconStyle]}>
+          <Icon name={meal ? 'check' : 'fork'} size={20} color={meal ? c.good : c.onPrimary} weight="bold" />
         </Animated.View>
-        <View style={{ flex: 1 }}>
-          {meal ? (
-            <T variant="bodyStrong" numberOfLines={1}>
-              You ordered {meal.dishName}
-            </T>
-          ) : (
-            <T variant="bodyStrong" color={c.onPrimary}>
-              What did you order?
-            </T>
-          )}
+        <View style={{ flex: 1, gap: 2 }}>
+          <T variant="headline" numberOfLines={1}>
+            {meal ? meal.dishName : 'What did you order?'}
+          </T>
+          <T variant="caption" tone="secondary">
+            {meal ? 'Logged · tap to change' : 'Log it to score your challenges'}
+          </T>
         </View>
-        <T variant="caption" color={meal ? c.textSecondary : tint(c.onPrimary, 0.7)}>
-          {meal ? 'Change' : 'Log it'}
-        </T>
-      </View>
+        <Icon name="chevron" size={14} color={c.textTertiary} />
+      </GlassSurface>
     </Tap>
   );
 }
 
+/** Two or three tabs on glass, with a sliding thumb. */
+export function GlassTabs<V extends string>({ options, value, onChange }: { options: { value: V; label: string }[]; value: V; onChange: (v: V) => void }) {
+  const { c } = useTheme();
+  const [width, setWidth] = useState(0);
+  const index = Math.max(0, options.findIndex((o) => o.value === value));
+  const seg = width / options.length;
+  const x = useSharedValue(0);
+  useEffect(() => {
+    x.value = withSpring(index * seg, spring.snappy);
+  }, [index, seg, x]);
+  const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  return (
+    <GlassSurface tone="theme" style={styles.tabs}>
+      <View accessibilityRole="tablist" style={styles.tabRow} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+        {width > 0 ? <Animated.View style={[styles.thumb, { width: seg, backgroundColor: c.card }, thumb]} /> : null}
+        {options.map((o) => (
+          <Tap
+            key={o.value}
+            accessibilityRole="tab"
+            accessibilityLabel={o.label}
+            accessibilityState={{ selected: o.value === value }}
+            feedback="select"
+            scaleTo={1}
+            onPress={() => onChange(o.value)}
+            style={styles.tab}>
+            <T variant="bodyStrong" tone={o.value === value ? 'primary' : 'secondary'}>
+              {o.label}
+            </T>
+          </Tap>
+        ))}
+      </View>
+    </GlassSurface>
+  );
+}
+
 const styles = StyleSheet.create({
-  bubble: { position: 'absolute', width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  core: { width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center' },
-  tile: { height: 150, borderRadius: radius.card, padding: space.lg, justifyContent: 'space-between' },
-  tileIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  live: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  home: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderRadius: radius.card - 4 },
-  homeIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: space.sm + 2, paddingVertical: 5, borderRadius: radius.chip },
-  add: { borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.md },
-  rowIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  action: { height: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
+  section: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.md },
+  live: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.card },
+  rowIcon: { width: 52, height: 52, borderRadius: radius.sm + 4, alignItems: 'center', justifyContent: 'center' },
+  pill: { height: 44, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingLeft: 6, paddingRight: space.md, maxWidth: 220 },
+  pillRound: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  pillIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  tabs: { height: 44, padding: 4 },
+  tabRow: { flexDirection: 'row', flex: 1 },
+  thumb: { position: 'absolute', top: 0, bottom: 0, left: 0, borderRadius: radius.chip },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

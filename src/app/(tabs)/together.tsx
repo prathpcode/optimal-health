@@ -5,15 +5,16 @@ import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChallengeRow, FitLegend } from '@/components/challenge';
-import { Avatar } from '@/components/community';
-import { Icon, type IconName } from '@/components/Icon';
+import { RoomIcon, RoomRow } from '@/components/community';
+import { GlassButton, GlassSurface } from '@/components/Glass';
+import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { AddTile, Orbit, RoomTile } from '@/components/together';
-import { Button, Card, SectionLabel, Skeleton } from '@/components/ui';
-import { PREVIEW, useTogether, useTopRoom } from '@/lib/community';
+import { GlassAction, RoomStatus, SectionTitle } from '@/components/together';
+import { Skeleton } from '@/components/ui';
+import { useTogether, useTopRoom } from '@/lib/community';
 import { signInWithWhop, signOutOfWhop, useWhopAccount } from '@/lib/whop';
-import { enterAt, gutter, radius, roomAccent, shadow, space, tint, useTheme } from '@/theme';
+import { enterAt, gutter, radius, space, useTheme } from '@/theme';
 
 export default function TogetherScreen() {
   const { c } = useTheme();
@@ -22,7 +23,7 @@ export default function TogetherScreen() {
   const { ready, account } = useWhopAccount();
 
   const accountMenu = () =>
-    Alert.alert(account ? `@${account.username}` : 'Whop', undefined, [
+    Alert.alert(account ? `@${account.username}` : 'Whop', 'Signed in with Whop', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: () => void signOutOfWhop() },
     ]);
@@ -31,36 +32,28 @@ export default function TogetherScreen() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView
         contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={{ paddingTop: insets.top + space.md, paddingBottom: bottom + space.huge }}
+        contentContainerStyle={{ paddingTop: insets.top + space.md, paddingHorizontal: gutter, paddingBottom: bottom + 62 + space.huge }}
         showsVerticalScrollIndicator={false}>
-        <View style={[styles.header, { paddingHorizontal: gutter }]}>
-          <View style={styles.brand}>
-            <View style={[styles.logo, { backgroundColor: c.primary }]}>
-              <Icon name="people" size={15} color={c.onPrimary} />
-            </View>
-            <T variant="title">Together</T>
-            {PREVIEW && account ? (
-              <View style={[styles.preview, { backgroundColor: c.cardMuted }]}>
-                <T variant="micro" tone="secondary">
-                  Preview
-                </T>
-              </View>
-            ) : null}
-          </View>
-          {account ? (
-            <Tap accessibilityRole="button" accessibilityLabel="Account" feedback="tap" onPress={accountMenu} hitSlop={8}>
-              <Avatar name={account.name} url={account.avatarUrl} size={36} />
-            </Tap>
-          ) : null}
+        <View style={styles.header}>
+          <T variant="heroBold" accessibilityRole="header">
+            Together
+          </T>
+          {account ? <GlassButton tone="theme" icon="person" label="Account" onPress={accountMenu} /> : null}
         </View>
         {!ready ? null : account ? <SignedIn /> : <SignedOut />}
       </ScrollView>
+      {ready && account ? (
+        <View style={[styles.cta, { bottom: bottom + space.md }]}>
+          <GlassAction label="New challenge" icon="trophy" onPress={() => router.push('/challenge/new')} />
+        </View>
+      ) : null}
     </View>
   );
 }
 
 function SignedOut() {
-  const { c, dark } = useTheme();
+  const { c } = useTheme();
+  const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const room = useTopRoom();
   const [busy, setBusy] = useState(false);
@@ -72,43 +65,28 @@ function SignedOut() {
     if (!r.ok && !r.cancelled) Alert.alert('Couldn’t sign in', r.message ?? 'Try again in a moment.');
   };
 
-  const accent = room ? (roomAccent[room.slug] ?? c.text) : c.text;
   return (
-    <Animated.View entering={enterAt(0, reduced)} style={{ paddingHorizontal: gutter, gap: space.xxl }}>
+    <Animated.View entering={enterAt(0, reduced)} style={{ gap: space.xxl, minHeight: 420 + insets.top }}>
+      <T variant="hero">
+        Eat healthier with people <T variant="heroBold">like you</T>
+      </T>
       {room ? (
-        <View style={[styles.lead, { backgroundColor: tint(accent, dark ? 0.2 : 0.12) }]}>
-          <View style={[styles.leadIcon, { backgroundColor: accent }, shadow('floating', dark)]}>
-            <Icon name={room.icon as IconName} size={34} color="#FFFFFF" />
-          </View>
-          <View style={{ gap: space.xs, alignItems: 'center' }}>
-            <T variant="micro" color={accent}>
-              Your room
-            </T>
-            <T variant="display" style={{ textAlign: 'center' }}>
-              {room.title}
-            </T>
-            <T tone="secondary" style={{ textAlign: 'center' }}>
-              {room.reasons[0] ? `People with ${room.reasons[0].toLowerCase()}, like you` : 'People who eat like you'}
+        <GlassSurface tone="theme" style={styles.lead}>
+          <RoomIcon icon={room.icon} slug={room.slug} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <T variant="headline">{room.title}</T>
+            <T variant="caption" tone="secondary">
+              {room.reasons[0] ? `Your room for ${room.reasons[0].toLowerCase()}` : 'Your room'}
             </T>
           </View>
-        </View>
-      ) : (
-        <View style={{ alignItems: 'center', gap: space.lg }}>
-          <Orbit />
-          <View style={{ gap: space.xs, alignItems: 'center' }}>
-            <T variant="display">Find your people</T>
-            <T tone="secondary" style={{ textAlign: 'center' }}>
-              Rooms for your conditions and challenges with friends.
-            </T>
-          </View>
-        </View>
-      )}
+        </GlassSurface>
+      ) : null}
       <View style={{ gap: space.md }}>
-        <Button label="Continue with Whop" onPress={signIn} loading={busy} />
+        <GlassAction label="Continue with Whop" onPress={signIn} loading={busy} />
         <View style={styles.privacy}>
           <Icon name="lock" size={12} color={c.textTertiary} />
-          <T variant="caption" tone="tertiary" style={{ textAlign: 'center', flexShrink: 1 }}>
-            Signing in puts you in rooms for your conditions. Your profile stays private.
+          <T variant="caption" tone="tertiary">
+            Your profile, medicines and scans stay private.
           </T>
         </View>
       </View>
@@ -117,91 +95,65 @@ function SignedOut() {
 }
 
 function SignedIn() {
+  const { c } = useTheme();
   const { mine, challenges, loading } = useTogether();
   const reduced = useReducedMotion();
 
   if (loading) {
     return (
-      <View style={{ paddingHorizontal: gutter, gap: space.md }}>
-        <Skeleton width={100} />
-        <View style={{ flexDirection: 'row', gap: space.md }}>
-          <Skeleton width={148} height={150} />
-          <Skeleton width={148} height={150} />
-        </View>
+      <View style={{ gap: space.sm + 2 }}>
+        <Skeleton width="100%" height={76} />
+        <Skeleton width="100%" height={76} />
       </View>
     );
   }
 
   return (
     <View style={{ gap: space.xxxl }}>
-      <Animated.View entering={enterAt(0, reduced)} style={{ gap: space.md }}>
-        <SectionLabel style={{ paddingHorizontal: gutter }}>Your rooms</SectionLabel>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: gutter, gap: space.md }}>
+      <Animated.View entering={enterAt(0, reduced)}>
+        <SectionTitle title="Your rooms" />
+        <View style={{ gap: space.sm + 2 }}>
           {mine.map((r) => (
-            <RoomTile key={r.slug} room={r} />
+            <RoomRow key={r.slug} room={r} detail={<RoomStatus room={r} />} />
           ))}
-          <AddTile />
-        </ScrollView>
+          <Tap accessibilityRole="button" accessibilityLabel="More rooms" onPress={() => router.push('/rooms')} scaleTo={0.98}>
+            <View style={[styles.more, { borderColor: c.hairline }]}>
+              <Icon name="plus" size={16} color={c.textSecondary} weight="bold" />
+              <T variant="bodyStrong" tone="secondary">
+                More rooms
+              </T>
+            </View>
+          </Tap>
+        </View>
       </Animated.View>
 
-      <Animated.View entering={enterAt(1, reduced)} style={{ paddingHorizontal: gutter, gap: space.md }}>
-        <View style={styles.sectionHead}>
-          <SectionLabel>Challenges</SectionLabel>
-          {challenges.length ? <NewChallengeLink /> : null}
-        </View>
+      <Animated.View entering={enterAt(1, reduced)}>
+        <SectionTitle title="Challenges" />
         {challenges.length ? (
-          challenges.map((ch, i) => (
-            <Animated.View key={ch.id} entering={enterAt(i + 2, reduced)}>
-              <ChallengeRow ch={ch} />
-            </Animated.View>
-          ))
+          <View style={{ gap: space.sm + 2 }}>
+            {challenges.map((ch) => (
+              <ChallengeRow key={ch.id} ch={ch} />
+            ))}
+          </View>
         ) : (
-          <StartCard />
+          <GlassSurface tone="theme" style={styles.empty}>
+            <T variant="headline">Eat what fits, with friends</T>
+            <T variant="caption" tone="secondary">
+              Log what you order. Highest fit % wins.
+            </T>
+            <FitLegend />
+          </GlassSurface>
         )}
       </Animated.View>
     </View>
   );
 }
 
-function NewChallengeLink() {
-  return (
-    <Tap accessibilityRole="button" accessibilityLabel="New challenge" feedback="tap" hitSlop={8} onPress={() => router.push('/challenge/new')}>
-      <T variant="bodyStrong">+ New</T>
-    </Tap>
-  );
-}
-
-/** No challenges yet: what the game is, in one picture, and the button. */
-function StartCard() {
-  const { c } = useTheme();
-  return (
-    <Card style={{ gap: space.xl }}>
-      <View style={styles.startTop}>
-        <View style={[styles.trophy, { backgroundColor: c.goodSoft }]}>
-          <Icon name="trophy" size={22} color={c.good} />
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <T variant="headline">Eat what fits</T>
-          <T variant="caption" tone="secondary">
-            Order what fits you. Best score wins.
-          </T>
-        </View>
-      </View>
-      <FitLegend />
-      <Button label="New challenge" icon="plus" onPress={() => router.push('/challenge/new')} />
-    </Card>
-  );
-}
-
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xl, minHeight: 36 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  logo: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  preview: { paddingHorizontal: space.sm, paddingVertical: 3, borderRadius: radius.chip },
-  lead: { alignItems: 'center', gap: space.xl, paddingVertical: space.xxxl, paddingHorizontal: space.xl, borderRadius: radius.card },
-  leadIcon: { width: 76, height: 76, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  privacy: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs, paddingHorizontal: space.lg },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  startTop: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  trophy: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xxl, minHeight: 44 },
+  lead: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.card },
+  privacy: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs },
+  more: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, height: 52, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed' },
+  empty: { borderRadius: radius.card, padding: space.lg, gap: space.sm },
+  cta: { position: 'absolute', left: gutter, right: gutter },
 });

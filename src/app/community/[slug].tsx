@@ -1,217 +1,200 @@
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Avatar, BackButton, RoomIcon } from '@/components/community';
+import { RoomIcon } from '@/components/community';
+import { GlassButton } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
+import { PostCard } from '@/components/post';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { attempt, REACTION_LABEL, RoomStatus } from '@/components/together';
-import { Button } from '@/components/ui';
-import { leaveRoom, sendMessage, useRoom, type Message, type RoomView } from '@/lib/community';
+import { attempt, GlassAction, GlassTabs, RoomStatus } from '@/components/together';
+import { joinRoom, leaveRoom, useRoom, type RoomView } from '@/lib/community';
+import { goBack } from '@/lib/nav';
 import { useWhopAccount } from '@/lib/whop';
-import { gutter, radius, roomAccent, space, tint, type as typeScale, useTheme } from '@/theme';
+import { useRoomFeed, useRoomPhotos } from '@/lib/whopForum';
+import { enterAt, gutter, radius, roomAccent, space, tint, useTheme } from '@/theme';
+
+type Tab = 'posts' | 'photos';
 
 export default function RoomScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const { room, messages } = useRoom(slug);
+  const { room } = useRoom(slug);
+  const { account } = useWhopAccount();
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
+  const [tab, setTab] = useState<Tab>('posts');
   if (!room) return null;
 
-  const more = () =>
+  const options = () =>
     Alert.alert(room.title, undefined, [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Leave room',
-        style: 'destructive',
-        onPress: async () => {
-          if (await attempt(leaveRoom(room.slug))) router.back();
-        },
-      },
+      room.joined
+        ? { text: 'Leave room', style: 'destructive', onPress: async () => void ((await attempt(leaveRoom(room.slug))) && goBack()) }
+        : { text: 'Add to my rooms', onPress: () => void attempt(joinRoom(room.slug)) },
     ]);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={{ paddingTop: insets.top + space.sm, paddingHorizontal: gutter, gap: space.lg, paddingBottom: space.md }}>
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      <View style={{ paddingTop: insets.top + space.md, paddingHorizontal: gutter, gap: space.lg, paddingBottom: space.md }}>
         <View style={styles.topBar}>
-          <BackButton />
-          {room.joined ? (
-            <Tap accessibilityRole="button" accessibilityLabel="Room options" onPress={more} hitSlop={8} style={styles.moreBtn}>
-              <Icon name="more" size={20} color={c.textSecondary} />
-            </Tap>
-          ) : null}
+          <GlassButton tone="theme" icon="back" label="Back" onPress={goBack} />
+          <GlassButton tone="theme" icon="more" label="Room options" onPress={options} />
         </View>
         <View style={styles.titleRow}>
-          <RoomIcon icon={room.icon} slug={room.slug} size={52} />
-          <View style={{ flex: 1, gap: 4 }}>
-            <T variant="title" numberOfLines={1}>
+          <RoomIcon icon={room.icon} slug={room.slug} size={56} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <T variant="heroBold" numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 28, lineHeight: 34 }}>
               {room.title}
             </T>
             <RoomStatus room={room} />
           </View>
         </View>
+        <GlassTabs<Tab>
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'posts', label: 'Posts' },
+            { value: 'photos', label: 'Photos' },
+          ]}
+        />
       </View>
-      <Chat room={room} messages={messages} />
-    </KeyboardAvoidingView>
+      {!account ? <SignedOut /> : tab === 'posts' ? <Posts room={room} /> : <Photos room={room} />}
+    </View>
   );
 }
 
-function Chat({ room, messages }: { room: RoomView; messages: Message[] }) {
-  const { slug, title, joined } = room;
+function SignedOut() {
+  return (
+    <View style={styles.center}>
+      <T variant="heading" style={{ textAlign: 'center' }}>
+        Sign in to see posts
+      </T>
+      <T tone="secondary" style={{ textAlign: 'center' }}>
+        Rooms live on Whop.
+      </T>
+      <View style={{ alignSelf: 'stretch', marginTop: space.lg }}>
+        <GlassAction label="Go to Together" onPress={() => router.navigate('/together')} />
+      </View>
+    </View>
+  );
+}
+
+function EmptyRoom({ room, photos }: { room: RoomView; photos?: boolean }) {
+  const { c, dark } = useTheme();
+  const accent = roomAccent[room.slug] ?? c.text;
+  const who = room.reasons[0] ? `people with ${room.reasons[0].toLowerCase()}` : `the ${room.title} room`;
+  return (
+    <View style={styles.center}>
+      <View style={[styles.emptyIcon, { backgroundColor: tint(accent, dark ? 0.22 : 0.12) }]}>
+        <Icon name={photos ? 'photos' : 'fork'} size={26} color={accent} />
+      </View>
+      <T variant="heading" style={{ textAlign: 'center' }}>
+        {photos ? 'No photos yet' : `Be the first to share a meal with ${who}`}
+      </T>
+      {photos ? (
+        <T tone="secondary" style={{ textAlign: 'center' }}>
+          Photos people post show up here.
+        </T>
+      ) : null}
+    </View>
+  );
+}
+
+function Posts({ room }: { room: RoomView }) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
-  const { account } = useWhopAccount();
-  const [draft, setDraft] = useState('');
-  const rows = [...messages].reverse();
-
-  const send = () => {
-    void attempt(sendMessage(slug, draft));
-    setDraft('');
-  };
+  const reduced = useReducedMotion();
+  const { items, loaded, error } = useRoomFeed(room.slug);
 
   return (
     <View style={{ flex: 1 }}>
-      <FlatList
-        inverted
-        data={rows}
-        keyExtractor={(m) => m.id}
-        keyboardDismissMode="interactive"
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item, index }) => {
-          const older = rows[index + 1];
-          const first = !older || older.author !== item.author || item.at - older.at > 10 * 60_000;
-          return <Bubble m={item} first={first} slug={slug} />;
-        }}
-        ListEmptyComponent={<EmptyRoom room={room} />}
-        contentContainerStyle={rows.length ? { paddingHorizontal: gutter, paddingVertical: space.lg } : { flexGrow: 1, paddingHorizontal: gutter }}
-      />
-      <View style={[styles.composerWrap, { paddingBottom: insets.bottom + space.sm, borderTopColor: c.hairline, backgroundColor: c.bg }]}>
-        {joined ? (
-          <View style={[styles.composer, { backgroundColor: c.card, borderColor: c.hairline }]}>
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={`Message ${title}`}
-              placeholderTextColor={c.textTertiary}
-              style={[typeScale.body, styles.input, { color: c.text }]}
-              multiline
-              maxLength={1000}
-              accessibilityLabel="Message"
-            />
-            <Tap accessibilityRole="button" accessibilityLabel="Send" feedback="tap" disabled={!draft.trim()} onPress={send} style={[styles.send, { backgroundColor: c.primary }]}>
-              <Icon name="send" size={16} color={c.onPrimary} weight="bold" />
-            </Tap>
+      {!loaded ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={c.textSecondary} />
+        </View>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(p) => p.id}
+          renderItem={({ item, index }) => (
+            <Animated.View entering={enterAt(index, reduced)}>
+              <PostCard post={item} slug={room.slug} />
+            </Animated.View>
+          )}
+          ItemSeparatorComponent={Gap}
+          ListHeaderComponent={
+            error ? (
+              <T variant="caption" tone="secondary" style={{ textAlign: 'center', marginBottom: space.md }}>
+                Couldn’t reach Whop. Retrying…
+              </T>
+            ) : undefined
+          }
+          ListEmptyComponent={<EmptyRoom room={room} />}
+          contentContainerStyle={[{ paddingHorizontal: gutter, paddingTop: space.sm, paddingBottom: insets.bottom + 62 + space.xxxl }, items.length ? null : { flexGrow: 1 }]}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+      <View style={[styles.cta, { bottom: insets.bottom + space.md }]}>
+        <GlassAction label="New post" icon="plus" onPress={() => router.push({ pathname: '/compose/[slug]', params: { slug: room.slug } })} />
+      </View>
+    </View>
+  );
+}
+
+function Gap() {
+  return <View style={{ height: space.md }} />;
+}
+
+function SmallGap() {
+  return <View style={{ height: space.sm }} />;
+}
+
+/** The inspiration board: every photo people shared, two to a row. Tap one to open its post. */
+function Photos({ room }: { room: RoomView }) {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const photos = useRoomPhotos(room.slug);
+  const size = (width - gutter * 2 - space.sm) / 2;
+  return (
+    <FlatList
+      data={photos}
+      numColumns={2}
+      keyExtractor={(p, i) => `${p.post.id}_${i}`}
+      columnWrapperStyle={{ gap: space.sm }}
+      ItemSeparatorComponent={SmallGap}
+      renderItem={({ item }) => (
+        <Tap
+          accessibilityRole="button"
+          accessibilityLabel={item.post.dish?.name ?? item.post.title ?? `Photo from ${item.post.author}`}
+          scaleTo={0.97}
+          onPress={() => router.push({ pathname: '/post/[slug]/[id]', params: { slug: room.slug, id: item.post.id } })}>
+          <View style={[styles.tile, { width: size, height: size * 1.2 }]}>
+            <Image source={{ uri: item.photo.url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
+            <View style={styles.tileLabel}>
+              <T variant="caption" color="#FFFFFF" numberOfLines={1}>
+                {item.post.dish?.name ?? item.post.title ?? item.post.author}
+              </T>
+            </View>
           </View>
-        ) : (
-          <Button label="Join to chat" onPress={() => router.push({ pathname: '/join/[slug]', params: { slug } })} />
-        )}
-      </View>
-    </View>
-  );
-}
-
-/** A shared dish inside a chat bubble: the dish, where, and how it went. */
-function DishCard({ m, slug, onDark }: { m: Message; slug: string; onDark?: boolean }) {
-  const { c, dark } = useTheme();
-  const accent = roomAccent[slug] ?? c.text;
-  const dish = m.dish!;
-  const fg = onDark ? c.onPrimary : c.text;
-  return (
-    <View style={[styles.dish, { backgroundColor: onDark ? tint(c.onPrimary, 0.1) : tint(accent, dark ? 0.18 : 0.1) }]}>
-      <View style={[styles.dishIcon, { backgroundColor: accent }]}>
-        <Icon name="fork" size={14} color="#FFFFFF" />
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <T variant="bodyStrong" color={fg} numberOfLines={2}>
-          {dish.name}
-        </T>
-        {dish.place ? (
-          <T variant="caption" color={onDark ? tint(c.onPrimary, 0.7) : c.textSecondary} numberOfLines={1}>
-            {dish.place}
-          </T>
-        ) : null}
-        <View style={[styles.reaction, { backgroundColor: dish.reaction === 'loved' ? accent : onDark ? tint(c.onPrimary, 0.16) : c.cardMuted }]}>
-          <T variant="caption" color={dish.reaction === 'loved' ? '#FFFFFF' : fg}>
-            {REACTION_LABEL[dish.reaction]}
-          </T>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function Bubble({ m, first, slug }: { m: Message; first: boolean; slug: string }) {
-  const { c } = useTheme();
-  const time = new Date(m.at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  if (m.mine) {
-    return (
-      <View style={[styles.mineRow, { marginTop: first ? space.lg : space.xs }]}>
-        <View style={[styles.bubble, styles.bubbleMine, { backgroundColor: c.primary, gap: space.sm }]}>
-          {m.dish ? <DishCard m={m} slug={slug} onDark /> : null}
-          {m.text ? <T color={c.onPrimary}>{m.text}</T> : null}
-        </View>
-      </View>
-    );
-  }
-  return (
-    <View style={[styles.theirsRow, { marginTop: first ? space.lg : space.xs }]}>
-      <View style={{ width: 32 }}>{first ? <Avatar name={m.author} url={m.avatarUrl} size={32} /> : null}</View>
-      <View style={{ flex: 1, gap: space.xs, alignItems: 'flex-start' }}>
-        {first ? (
-          <View style={styles.meta}>
-            <T variant="caption">{m.author}</T>
-            <T variant="caption" tone="tertiary">
-              {time}
-            </T>
-          </View>
-        ) : null}
-        <View style={[styles.bubble, styles.bubbleTheirs, { backgroundColor: c.card, gap: space.sm }]}>
-          {m.dish ? <DishCard m={m} slug={slug} /> : null}
-          {m.text ? <T>{m.text}</T> : null}
-        </View>
-      </View>
-    </View>
-  );
-}
-
-/** No messages yet: a friendly first line, in the room's colour. The list is inverted, so flip it back upright. */
-function EmptyRoom({ room }: { room: RoomView }) {
-  const { c, dark } = useTheme();
-  const accent = roomAccent[room.slug] ?? c.text;
-  return (
-    <View style={[styles.empty, { transform: [{ scaleY: -1 }] }]}>
-      <View style={[styles.wave, { backgroundColor: tint(accent, dark ? 0.22 : 0.12) }]}>
-        <Icon name="chat" size={26} color={accent} />
-      </View>
-      <T variant="headline" style={{ textAlign: 'center' }}>
-        {room.reasons[0] ? `Say hi to people with ${room.reasons[0].toLowerCase()}` : `Say hi to ${room.title}`}
-      </T>
-      <T tone="secondary" style={{ textAlign: 'center' }}>
-        Ask what they order, or share a dish after a scan.
-      </T>
-    </View>
+        </Tap>
+      )}
+      ListEmptyComponent={<EmptyRoom room={room} photos />}
+      contentContainerStyle={[{ paddingHorizontal: gutter, paddingTop: space.sm, paddingBottom: insets.bottom + space.xxxl }, photos.length ? null : { flexGrow: 1 }]}
+      showsVerticalScrollIndicator={false}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  moreBtn: { height: 38, paddingHorizontal: space.sm, justifyContent: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md, paddingHorizontal: space.xl, paddingVertical: space.huge },
-  wave: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
-  composerWrap: { paddingHorizontal: gutter, paddingTop: space.sm, borderTopWidth: StyleSheet.hairlineWidth },
-  composer: { flexDirection: 'row', alignItems: 'flex-end', borderRadius: 22, borderWidth: 1, paddingLeft: space.lg, padding: 5, gap: space.sm },
-  input: { flex: 1, maxHeight: 120, paddingTop: 8, paddingBottom: 8 },
-  send: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  mineRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingLeft: 56 },
-  theirsRow: { flexDirection: 'row', gap: space.sm, paddingRight: 40 },
-  meta: { flexDirection: 'row', gap: space.sm, alignItems: 'baseline' },
-  bubble: { paddingHorizontal: space.md + 2, paddingVertical: space.sm + 1, borderRadius: radius.md, maxWidth: '100%' },
-  bubbleMine: { borderBottomRightRadius: 6 },
-  bubbleTheirs: { borderTopLeftRadius: 6 },
-  dish: { flexDirection: 'row', gap: space.sm, padding: space.sm + 2, borderRadius: radius.sm + 2, minWidth: 200 },
-  dishIcon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  reaction: { alignSelf: 'flex-start', paddingHorizontal: space.sm, paddingVertical: 3, borderRadius: radius.chip, marginTop: space.xs },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: gutter, paddingBottom: space.huge },
+  emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: space.sm },
+  cta: { position: 'absolute', left: gutter, right: gutter },
+  tile: { borderRadius: radius.md, overflow: 'hidden' },
+  tileLabel: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: space.sm + 2, paddingVertical: space.sm, backgroundColor: 'rgba(0,0,0,0.35)' },
 });

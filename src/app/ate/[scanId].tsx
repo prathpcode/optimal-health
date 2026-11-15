@@ -9,8 +9,9 @@ import { CelebrationLayer } from '@/components/Celebration';
 import { Icon, type IconName } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { attempt } from '@/components/together';
-import { Button, VerdictDot } from '@/components/ui';
+import { GlassSurface } from '@/components/Glass';
+import { attempt, GlassAction } from '@/components/together';
+import { VerdictDot } from '@/components/ui';
 import { celebrate } from '@/lib/celebrate';
 import { useActiveChallenges, useLogMeal, useMealForScan, useMyRooms } from '@/lib/community';
 import { useScan } from '@/lib/scan';
@@ -55,7 +56,7 @@ export default function AteSheet() {
     setBusy(null);
     if (!ok) return;
     const cheer = CHEER[actual];
-    celebrate({ ...cheer, subtitle: active.length ? `${cheer.subtitle} · counts toward Eat what fits` : cheer.subtitle });
+    celebrate({ ...cheer, subtitle: active.length ? `${cheer.subtitle} · Eat what fits` : cheer.subtitle });
     setDone(itemId);
   };
 
@@ -66,8 +67,10 @@ export default function AteSheet() {
     <View style={{ flex: 1 }}>
     <ScrollView contentContainerStyle={{ padding: space.xxl, paddingBottom: insets.bottom + space.xxxl, gap: space.xl }} showsVerticalScrollIndicator={false}>
       <View style={{ gap: space.xs }}>
-        <T variant="title">What did you order?</T>
-        {view?.restaurant ? <T tone="secondary">{view.restaurant}</T> : null}
+        <T variant="heroBold">What did you order?</T>
+        <T variant="bodyStrong" tone="secondary">
+          {view?.restaurant ? `${view.restaurant} · ` : ''}It counts toward your challenges.
+        </T>
       </View>
 
       <View style={{ gap: space.sm }}>
@@ -83,13 +86,14 @@ export default function AteSheet() {
                 feedback="select"
                 scaleTo={0.98}
                 disabled={busy !== null}
-                onPress={() => void pick(d.id, d.name)}
-                style={[styles.dish, { backgroundColor: on ? c.primary : c.cardMuted }]}>
-                <VerdictDot fit={fit} size={10} />
-                <T variant="bodyStrong" color={on ? c.onPrimary : c.text} style={{ flex: 1 }} numberOfLines={2}>
-                  {d.name}
-                </T>
-                {on ? <Icon name="check" size={16} color={c.onPrimary} weight="bold" /> : null}
+                onPress={() => void pick(d.id, d.name)}>
+                <GlassSurface tone="theme" interactive style={[styles.dish, on ? { backgroundColor: c.primary } : null]}>
+                  <VerdictDot fit={fit} size={10} />
+                  <T variant="headline" color={on ? c.onPrimary : c.text} style={{ flex: 1 }} numberOfLines={2}>
+                    {d.name}
+                  </T>
+                  {on ? <Icon name="check" size={16} color={c.onPrimary} weight="bold" /> : null}
+                </GlassSurface>
               </Tap>
             </Animated.View>
           );
@@ -103,18 +107,22 @@ export default function AteSheet() {
               accessibilityRole="button"
               accessibilityLabel={`Tell ${room.title}`}
               feedback="tap"
-              onPress={() => router.replace({ pathname: '/share/[scanId]', params: { scanId, room: room.slug } })}
-              style={[styles.tell, { backgroundColor: tint(roomAccent[room.slug] ?? c.text, dark ? 0.2 : 0.11) }]}>
-              <View style={[styles.tellIcon, { backgroundColor: roomAccent[room.slug] ?? c.text }]}>
-                <Icon name={room.icon as IconName} size={15} color="#FFFFFF" />
-              </View>
-              <T variant="bodyStrong" style={{ flex: 1 }}>
-                Tell {room.title} how it was
-              </T>
-              <Icon name="chevron" size={14} color={c.textTertiary} />
+              onPress={() => router.replace({ pathname: '/share/[scanId]', params: { scanId, room: room.slug } })}>
+              <GlassSurface tone="theme" interactive style={[styles.tell, { backgroundColor: tint(roomAccent[room.slug] ?? c.text, dark ? 0.2 : 0.11) }]}>
+                <View style={[styles.tellIcon, { backgroundColor: roomAccent[room.slug] ?? c.text }]}>
+                  <Icon name={room.icon as IconName} size={18} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <T variant="headline">Tell {room.title}</T>
+                  <T variant="caption" tone="secondary">
+                    Share it with a photo to inspire the room
+                  </T>
+                </View>
+                <Icon name="chevron" size={14} color={c.textTertiary} />
+              </GlassSurface>
             </Tap>
           ) : null}
-          <Button label="Done" onPress={() => router.back()} />
+          <GlassAction label="Done" onPress={() => router.back()} />
         </Animated.View>
       ) : null}
     </ScrollView>
@@ -124,7 +132,7 @@ export default function AteSheet() {
 }
 
 const styles = StyleSheet.create({
-  dish: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md + 2, borderRadius: radius.md },
-  tell: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.md },
-  tellIcon: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  dish: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.lg, borderRadius: radius.card },
+  tell: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.card },
+  tellIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 });

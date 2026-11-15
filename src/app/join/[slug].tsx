@@ -6,12 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RoomIcon } from '@/components/community';
 import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
-import { attempt, RoomStatus } from '@/components/together';
-import { Button } from '@/components/ui';
+import { attempt, GlassAction, RoomStatus } from '@/components/together';
 import { joinRoom, useRoom } from '@/lib/community';
 import { space, useTheme } from '@/theme';
 
-/** Join a room by hand. */
+/** Add a room to yours by hand. */
 export default function JoinSheet() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { room } = useRoom(slug);
@@ -29,15 +28,18 @@ export default function JoinSheet() {
 
   return (
     <View style={{ padding: space.xxl, paddingBottom: insets.bottom + space.xl, gap: space.xxl }}>
-      <View style={{ gap: space.lg, alignItems: 'center' }}>
-        <RoomIcon icon={room.icon} slug={room.slug} size={72} />
-        <View style={{ gap: space.xs, alignItems: 'center' }}>
-          <T variant="title">{room.title}</T>
+      <View style={styles.head}>
+        <RoomIcon icon={room.icon} slug={room.slug} size={64} />
+        <View style={{ flex: 1, gap: 4 }}>
+          <T variant="heroBold" numberOfLines={2} style={{ fontSize: 28, lineHeight: 34 }}>
+            {room.title}
+          </T>
           <RoomStatus room={room} />
         </View>
       </View>
+      <T tone="secondary">{room.blurb}</T>
       <View style={{ gap: space.md }}>
-        <Button label="Join" onPress={join} loading={busy} />
+        <GlassAction label="Join room" onPress={join} loading={busy} />
         <View style={styles.privacy}>
           <Icon name="lock" size={12} color={c.textTertiary} />
           <T variant="caption" tone="tertiary">
@@ -50,5 +52,6 @@ export default function JoinSheet() {
 }
 
 const styles = StyleSheet.create({
+  head: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
   privacy: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs },
 });

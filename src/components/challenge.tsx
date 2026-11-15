@@ -1,10 +1,13 @@
 import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import type { Fit } from '@engine/types';
 import { countdown, daysOf, todayKey, type ChallengeView } from '@/lib/community';
 import { fitColor } from '@/lib/verdict';
-import { radius, roomAccent, shadow, space, useTheme } from '@/theme';
+import { radius, space, spring, useTheme } from '@/theme';
+import { GlassSurface } from './Glass';
 import { Icon } from './Icon';
 import { T } from './T';
 import { Tap } from './Tap';
@@ -15,23 +18,26 @@ export function MealDot({ fit, size = 10 }: { fit: Fit; size?: number }) {
   return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: fitColor(fit, c).solid }} />;
 }
 
-/** How a meal scores, as three pills: no sentences. */
+const SCORING: { fit: Fit; points: string; label: string }[] = [
+  { fit: 'good', points: '+2', label: 'Good fit' },
+  { fit: 'okay', points: '+1', label: 'Okay' },
+  { fit: 'not_fit', points: '0', label: 'Not a fit' },
+];
+
+/** How a meal scores, as three pills. */
 export function FitLegend() {
   const { c } = useTheme();
-  const items: { fit: Fit; label: string }[] = [
-    { fit: 'good', label: '+2' },
-    { fit: 'okay', label: '+1' },
-    { fit: 'not_fit', label: '0' },
-  ];
   return (
-    <View style={styles.legend} accessibilityLabel="Good fit scores 2, okay scores 1, not a fit scores 0">
-      {items.map((i) => {
-        const col = fitColor(i.fit, c);
+    <View style={styles.legend} accessibilityLabel="Good fit scores 2, okay 1, not a fit 0">
+      {SCORING.map((s) => {
+        const col = fitColor(s.fit, c);
         return (
-          <View key={i.fit} style={[styles.legendPill, { backgroundColor: col.soft }]}>
-            <MealDot fit={i.fit} size={9} />
+          <View key={s.fit} style={[styles.legendPill, { backgroundColor: col.soft }]}>
             <T variant="bodyStrong" color={col.solid} style={{ fontVariant: ['tabular-nums'] }}>
-              {i.label}
+              {s.points}
+            </T>
+            <T variant="caption" color={col.solid}>
+              {s.label}
             </T>
           </View>
         );
@@ -40,7 +46,34 @@ export function FitLegend() {
   );
 }
 
-/** One column per challenge day, a dot per meal eaten that day. Today is outlined. */
+/** Your fit % in Home's hero type, with a bar that fills to it. */
+export function FitMeter({ score }: { score: number | null }) {
+  const { c } = useTheme();
+  const reduced = useReducedMotion();
+  const fill = useSharedValue(0);
+  useEffect(() => {
+    const to = (score ?? 0) / 100;
+    fill.value = reduced ? to : withSpring(to, spring.gentle);
+  }, [score, fill, reduced]);
+  const bar = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
+  return (
+    <View style={{ gap: space.md }} accessibilityLabel={score != null ? `${score} percent fit` : 'No meals yet'}>
+      <View style={styles.meterTop}>
+        <T variant="heroBold" style={styles.big}>
+          {score != null ? score : '–'}
+        </T>
+        <T variant="hero" tone="secondary" style={styles.pct}>
+          % fit
+        </T>
+      </View>
+      <View style={[styles.track, { backgroundColor: c.cardMuted }]}>
+        <Animated.View style={[styles.fill, { backgroundColor: c.good }, bar]} />
+      </View>
+    </View>
+  );
+}
+
+/** One column per challenge day, a dot per meal that day. Today is outlined. */
 export function DayStrip({ ch, perDay }: { ch: ChallengeView; perDay: Record<string, Fit[]> }) {
   const { c } = useTheme();
   const today = todayKey(ch);
@@ -53,11 +86,7 @@ export function DayStrip({ ch, perDay }: { ch: ChallengeView; perDay: Record<str
         const future = d > today;
         return (
           <View key={d} style={styles.dayCol}>
-            <View
-              style={[
-                styles.day,
-                { backgroundColor: future ? 'transparent' : c.cardMuted, borderColor: d === today ? c.text : future ? c.hairline : 'transparent' },
-              ]}>
+            <View style={[styles.day, { backgroundColor: future ? 'transparent' : c.cardMuted, borderColor: d === today ? c.text : future ? c.hairline : 'transparent' }]}>
               {meals.map((f, j) => (
                 <MealDot key={j} fit={f} size={narrow ? 6 : 8} />
               ))}
@@ -74,13 +103,10 @@ export function DayStrip({ ch, perDay }: { ch: ChallengeView; perDay: Record<str
   );
 }
 
-const medal = (rank: number, c: ReturnType<typeof useTheme>['c']) => (rank === 1 ? c.okay : rank === 2 ? c.cantTell : rank === 3 ? roomAccent['nut-allergy'] : null);
-
-/** Your rank as a coloured medal for the top three, else a plain number. */
+/** A rank: 1 to 3 on a filled circle, the rest as a plain number. */
 export function Rank({ rank, size = 28 }: { rank: number; size?: number }) {
   const { c } = useTheme();
-  const m = medal(rank, c);
-  if (!m) {
+  if (rank > 3) {
     return (
       <View style={{ width: size, alignItems: 'center' }}>
         <T variant="bodyStrong" tone="tertiary" style={{ fontVariant: ['tabular-nums'] }}>
@@ -90,70 +116,65 @@ export function Rank({ rank, size = 28 }: { rank: number; size?: number }) {
     );
   }
   return (
-    <View style={[styles.medal, { width: size, height: size, borderRadius: size / 2, backgroundColor: m }]}>
-      <T variant="caption" color="#FFFFFF" style={{ fontWeight: '700' }}>
+    <View style={[styles.medal, { width: size, height: size, borderRadius: size / 2, backgroundColor: rank === 1 ? c.primary : c.cardMuted }]}>
+      <T variant="caption" color={rank === 1 ? c.onPrimary : c.text} style={{ fontWeight: '700' }}>
         {rank}
       </T>
     </View>
   );
 }
 
-/** A challenge in a list: your fit %, rank, time left and today's meals. */
+/** A challenge as a glass row: your fit %, place and time left. */
 export function ChallengeRow({ ch }: { ch: ChallengeView }) {
-  const { c, dark } = useTheme();
+  const { c } = useTheme();
   const me = ch.me;
-  const today = me?.perDay[todayKey(ch)] ?? [];
-  const status = ch.status === 'live' ? countdown(ch) : ch.status === 'upcoming' ? countdown(ch) : 'Ended';
+  const scored = me?.score != null;
+  const place = ch.standings.length > 1 && me ? `${ordinalShort(me.rank)} of ${ch.standings.length}` : null;
   return (
     <Tap
       accessibilityRole="button"
-      accessibilityLabel={`${ch.title}, ${me?.score != null ? `${me.score} percent` : 'no meals yet'}, ${status}`}
+      accessibilityLabel={`${ch.title}, ${scored ? `${me!.score} percent` : 'no meals yet'}, ${countdown(ch)}`}
       onPress={() => router.push({ pathname: '/challenge/[id]', params: { id: ch.id } })}
       scaleTo={0.98}>
-      <View style={[styles.row, { backgroundColor: c.card }, dark ? { borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline } : null, shadow('card', dark)]}>
-        <View style={[styles.score, { backgroundColor: me?.score != null ? c.goodSoft : c.cardMuted }]}>
-          <T variant="headline" color={me?.score != null ? c.good : c.textTertiary} style={{ fontVariant: ['tabular-nums'] }}>
-            {me?.score != null ? `${me.score}%` : '–'}
+      <GlassSurface tone="theme" interactive style={styles.row}>
+        <View style={[styles.score, { backgroundColor: scored ? c.goodSoft : c.cardMuted }]}>
+          <T variant="heading" color={scored ? c.good : c.textTertiary} style={{ fontVariant: ['tabular-nums'] }}>
+            {scored ? `${me!.score}%` : '–'}
           </T>
         </View>
-        <View style={{ flex: 1, gap: 4 }}>
-          <T variant="bodyStrong" numberOfLines={1}>
-            {ch.days}-day {ch.title}
+        <View style={{ flex: 1, gap: 2 }}>
+          <T variant="headline" numberOfLines={1}>
+            {ch.title}
           </T>
-          <View style={styles.meta}>
-            {ch.standings.length > 1 && me ? (
-              <T variant="caption" tone="secondary">
-                #{me.rank} of {ch.standings.length} ·
-              </T>
-            ) : null}
-            <T variant="caption" tone="secondary">
-              {status}
-            </T>
-            {today.length ? (
-              <View style={styles.todayDots}>
-                {today.map((f, i) => (
-                  <MealDot key={i} fit={f} size={7} />
-                ))}
-              </View>
-            ) : null}
-          </View>
+          <T variant="caption" tone="secondary" numberOfLines={1}>
+            {[place, countdown(ch)].filter(Boolean).join(' · ')}
+          </T>
         </View>
         <Icon name="chevron" size={14} color={c.textTertiary} />
-      </View>
+      </GlassSurface>
     </Tap>
   );
 }
 
+export function ordinalShort(n: number) {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+}
+
 const styles = StyleSheet.create({
-  legend: { flexDirection: 'row', gap: space.sm },
-  legendPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.chip },
+  legend: { flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' },
+  legendPill: { flexDirection: 'row', alignItems: 'baseline', gap: 6, paddingHorizontal: space.md, paddingVertical: 7, borderRadius: radius.chip },
+  meterTop: { flexDirection: 'row', alignItems: 'baseline', gap: space.xs },
+  big: { fontSize: 72, lineHeight: 78, letterSpacing: -2, fontVariant: ['tabular-nums'] },
+  pct: { fontSize: 28, lineHeight: 34 },
+  track: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  fill: { height: 8, borderRadius: 4 },
   strip: { flexDirection: 'row', gap: 4 },
   dayCol: { flex: 1, alignItems: 'center', gap: 4 },
-  day: { width: '100%', minHeight: 40, borderRadius: radius.sm, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 4 },
+  day: { width: '100%', minHeight: 44, borderRadius: radius.sm, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: 4 },
   dayLabel: { fontSize: 11, lineHeight: 13 },
   medal: { alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.md },
-  score: { width: 56, height: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  meta: { flexDirection: 'row', alignItems: 'center', gap: space.xs, flexWrap: 'wrap' },
-  todayDots: { flexDirection: 'row', gap: 3, marginLeft: space.xs },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.card },
+  score: { width: 64, height: 52, borderRadius: radius.sm + 4, alignItems: 'center', justifyContent: 'center' },
 });

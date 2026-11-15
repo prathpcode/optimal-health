@@ -38,14 +38,16 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Fit uses the camera to read the menu you point it at.",
+          "cameraPermission": "Fit uses the camera to read the menu you point it at, and to take a photo of your meal when you share it.",
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Fit reads a menu photo you choose from your library."
+          "photosPermission": "Fit reads a menu photo you choose from your library, or a meal photo you choose to share with a room.",
+          "cameraPermission": "Fit uses the camera to take a photo of your meal when you share it.",
+          "microphonePermission": false
         }
       ],
       [

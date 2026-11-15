@@ -60,12 +60,12 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: c.card },
               }}
             />
-            {/* The questions in large type, to show across the table. */}
-            <Stack.Screen name="server/[scanId]" options={sheet([0.95])} />
             {/* Together: rooms and challenges are pushed screens; picking and joining are sheets like the dish sheet. */}
             <Stack.Screen name="community/[slug]" />
             <Stack.Screen name="challenge/[id]" />
-            <Stack.Screen name="challenge/new" options={sheet([0.6])} />
+            <Stack.Screen name="post/[slug]/[id]" />
+            <Stack.Screen name="compose/[slug]" options={sheet([0.75, 0.95])} />
+            <Stack.Screen name="challenge/new" options={sheet([0.62])} />
             <Stack.Screen name="join/[slug]" options={sheet([0.5])} />
             <Stack.Screen name="rooms" options={sheet([0.62, 0.95])} />
             <Stack.Screen name="share/[scanId]" options={sheet([0.75, 0.95])} />
