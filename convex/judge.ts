@@ -136,3 +136,53 @@ export async function judgeSameProduct(front: { brand: string; name: string; var
     return null;
   }
 }
+
+export type Scene = {
+  /** How sure the judge is that a packaged food or drink product is in the picture. */
+  present: number;
+  count: "none" | "one" | "several";
+  /** Where the most prominent product is, as fractions of the picture, and how sure the judge is of it. */
+  box: { top: number; left: number; bottom: number; right: number };
+  boxConfidence: number;
+};
+
+/**
+ * What the camera is pointed at, from the picture itself: no packaged product, one, or several, and where the most
+ * prominent one is. About a fifth of a second. The judge's picture reading is still marked experimental by its
+ * maker, so this is only ever used to decide what to look at more closely, never to decide a verdict. Null when the
+ * judge is not configured or the call fails; the caller then falls back on the shape of the text.
+ */
+export async function judgeScene(imageBase64: string): Promise<Scene | null> {
+  const key = process.env.TYPESAFE_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "TypeSafe-Danger-Zone-Images": "true" },
+      body: JSON.stringify({
+        model: process.env.JUDGE_MODEL || "jev-latest",
+        state: { photo: "photo-1" },
+        assets: { "photo-1": { type: "image", format: "jpg", data_base64: imageBase64 } },
+        questions: {
+          present: { type: "noul", instructions: "Does `photo` show at least one packaged food or drink product (a can, bottle, box, bag, jar or wrapper with a brand on it)?" },
+          count: {
+            type: "choice",
+            instructions: "How many packaged food or drink products are clearly visible in `photo`?",
+            criteria: { none: "No packaged food or drink product.", one: "Exactly one, or one that clearly dominates the picture.", several: "Two or more side by side, such as a shop shelf." },
+          },
+          where: { type: "box", instructions: "The most prominent packaged food or drink product in `photo`." },
+        },
+      }),
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) throw new Error(`judge HTTP ${res.status}: ${(await res.text()).slice(0, 160)}`);
+    const a = ((await res.json()) as { answers?: Record<string, { noul?: number; choice?: string; box?: Scene["box"]; confidence?: number | null }> }).answers ?? {};
+    const count = a.count?.choice;
+    const box = a.where?.box;
+    if (typeof a.present?.noul !== "number" || (count !== "none" && count !== "one" && count !== "several") || !box) return null;
+    return { present: a.present.noul, count, box, boxConfidence: a.where?.confidence ?? 0 };
+  } catch (e) {
+    console.error("judge scene failed", e);
+    return null;
+  }
+}

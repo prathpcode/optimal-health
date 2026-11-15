@@ -3,6 +3,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { useCallback } from 'react';
 
 import { api } from '@convex/_generated/api';
+import { tidyName } from '@engine/casing';
 import type { ShelfBox } from '@engine/shelf';
 import { HAS_BACKEND } from './backend';
 
@@ -29,11 +30,19 @@ export async function shelfStill(uri: string): Promise<ShelfStill> {
   return { base64: saved.base64, width: saved.width, height: saved.height };
 }
 
-export type ShelfLook = (still: ShelfStill, deviceId: string) => Promise<{ boxes: ShelfBox[]; reading: boolean }>;
+/** `shelf` is false when the still does not show a shelf of packages (a menu, a label, nothing): there is then nothing to draw. */
+export type ShelfLook = (still: ShelfStill, deviceId: string) => Promise<{ boxes: ShelfBox[]; reading: boolean; shelf: boolean }>;
 
 function useShelfLookLive(): ShelfLook {
   const look = useAction(api.shelf.look);
-  return useCallback((still, deviceId) => look({ deviceId, image: still.base64 }), [look]);
+  return useCallback(
+    async (still, deviceId) => {
+      const out = await look({ deviceId, image: still.base64 });
+      // A package front printed in capitals is tidied before it is drawn, like every other name (engine/casing.ts).
+      return { ...out, boxes: out.boxes.map((b) => (b.name ? { ...b, name: tidyName(b.name) } : b)) };
+    },
+    [look],
+  );
 }
 
 /** One still in, a box per package out (shelf.look). Null when the app runs without a backend. */

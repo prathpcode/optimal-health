@@ -54,23 +54,31 @@ export function DishCard({ post, slug, opens }: { post: Post; slug: string; open
   );
 }
 
+// The heart is drawn at its biggest and held at rest by a constant scale-down. A symbol scaled past the size it was
+// drawn at is a blown-up bitmap, which is why the heart used to go soft for the length of the pop.
+const HEART = 17;
+const POP = 1.35;
+const REST = 1 / POP;
+
 function Like({ post }: { post: Post }) {
   const { c } = useTheme();
   const { liked, likes } = useLike(post);
-  const pop = useSharedValue(1);
+  const pop = useSharedValue(REST);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
   const press = () => {
     if (post.pending) return;
     haptic.tap();
-    if (!liked) pop.set(withSequence(withSpring(1.35, spring.pop), withSpring(1, spring.snappy)));
+    if (!liked) pop.set(withSequence(withSpring(1, spring.pop), withSpring(REST, spring.snappy)));
     void attempt(toggleLike(post.id));
   };
   const color = liked ? c.notFit : c.textSecondary;
   return (
     <Tap accessibilityRole="button" accessibilityLabel={liked ? `Liked, ${likes}. Tap to unlike` : `Like, ${likes}`} accessibilityState={{ selected: liked }} onPress={press} hitSlop={14} style={styles.stat}>
-      <Animated.View style={style}>
-        <Icon name={liked ? 'liked' : 'like'} size={17} color={color} />
-      </Animated.View>
+      <View style={styles.heart}>
+        <Animated.View style={[styles.heartIcon, style]}>
+          <Icon name={liked ? 'liked' : 'like'} size={HEART * POP} color={color} />
+        </Animated.View>
+      </View>
       {likes > 0 ? (
         <T variant="caption" color={color}>
           {likes}
@@ -166,4 +174,7 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', gap: space.xl, marginTop: space.xs },
   more: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   stat: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, minHeight: 24 },
+  // The heart keeps a 17pt slot in the row while the symbol inside it is drawn larger and scaled down.
+  heart: { width: HEART, height: HEART, alignItems: 'center', justifyContent: 'center' },
+  heartIcon: { position: 'absolute' },
 });

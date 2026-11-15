@@ -34,7 +34,7 @@ import { Button, Card, SectionLabel, Skeleton, VerdictDot } from '@/components/u
 import { haptic } from '@/lib/haptics';
 import { containRect, unionBox, zoomRect } from '@/lib/layout';
 import { goBack } from '@/lib/nav';
-import { MealCard, ShareToRoom } from '@/components/together';
+import { MealCard } from '@/components/together';
 import { SAMPLE_ID, useScan, type Answer, type ScanView } from '@/lib/scan';
 import { fitColor, SECTION_FIT, SECTION_LABEL } from '@/lib/verdict';
 import { duration, ease, enterAt, onPhoto, radius, space, spring, useTheme } from '@/theme';
@@ -60,7 +60,7 @@ function statusText(view: ScanView | undefined): string {
 }
 
 export default function ResultScreen() {
-  const params = useLocalSearchParams<{ id: string; uri?: string; w?: string; h?: string; share?: string }>();
+  const params = useLocalSearchParams<{ id: string; uri?: string; w?: string; h?: string }>();
   const id = params.id;
   const { view, answer } = useScan(id);
   const { c } = useTheme();
@@ -316,7 +316,7 @@ export default function ResultScreen() {
 
               {view?.status === 'done' && view.items.length > 0 && id !== SAMPLE_ID ? (
                 <Animated.View entering={FadeIn.delay(300)} style={{ marginTop: space.xxl }}>
-                  {params.share ? <ShareToRoom scanId={id} room={params.share} /> : <MealCard scanId={id} />}
+                  <MealCard scanId={id} />
                 </Animated.View>
               ) : null}
 

@@ -344,26 +344,31 @@ export const heartbeat = mutation({
 
 // ── Meals ("I ordered this") ──────────────────────────────────────────────────────────────────────────────────────
 
-/** The dish logged from a scan, if any. Device-keyed like scans, so it works before signing in. */
+/** The dishes logged from a scan, in the order they were picked. Device-keyed like scans, so it works before signing in. */
 export const mealForScan = query({
   args: { deviceId: v.string(), scanId: v.id("scans") },
   handler: async (ctx, { deviceId, scanId }) => {
-    const row = await ctx.db.query("meals").withIndex("by_scanId", (q) => q.eq("scanId", scanId)).first();
-    return row && row.deviceId === deviceId ? { itemId: row.itemId, dishName: row.dishName } : null;
+    const rows = await ctx.db.query("meals").withIndex("by_scanId", (q) => q.eq("scanId", scanId)).take(20);
+    return rows.filter((r) => r.deviceId === deviceId).map((r) => ({ itemId: r.itemId, dishName: r.dishName }));
   },
 });
 
-/** Log (or change) what was ordered from a scan. One meal per scan. Returns the dish's fit for the celebration. */
+/**
+ * Log what was ordered from a scan: one meal row per dish, since a table often orders several. Logging again
+ * replaces what the scan had. Returns each dish's fit, in the order given, for the celebration.
+ */
 export const logMeal = mutation({
-  args: { deviceId: v.string(), scanId: v.id("scans"), itemId: v.string() },
-  handler: async (ctx, { deviceId, scanId, itemId }) => {
+  args: { deviceId: v.string(), scanId: v.id("scans"), itemIds: v.array(v.string()) },
+  handler: async (ctx, { deviceId, scanId, itemIds }) => {
     const scan = await ctx.db.get("scans", scanId);
     if (!scan || scan.deviceId !== deviceId) throw new Error("Scan not found");
-    const item = scan.items.find((i) => i.id === itemId);
-    if (!item) throw new Error("Dish not found");
-    const existing = await ctx.db.query("meals").withIndex("by_scanId", (q) => q.eq("scanId", scanId)).first();
-    if (existing) await ctx.db.patch("meals", existing._id, { itemId, dishName: item.name });
-    else await ctx.db.insert("meals", { deviceId, scanId, itemId, dishName: item.name, at: Date.now() });
-    return { fit: (scan.verdicts[itemId]?.fit ?? "cant_tell") as Fit };
+    const picked = itemIds.map((id) => scan.items.find((i) => i.id === id));
+    if (!picked.length || picked.some((i) => !i)) throw new Error("Dish not found");
+    const existing = await ctx.db.query("meals").withIndex("by_scanId", (q) => q.eq("scanId", scanId)).take(20);
+    // Keep the first logging's time, so changing what was ordered does not move the meal to another challenge day.
+    const at = existing[0]?.at ?? Date.now();
+    for (const row of existing) await ctx.db.delete("meals", row._id);
+    for (const item of picked) await ctx.db.insert("meals", { deviceId, scanId, itemId: item!.id, dishName: item!.name, at });
+    return { fits: picked.map((i) => (scan.verdicts[i!.id]?.fit ?? "cant_tell") as Fit) };
   },
 });

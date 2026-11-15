@@ -1,11 +1,12 @@
 "use node";
 
-// The shelf view: point the camera along a shelf and see which packages are worth picking up.
+// Packages on a shelf: point the scan camera along a shelf and see which packages are worth picking up.
 //
-// One still in, boxes out, about once a second. Each still is handled on its own (no tracking): a detector
-// outlines every package it can see while the text on the still is recognised; each package gets the words inside
-// its outline (engine/shelf.ts), and those words are compared with the products the app already knows by barcode.
-// With no detector configured, packages are found from blocks of print alone. A package it recognises is checked against the person's rules; one it
+// One still in, boxes out, about once a second. Each still is handled on its own (no tracking). The judge looks at
+// the picture and says whether it shows no packaged product (nothing more is done), one (the judge boxes it), or
+// several (the text is grouped into one block per package front, engine/shelf.ts). With a detector configured
+// (detectObjects, convex/pipeline.ts), every package it outlines is boxed instead, with the words inside its outline. Each package's words are
+// compared with the products the app already knows by barcode. A package it recognises is checked against the person's rules; one it
 // does not is outlined and, in the background, identified so that a later frame knows it: the photo reader reads
 // its front properly, the product database is searched for it, and the judge picks the record that is the same
 // product (same variety included).
@@ -16,35 +17,53 @@ import Anthropic from "@anthropic-ai/sdk";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action, internalAction } from "./_generated/server";
+import { tidyName } from "../engine/casing";
 import { hardRules } from "../engine/pipeline";
 import { hasSubstance, type ProductFacts } from "../engine/product";
-import { blockSignature, matchProduct, packageFronts, packageOutlines, searchTerms, shelfVerdict, type KnownProduct, type ShelfBox } from "../engine/shelf";
-import { judgeSameProduct } from "./judge";
-import { answerCache, detectObjects, lookUpProduct, Memo, productOpinions, readPackages, recogniseLinesIn, rememberedProductOpinions, type PackageReading } from "./pipeline";
+import { blockSignature, frontHints, frontItems, looksLikeShelf, matchProduct, packageFronts, packageOutlines, searchTerms, shelfVerdict, textBlocks, type KnownProduct, type ShelfBox } from "../engine/shelf";
+import type { Box } from "../engine/types";
+import { findProduct } from "./identify";
+import { judgeItems, judgeScene } from "./judge";
+import { answerCache, detectObjects, lookUpProduct, Memo, productOpinions, readPackages, recogniseLinesIn, rememberedProductOpinions } from "./pipeline";
 
 /** A still is small on purpose (about 1300 px a side); anything much bigger is not from the app. */
 const MAX_IMAGE_CHARS = 2_500_000;
 const MINUTE = 60_000;
 
+type Seen = { box: Box; text: string; whole?: boolean };
+
 export const look = action({
   args: { deviceId: v.string(), image: v.string() },
-  handler: async (ctx, { deviceId, image }): Promise<{ boxes: ShelfBox[]; ms: number; reading: boolean }> => {
+  handler: async (ctx, { deviceId, image }): Promise<{ boxes: ShelfBox[]; ms: number; reading: boolean; shelf: boolean }> => {
     const started = Date.now();
     if (image.length > MAX_IMAGE_CHARS) throw new Error("That picture is too large");
+    const steps: Record<string, number | string> = {};
     const timed = async <T>(what: string, p: Promise<T>): Promise<T> => {
       const t = Date.now();
       const out = await p;
       steps[what] = Date.now() - t;
       return out;
     };
-    const steps: Record<string, number> = {};
-    const [lines, objects, context] = await Promise.all([timed("text", recogniseLinesIn(image)), timed("objects", detectObjects(image)), timed("context", ctx.runQuery(internal.shelfData.context, { deviceId }))]);
-    // Neither text recognition nor detection is configured, or both failed: say so rather than show an empty shelf
-    // as if nothing were there.
-    if (!lines && !objects) return { boxes: [], ms: Date.now() - started, reading: false };
-    // Where the packages are (the detector's outlines, or with none, blocks of print), each with the words on it.
-    const blocks = packageFronts(lines ?? [], packageOutlines(objects ?? []));
-    steps.found = objects?.length ?? -1;
+    const done = (boxes: ShelfBox[], reading = true) => {
+      console.log("shelf look", JSON.stringify({ ms: Date.now() - started, ...steps, boxes: boxes.length }));
+      return { boxes, ms: Date.now() - started, reading, shelf: boxes.length > 0 };
+    };
+
+    // 1. What is the camera pointed at? The judge looks at the picture itself: no packaged product, one, or
+    //    several. The camera asks all the time it is open, so "none" has to be cheap: it ends here, without the
+    //    text being read at all.
+    const [scene, context] = await Promise.all([timed("scene", judgeScene(image)), timed("context", ctx.runQuery(internal.shelfData.context, { deviceId }))]);
+    if (scene) steps.sees = `${scene.count} ${scene.present.toFixed(2)}`;
+    if (scene && (scene.count === "none" || scene.present < 0.6)) return done([]);
+
+    // The words on the picture, and (when a detector is configured) an outline round every package in it.
+    const [read, objects] = await Promise.all([timed("text", recogniseLinesIn(image)), timed("objects", detectObjects(image))]);
+    // Neither is configured, or both failed: say so rather than show an empty shelf as if nothing were there.
+    if (!read && !objects) return done([], false);
+    const lines = read ?? [];
+    const outlines = packageOutlines(objects ?? []);
+    if (objects) steps.found = objects.length;
+
     const facts = new Map<string, ProductFacts>();
     for (const p of context.products) {
       try {
@@ -58,23 +77,61 @@ export const look = action({
       ...[...facts].map(([key, f]) => ({ key, name: f.name, ...(f.brand ? { brand: f.brand } : {}) })),
       ...context.fronts.filter((f) => facts.has(f.barcode)).map((f) => ({ key: f.barcode, name: f.name, ...(f.brand ? { brand: f.brand } : {}) })),
     ];
-    const named = blocks.map((b) => ({ block: b, product: b.text ? matchProduct(b.text, known) : null }));
 
-    // The models' careful reading of each recognised product, where it is already remembered.
-    const watch = [...new Set(hardRules(context.rules).map((r) => r.tag))];
+    // 2. The packages in view. One package: the judge's own box round it, and whatever words sit inside that box.
+    //    Several: one per block of words (engine/shelf.ts), since the judge boxes one thing at a time.
+    const blocks = textBlocks(lines);
+    let packages: Seen[];
+    if (outlines.length) {
+      // The detector's outlines, each with the words inside it; words outside every outline are still grouped
+      // into blocks, so a package it missed is found by its print.
+      packages = packageFronts(lines, outlines).map((f) => ({ box: f.box, text: f.text, ...(f.outline === "object" ? { whole: true } : {}) }));
+    } else if (scene?.count === "one" && scene.present >= 0.8 && scene.boxConfidence >= 0.5) {
+      const b = scene.box;
+      const inside = lines
+        .filter((l) => (l.box.left + l.box.right) / 2 >= b.left && (l.box.left + l.box.right) / 2 <= b.right && (l.box.top + l.box.bottom) / 2 >= b.top && (l.box.top + l.box.bottom) / 2 <= b.bottom)
+        .sort((x, y) => x.box.top - y.box.top || x.box.left - y.box.left);
+      packages = [{ box: b, text: inside.map((l) => l.text).join(" "), whole: true }];
+    } else {
+      packages = blocks.map((bl) => ({ box: bl.box, text: bl.text }));
+    }
+    const named = packages.map((p) => ({ ...p, product: p.text ? matchProduct(p.text, known) : null }));
+    const recognised = named.filter((n) => n.product).length;
+    // Without the judge's word on the picture, fall back on the shape of the text to tell a shelf from a menu.
+    if (!packages.some((p) => p.whole) && (scene ? named.length < 2 && !recognised : !looksLikeShelf(blocks, recognised))) return done([]);
+
+    // 3. Recognised products: their real ingredients against the person's rules, with the models' careful reading
+    //    of the ingredient list where that is already remembered.
+    const hard = hardRules(context.rules);
+    const watch = [...new Set(hard.map((r) => r.tag))];
     const seen = [...new Set(named.flatMap((n) => (n.product ? [n.product.key] : [])))];
     const remembered = await timed("remembered", rememberedProductOpinions(answerCache(ctx), seen.map((k) => facts.get(k)!), watch));
     const opinions = new Map(seen.map((k, i) => [k, remembered[i]]));
 
-    const boxes: ShelfBox[] = named.map(({ block, product }) => {
-      if (!product) return { box: block.box, outline: block.outline, state: "unknown" };
-      const f = facts.get(product.key)!;
-      return { box: block.box, outline: block.outline, key: product.key, name: [f.brand, f.name].filter(Boolean).join(" "), ...shelfVerdict(f, context.rules, opinions.get(product.key) ?? null) };
+    // 4. Everything else gets a first colour straight away: the judge is asked, of the words on each front, what
+    //    such a product commonly contains. It can raise a flag, never clear one, and it is shown as still being
+    //    checked until the product has been identified and its real ingredients read.
+    const strangers = named.map((n, i) => (!n.product && n.text.trim() ? i : -1)).filter((i) => i >= 0).slice(0, 12);
+    const first = new Map<number, { state: "not_fit" | "cant_tell"; reason: string }>();
+    if (hard.length && strangers.length) {
+      const fronts = strangers.map((i) => named[i].text);
+      const judged = await timed("firstColour", judgeItems(frontItems(fronts), hard));
+      frontHints(fronts, context.rules, judged).forEach((hint, k) => hint && first.set(strangers[k], hint));
+    }
+
+    const boxes: ShelfBox[] = named.map((n, i) => {
+      const whole = n.whole ? { whole: true } : {};
+      if (n.product) {
+        const f = facts.get(n.product.key)!;
+        return { box: n.box, key: n.product.key, name: tidyName([f.brand, f.name].filter(Boolean).join(" ")), ...shelfVerdict(f, context.rules, opinions.get(n.product.key) ?? null), ...whole };
+      }
+      const hint = first.get(i);
+      return hint ? { box: n.box, state: hint.state, reason: hint.reason, checking: true, ...whole } : { box: n.box, state: "unknown", ...whole };
     });
 
-    // In the background: read the ingredients of recognised products that have not been read for these rules yet,
-    // and look up one package that was not recognised. Each is claimed first, so a shelf held in view for ten
-    // seconds starts each job once, not ten times.
+    // 5. In the background: read the ingredients of recognised products that have not been read for these rules
+    //    yet, and have unrecognised packages identified. Each job is claimed first, so something held in view for
+    //    ten seconds starts each job once, not ten times.
     const beforeJobs = Date.now();
     if (watch.length) {
       for (const key of seen.filter((k) => !opinions.get(k)).slice(0, 4)) {
@@ -83,15 +140,15 @@ export const look = action({
         }
       }
     }
-    // Packages that were read but not recognised: have them identified, a few at a time. The still is kept just
-    // long enough for the photo reader to look at it.
-    const strangers = [...new Map(named.filter((n) => !n.product && searchTerms(n.block.text).length >= 2).map((n) => [blockSignature(n.block.text), n.block.text])).entries()].slice(0, 6);
-    if (strangers.length && process.env.ANTHROPIC_API_KEY && (await ctx.runMutation(internal.shelfData.claim, { key: "identify:any", ttlMs: 30_000 }))) {
+    // A single package is worth reading even with hardly any words on it; on a shelf, only fronts with enough
+    // words to search for. The still is kept just long enough for the photo reader to look at it.
+    const unknown = named.filter((n) => !n.product && (n.whole || searchTerms(n.text).length >= 2));
+    const toIdentify = [...new Map(unknown.map((n) => [blockSignature(n.text) || "one-package-no-words", n.text.trim() || "(the one product in the picture; no words could be read off it)"])).entries()].slice(0, 6);
+    if (toIdentify.length && process.env.ANTHROPIC_API_KEY && (await ctx.runMutation(internal.shelfData.claim, { key: "identify:any", ttlMs: unknown[0]?.whole ? 6_000 : 30_000 }))) {
       const fronts: string[] = [];
-      for (const [signature, text] of strangers) {
+      for (const [signature, text] of toIdentify) {
         if (await ctx.runMutation(internal.shelfData.claim, { key: `identify:${signature}`, ttlMs: 10 * MINUTE })) fronts.push(text);
       }
-      steps.strangers = strangers.length;
       steps.toIdentify = fronts.length;
       if (fronts.length) {
         const imageId = await ctx.storage.store(new Blob([Buffer.from(image, "base64")], { type: "image/jpeg" }));
@@ -99,8 +156,7 @@ export const look = action({
       }
     }
     steps.jobs = Date.now() - beforeJobs;
-    console.log("shelf look", JSON.stringify({ ms: Date.now() - started, ...steps, blocks: blocks.length, known: known.length }));
-    return { boxes, ms: Date.now() - started, reading: true };
+    return done(boxes);
   },
 });
 
@@ -115,62 +171,6 @@ export const read = internalAction({
     return null;
   },
 });
-
-type Candidate = KnownProduct;
-
-const pause = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-/**
- * The database record for a package whose front has been read, or null. The database's text search wants every
- * word to be in the record, and a record rarely repeats the front word for word (the range name is often left out,
- * "Sweet Corn" is "Sweetcorn"), so the front is searched whole and then in parts, until one search turns up a
- * record that `sameProduct` accepts. Searches are spaced out: the database asks for only a few a minute.
- */
-async function findProduct(reading: PackageReading): Promise<{ match: Candidate | null; searched: number; offered: number }> {
-  let offered = 0;
-  const tried = new Set<string>();
-  const parts = [[reading.brand, reading.name, reading.variety], [reading.brand, reading.variety], [reading.name, reading.variety], [reading.brand, reading.name]];
-  for (const part of parts) {
-    const terms = searchTerms(part.filter(Boolean).join(" "), 5);
-    const query = terms.join(" ");
-    if (terms.length < 2 || tried.has(query)) continue;
-    if (tried.size) await pause(2000);
-    tried.add(query);
-    const url = new URL("https://world.openfoodfacts.org/cgi/search.pl");
-    for (const [k, val] of Object.entries({ search_terms: query, search_simple: "1", action: "process", json: "1", page_size: "8", fields: "code,product_name,brands" })) url.searchParams.set(k, val);
-    try {
-      const res = await fetch(url, { headers: { "User-Agent": "second-look/0.1" }, signal: AbortSignal.timeout(8000) });
-      if (!res.ok) continue;
-      const found = ((await res.json()) as { products?: { code?: string; product_name?: string; brands?: string }[] }).products ?? [];
-      const candidates = found.filter((p) => p.code && p.product_name?.trim()).map((p) => ({ key: p.code!, name: p.product_name!.trim(), ...(p.brands?.trim() ? { brand: p.brands.split(",")[0].trim() } : {}) }));
-      offered += candidates.length;
-      const match = candidates.length ? await sameProduct(reading, candidates) : null;
-      if (match) return { match, searched: tried.size, offered };
-    } catch (e) {
-      console.error("shelf lookup failed", e);
-    }
-  }
-  return { match: null, searched: tried.size, offered };
-}
-
-/**
- * Which candidate, if any, is the product whose front was read. Two independent checks: code compares the words
- * (engine/shelf.ts matchProduct, which refuses when two candidates fit equally), and the judge is asked of each
- * candidate whether it is the same product and variety. They must not disagree: the judge can settle what the
- * words alone leave open, and can veto a match it thinks is another variety, but a record is never accepted on the
- * judge's say-so unless its words fit too.
- */
-async function sameProduct(reading: PackageReading, candidates: Candidate[]): Promise<Candidate | null> {
-  const front = [reading.brand, reading.name, reading.variety].filter(Boolean).join(" ");
-  const byWords = matchProduct(front, candidates);
-  const ps = await judgeSameProduct(reading, candidates);
-  console.log("shelf candidates", JSON.stringify(candidates.map((c, i) => `${c.brand ?? ""} ${c.name}${ps ? ` p=${ps[i].toFixed(2)}` : ""}${c === byWords ? " <words>" : ""}`)));
-  if (!ps) return byWords;
-  const top = ps.indexOf(Math.max(...ps));
-  const judged = ps[top] >= 0.8 && ps.every((p, i) => i === top || p < 0.5) ? candidates[top] : null;
-  if (byWords) return ps[candidates.indexOf(byWords)] >= 0.5 ? byWords : null;
-  return judged && matchProduct(front, [judged]) ? judged : null;
-}
 
 /**
  * Identify packages the shelf view read but did not recognise. The photo reader looks at the still and reads each
@@ -187,21 +187,26 @@ export const identify = internalAction({
       const url = await ctx.storage.getUrl(imageId);
       if (!url || !process.env.ANTHROPIC_API_KEY) return 0;
       const readings = await readPackages(new Anthropic(), url, fronts);
+      console.log("shelf read", JSON.stringify({ asked: fronts.length, read: readings.map((r) => [r.brand, r.name, r.variety].filter(Boolean).join(" / ")) }));
       // Several of the rough readings are usually the same product, standing in a row: look each product up once.
       const distinct = [...new Map(readings.map((r) => [blockSignature([r.brand, r.name, r.variety].join(" ")), r])).values()];
       for (const reading of distinct.slice(0, 3)) {
         const front = [reading.brand, reading.name, reading.variety].filter(Boolean).join(" ");
-        const { match, searched, offered } = await findProduct(reading);
-        console.log("shelf identify", JSON.stringify({ front, searches: searched, candidates: offered, match: match ? `${match.brand ?? ""} ${match.name}`.trim() : null }));
-        if (match) {
-          // Fetching it by barcode stores it with the known products; only one with ingredients or allergens to go on is kept.
+        const { matches, searched, offered } = await findProduct(reading);
+        // The first accepted record that has ingredients or allergens to go on. Fetching it by barcode stores it
+        // with the known products; it is then remembered under the words on its front.
+        let kept: string | null = null;
+        for (const match of matches.slice(0, 4)) {
           const facts = await lookUpProduct(ctx, match.key).catch(() => null);
           if (facts && hasSubstance(facts)) {
             await ctx.runMutation(internal.shelfData.nameFront, { barcode: match.key, name: [reading.name, reading.variety].filter(Boolean).join(" "), ...(reading.brand ? { brand: reading.brand } : {}) });
+            kept = `${match.brand ?? ""} ${match.name}`.trim();
             identified++;
+            break;
           }
         }
-        await pause(2000);
+        console.log("shelf identify", JSON.stringify({ front, searches: searched, candidates: offered, accepted: matches.length, kept }));
+        await new Promise((r) => setTimeout(r, 2000));
       }
     } catch (e) {
       console.error("shelf identify failed", e);

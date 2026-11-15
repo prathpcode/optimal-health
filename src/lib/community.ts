@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 
 import { api } from '@convex/_generated/api';
 import type { Id } from '@convex/_generated/dataModel';
+import { tidyName } from '@engine/casing';
 import { CHALLENGE_NAME, challengeDays, dayKey, rankPlayers, scoreMeals, type MealScore } from '@engine/challenge';
 import { COMMUNITY_GROUPS, communitiesFor, matchCommunities, type CommunityGroup } from '@engine/communityMatch';
 import type { Fit } from '@engine/types';
@@ -422,28 +423,34 @@ export function usePresenceHeartbeat() {
 
 // ── Meals: "I ordered this" ──────────────────────────────────────────────────────────────────────────────────────
 
-/** What was logged from a scan, if anything (undefined while loading). */
-export function useMealForScan(scanId: string): { itemId: string; dishName: string } | null | undefined {
+export type LoggedDish = { itemId: string; dishName: string };
+
+/** What was logged from a scan: a dish per thing ordered, empty when nothing was (undefined while loading). */
+export function useMealForScan(scanId: string): LoggedDish[] | undefined {
   const deviceId = useDeviceId();
   const s = useStore();
   const live = useQuery(api.together.mealForScan, TOGETHER_LIVE && deviceId && scanId !== 'sample' ? { deviceId, scanId: scanId as Id<'scans'> } : 'skip');
-  if (TOGETHER_LIVE) return live;
-  const m = s.meals.find((x) => x.scanId === scanId);
-  return m ? { itemId: m.itemId, dishName: m.dishName } : null;
+  const local = useMemo(() => s.meals.filter((x) => x.scanId === scanId).map(({ itemId, dishName }) => ({ itemId, dishName })), [s.meals, scanId]);
+  const tidied = useMemo(() => live?.map((m) => ({ ...m, dishName: tidyName(m.dishName) })), [live]);
+  return TOGETHER_LIVE ? tidied : local;
 }
 
-/** Log what was ordered from a scan (one per scan; logging again changes it). Resolves to the dish's fit. */
-export function useLogMeal(): (scanId: string, itemId: string, dishName: string, fit: Fit) => Promise<Fit> {
+/**
+ * Log everything ordered from a scan (logging again replaces what that scan had). Resolves to each dish's fit, in
+ * the order given.
+ */
+export function useLogMeal(): (scanId: string, dishes: { itemId: string; dishName: string; fit: Fit }[]) => Promise<Fit[]> {
   const deviceId = useDeviceId();
   const log = useMutation(api.together.logMeal);
   return useCallback(
-    async (scanId: string, itemId: string, dishName: string, fit: Fit) => {
-      if (TOGETHER_LIVE && deviceId) return (await log({ deviceId, scanId: scanId as Id<'scans'>, itemId })).fit;
+    async (scanId: string, dishes: { itemId: string; dishName: string; fit: Fit }[]) => {
+      if (TOGETHER_LIVE && deviceId) return (await log({ deviceId, scanId: scanId as Id<'scans'>, itemIds: dishes.map((d) => d.itemId) })).fits;
       update((s) => {
-        const prev = s.meals.find((m) => m.scanId === scanId);
-        return { ...s, meals: [...s.meals.filter((m) => m.scanId !== scanId), { scanId, itemId, dishName, fit, at: prev?.at ?? Date.now() }] };
+        // One time for the whole scan, kept from the first logging, so changing the order never moves the day.
+        const at = s.meals.find((m) => m.scanId === scanId)?.at ?? Date.now();
+        return { ...s, meals: [...s.meals.filter((m) => m.scanId !== scanId), ...dishes.map((d) => ({ scanId, ...d, at }))] };
       });
-      return fit;
+      return dishes.map((d) => d.fit);
     },
     [deviceId, log],
   );

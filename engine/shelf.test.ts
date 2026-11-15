@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import menu from "../bench/data/menu-lines.json";
 import sample from "../bench/data/shelf-lines.json";
 import type { TextLine } from "./memory";
 import type { ProductFacts } from "./product";
-import { blockSignature, matchProduct, packageFronts, packageOutlines, searchTerms, shelfVerdict, textBlocks, type KnownProduct } from "./shelf";
+import { blockSignature, frontHints, looksLikeShelf, matchProduct, packageFronts, packageOutlines, searchTerms, shelfVerdict, textBlocks, type KnownProduct } from "./shelf";
 import type { Rule } from "./types";
 
 const KNOWN: KnownProduct[] = [
@@ -135,5 +136,40 @@ describe("packageFronts", () => {
   it("gives words inside nested outlines to the smaller one", () => {
     const fronts = packageFronts([line("Oat Drink", 0.22, 0.3)], [{ left: 0.1, top: 0.1, right: 0.6, bottom: 0.6 }, { left: 0.2, top: 0.2, right: 0.35, bottom: 0.55 }]);
     expect(fronts.find((f) => f.text === "Oat Drink")!.box.left).toBeCloseTo(0.2);
+  });
+});
+
+describe("looksLikeShelf", () => {
+  it("knows a real shelf of tins for a shelf", () => {
+    expect(looksLikeShelf(textBlocks(sample.lines as TextLine[]), 0)).toBe(true);
+  });
+  it("does not take a real restaurant menu for one", () => {
+    expect(looksLikeShelf(textBlocks(menu.lines as TextLine[]), 0)).toBe(false);
+  });
+  it("does not take a couple of stray blocks of text for one", () => {
+    expect(looksLikeShelf(textBlocks([line("Fresh", 0.1, 0.3), line("Bread", 0.1, 0.325), line("Open", 0.6, 0.7), line("Daily", 0.6, 0.725)]), 0)).toBe(false);
+    expect(looksLikeShelf([], 0)).toBe(false);
+  });
+  it("marks a single package when it is one the app knows", () => {
+    expect(looksLikeShelf(textBlocks([line("HEINZ", 0.4, 0.4), line("Classic", 0.4, 0.425)]), 1)).toBe(true);
+  });
+});
+
+describe("frontHints", () => {
+  const rule = (tag: string): Rule => ({ id: tag, level: "never", tag, reason: "t", source: { title: "t", url: "u" }, from: { type: "allergy", label: `${tag} allergy` }, status: "library", enabled: true });
+  it("flags a front whose own words name the thing, and says nothing about one with nothing against it", () => {
+    const [nutty, cola] = frontHints(["Silk Almond milk unsweetened", "Coca-Cola Original Taste"], [rule("tree_nuts")]);
+    expect(nutty?.state).toBe("not_fit");
+    expect(cola).toBeNull();
+  });
+  it("flags a front the judge thinks likely, and ignores a judge that is only unsure", () => {
+    const fronts = ["Snickers", "Lays Classic potato chips"];
+    expect(frontHints(fronts, [rule("peanuts")])).toEqual([null, null]);
+    const hints = frontHints(fronts, [rule("peanuts")], [{ itemId: "l1", ruleId: "peanuts", p: 0.96 }, { itemId: "l2", ruleId: "peanuts", p: 0.3 }]);
+    expect(hints[0]).toEqual({ state: "not_fit", reason: "Likely contains peanuts." });
+    expect(hints[1]).toBeNull();
+  });
+  it("has nothing to say when no hard rule is in play", () => {
+    expect(frontHints(["Skippy Creamy Peanut Butter"], [])).toEqual([null]);
   });
 });

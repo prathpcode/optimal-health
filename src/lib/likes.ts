@@ -61,6 +61,7 @@ export function createLikes(api: LikeApi, memory: LikeMemory, opts: { now?: () =
   const now = opts.now ?? Date.now;
   let owner: string | undefined;
   const entries = new Map<string, Entry>();
+  const views = new Map<string, { version: number; fallback: number | null | undefined; value: LikeView }>();
   const remembered = new Set<string>();
   const queue: string[] = [];
   const reading = new Map<string, Promise<void>>();
@@ -95,6 +96,7 @@ export function createLikes(api: LikeApi, memory: LikeMemory, opts: { now?: () =
     if (userId === owner) return;
     owner = userId;
     entries.clear();
+    views.clear();
     remembered.clear();
     queue.length = 0;
     emit();
@@ -110,13 +112,27 @@ export function createLikes(api: LikeApi, memory: LikeMemory, opts: { now?: () =
       });
   }
 
-  function view(postId: string, fallback: number | null | undefined): LikeView {
+  function compute(postId: string, fallback: number | null | undefined): LikeView {
     const e = entries.get(postId);
     if (!e) return { liked: remembered.has(postId), likes: fallback ?? 0 };
     const liked = e.want ?? e.liked ?? remembered.has(postId);
     if (e.hold) return { liked, likes: Math.max(0, e.hold.count + (liked ? 1 : 0) - (e.hold.liked ? 1 : 0)) };
     // Your own like is always counted, even before Whop's count shows it.
     return { liked, likes: Math.max(e.count ?? e.listed ?? fallback ?? 0, liked ? 1 : 0) };
+  }
+
+  /**
+   * What a screen draws. The same object is handed back until the answer really changes, which is what lets a
+   * screen subscribe to it directly (useSyncExternalStore needs a cached snapshot) and re-render the moment a tap
+   * lands rather than when the next feed load happens to bring a new count.
+   */
+  function view(postId: string, fallback: number | null | undefined): LikeView {
+    const hit = views.get(postId);
+    if (hit && hit.version === version && hit.fallback === fallback) return hit.value;
+    const fresh = compute(postId, fallback);
+    const value = hit && hit.value.liked === fresh.liked && hit.value.likes === fresh.likes ? hit.value : fresh;
+    views.set(postId, { version, fallback, value });
+    return value;
   }
 
   /** Your reaction on a post, from Whop. `total` only when the list was read to its end. */

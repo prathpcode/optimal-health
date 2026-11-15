@@ -14,6 +14,7 @@ import type * as crons from "../crons.js";
 import type * as drugRules from "../drugRules.js";
 import type * as followups from "../followups.js";
 import type * as http from "../http.js";
+import type * as identify from "../identify.js";
 import type * as invites from "../invites.js";
 import type * as judge from "../judge.js";
 import type * as lookup from "../lookup.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   drugRules: typeof drugRules;
   followups: typeof followups;
   http: typeof http;
+  identify: typeof identify;
   invites: typeof invites;
   judge: typeof judge;
   lookup: typeof lookup;

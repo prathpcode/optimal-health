@@ -12,21 +12,25 @@ import { Brackets } from '@/components/Brackets';
 import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
 import { ScanSweep } from '@/components/MenuOverlay';
+import { ShelfCard, ShelfMarks } from '@/components/ShelfMarks';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { useDeviceId } from '@/lib/backend';
 import { haptic } from '@/lib/haptics';
-import { containRect, type Rect } from '@/lib/layout';
+import { boxToRect, containRect, coverRect, packageRects, type Rect } from '@/lib/layout';
 import { lastLocation, locate } from '@/lib/location';
 import { goBack } from '@/lib/nav';
 import { rememberPhoto, restartSample, SAMPLE_ID } from '@/lib/scan';
+import { shelfStill, useShelfLook, type ShelfBox } from '@/lib/shelf';
 import { prepareImage, useStartBarcode, useStartScan, type Prepared } from '@/lib/upload';
 import { duration, onPhoto, radius, space, spring } from '@/theme';
 
 type Phase = 'live' | 'capturing' | 'uploading' | 'error';
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export default function ScanScreen() {
-  // Started from a room's "Share a meal": the result offers to share to that room.
+  // Started from a room's "Share a meal": the scan goes straight to picking what was ordered for that room.
   const { share } = useLocalSearchParams<{ share?: string }>();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -45,6 +49,98 @@ export default function ScanScreen() {
   const capturing = useRef(false);
   const flash = useSharedValue(0);
   const shutterInner = useSharedValue(1);
+
+  // ---- Packages on a shelf. While the camera is simply open, it looks at what it is pointed at every so often
+  // (shelf.look). When that is a shelf of packages, each one it can read gets a box, there and then; when it is
+  // anything else, nothing is drawn and the camera is the same as it always was. Nobody has to choose a mode.
+  const look = useShelfLook();
+  const [shelfBoxes, setShelfBoxes] = useState<ShelfBox[]>([]);
+  const [shelfFrame, setShelfFrame] = useState<{ width: number; height: number } | null>(null);
+  const [picked, setPicked] = useState<ShelfBox | null>(null);
+  const [opening, setOpening] = useState(false);
+  // What the look loop reads without being restarted: whether to hold off, and the still it is taking (the shutter
+  // waits for that one, since the camera takes one picture at a time).
+  const holdRef = useRef(false);
+  const lookShot = useRef<Promise<unknown> | null>(null);
+  useEffect(() => {
+    holdRef.current = phase !== 'live' || picked !== null || opening;
+  }, [phase, picked, opening]);
+  const canLook = ready && !!look && !!deviceId && permission?.granted === true;
+
+  useEffect(() => {
+    if (!canLook || !look || !deviceId) return;
+    let alive = true;
+    (async () => {
+      // Give the person a moment to frame what they came to scan before anything else uses the camera.
+      await sleep(1200);
+      while (alive) {
+        if (holdRef.current || capturing.current || barcodeSeen.current || !camera.current) {
+          await sleep(250);
+          continue;
+        }
+        let onShelf = false;
+        try {
+          const shot = camera.current.takePictureAsync({ quality: 0.5, shutterSound: false });
+          lookShot.current = shot.catch(() => null);
+          const still = await shelfStill((await shot).uri);
+          lookShot.current = null;
+          const answer = await look(still, deviceId);
+          if (!alive) return;
+          onShelf = answer.shelf;
+          // A box was tapped, or a photo taken, while this still was on its way: leave the screen as it is.
+          if (!holdRef.current) {
+            setShelfFrame({ width: still.width, height: still.height });
+            setShelfBoxes(answer.shelf ? answer.boxes : []);
+          }
+        } catch {
+          lookShot.current = null;
+          if (!alive) return;
+          await sleep(1500);
+        }
+        // On a shelf, look again at once so the boxes keep up; otherwise only now and then.
+        await sleep(onShelf ? 150 : 2500);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [canLook, look, deviceId]);
+
+  // The preview fills the screen, so a still maps onto the screen the same way; then each block of words is grown
+  // toward the package it is printed on.
+  const shelfRects = useMemo(() => {
+    if (!shelfFrame || !shelfBoxes.length) return [];
+    const view = coverRect({ width, height }, shelfFrame);
+    const placed = shelfBoxes.map((b) => boxToRect(b.box, view));
+    // A box the judge drew already surrounds its package; one made from a package's words is grown toward it.
+    const grown = packageRects(placed);
+    return shelfBoxes.map((b, i) => (b.whole ? placed[i] : grown[i]));
+  }, [shelfBoxes, shelfFrame, width, height]);
+  const onShelf = shelfBoxes.length > 0 && phase === 'live';
+  const shelfStatus = useMemo(() => {
+    const out = shelfBoxes.filter((b) => b.state === 'not_fit').length;
+    const ask = shelfBoxes.filter((b) => b.state === 'cant_tell').length;
+    const good = shelfBoxes.filter((b) => b.state === 'good').length;
+    if (out || ask) return [out ? `${out} not a fit` : null, ask ? `${ask} to check` : null].filter(Boolean).join(' · ');
+    if (good) return `${good} good ${good === 1 ? 'fit' : 'fits'}`;
+    return shelfBoxes.some((b) => b.state !== 'unknown') ? 'Checking' : 'Finding out what this is';
+  }, [shelfBoxes]);
+
+  const openPicked = async () => {
+    if (!picked?.key || !startBarcode || !deviceId || opening) return;
+    setOpening(true);
+    try {
+      const id = await startBarcode(picked.key, deviceId);
+      setPicked(null);
+      // Sharing a meal: straight to picking what was ordered, like the other two ways into a scan from a room.
+      if (share) router.replace({ pathname: '/share/[scanId]', params: { scanId: id, room: share, fixed: '1' } });
+      else router.push({ pathname: '/result/[id]', params: { id } });
+    } catch {
+      haptic.error();
+    } finally {
+      setOpening(false);
+    }
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setHint(false), 3200);
@@ -84,8 +180,10 @@ export default function ScanScreen() {
     setPhase('uploading');
     try {
       const id = await startScan(image, deviceId, lastLocation());
-      // Hand the local photo over so the result screen draws it before the record arrives.
-      router.replace({ pathname: '/result/[id]', params: { id, uri: image.uri, w: String(image.width), h: String(image.height), ...(share ? { share } : {}) } });
+      // Sharing a meal: go straight to picking what was ordered, which only needs the dish list. Otherwise the
+      // result screen, with the local photo handed over so it draws before the record arrives.
+      if (share) router.replace({ pathname: '/share/[scanId]', params: { scanId: id, room: share, fixed: '1' } });
+      else router.replace({ pathname: '/result/[id]', params: { id, uri: image.uri, w: String(image.width), h: String(image.height) } });
     } catch {
       fail();
     }
@@ -106,7 +204,8 @@ export default function ScanScreen() {
     try {
       const id = await startBarcode(data, deviceId);
       void shot?.then((photo) => photo && rememberPhoto(id, photo));
-      router.replace({ pathname: '/result/[id]', params: { id, ...(share ? { share } : {}) } });
+      if (share) router.replace({ pathname: '/share/[scanId]', params: { scanId: id, room: share, fixed: '1' } });
+      else router.replace({ pathname: '/result/[id]', params: { id } });
     } catch {
       barcodeSeen.current = false;
       fail();
@@ -121,7 +220,11 @@ export default function ScanScreen() {
     setPhase('capturing');
     shutterInner.set(withSequence(withTiming(0.86, { duration: 90 }), withSpring(1, spring.snappy)));
     flash.set(withSequence(withTiming(1, { duration: 60 }), withTiming(0, { duration: 260 })));
+    setPicked(null);
+    setShelfBoxes([]);
     try {
+      // If the look loop is in the middle of a still, let it finish: the camera takes one picture at a time.
+      await lookShot.current;
       const pic = await camera.current.takePictureAsync({ quality: 0.9, shutterSound: false });
       const prepared = await prepareImage(pic.uri);
       setStill(prepared);
@@ -230,9 +333,10 @@ export default function ScanScreen() {
         </Animated.View>
       ) : null}
 
-      <Brackets rect={stillRect ?? liveFrame} breathing={phase === 'live'} />
+      {/* On a shelf the boxes are the frame: the brackets and the framing hint step aside. */}
+      {onShelf ? <ShelfMarks boxes={shelfBoxes} rects={shelfRects} picked={picked} reduced={!!reduced} onPick={(b) => (haptic.tap(), setPicked(b))} /> : <Brackets rect={stillRect ?? liveFrame} breathing={phase === 'live'} />}
 
-      {hint && phase === 'live' ? (
+      {hint && phase === 'live' && !onShelf ? (
         <Animated.View entering={FadeIn.delay(400)} exiting={FadeOut.duration(duration.base)} style={[styles.hint, { top: liveFrame.y + liveFrame.height / 2 - 18 }]} pointerEvents="none">
           <GlassSurface style={styles.hintPill}>
             <T variant="bodyStrong" color={onPhoto.text}>
@@ -247,9 +351,19 @@ export default function ScanScreen() {
       {/* Top bar */}
       <View style={[styles.top, { paddingTop: insets.top + space.sm }]}>
         <GlassButton icon="close" label="Close" onPress={goBack} />
-        <T variant="headline" color={onPhoto.text}>
-          {phase === 'uploading' ? 'Sending' : 'Scan'}
-        </T>
+        {onShelf ? (
+          <GlassSurface style={styles.shelfPill}>
+            <Animated.View key={shelfStatus} entering={FadeIn.duration(duration.base)}>
+              <T variant="bodyStrong" color={onPhoto.text} numberOfLines={1}>
+                {shelfStatus}
+              </T>
+            </Animated.View>
+          </GlassSurface>
+        ) : (
+          <T variant="headline" color={onPhoto.text}>
+            {phase === 'uploading' ? 'Sending' : 'Scan'}
+          </T>
+        )}
         <GlassButton icon={torch ? 'flash' : 'flashOff'} label={torch ? 'Turn off light' : 'Turn on light'} onPress={() => setTorch((t) => !t)} />
       </View>
 
@@ -269,7 +383,13 @@ export default function ScanScreen() {
           </Animated.View>
         ) : null}
 
-        <View style={styles.shutterRow}>
+        {picked && onShelf ? (
+          <View style={{ alignSelf: 'stretch', paddingHorizontal: space.lg }}>
+            <ShelfCard box={picked} opening={opening} onOpen={openPicked} onClose={() => setPicked(null)} />
+          </View>
+        ) : null}
+
+        <View style={[styles.shutterRow, picked && onShelf ? { display: 'none' } : null]}>
           <GlassButton icon="photos" label="Choose from photos" onPress={pickFromLibrary} size={50} />
           <Tap accessibilityRole="button" accessibilityLabel="Take photo" onPress={phase === 'error' ? retake : capture} disabled={!ready && phase === 'live'} scaleTo={0.92}>
             <View style={styles.shutter}>
@@ -282,12 +402,14 @@ export default function ScanScreen() {
               )}
             </View>
           </Tap>
-          <GlassButton icon="box" label="Look along a shelf" onPress={() => router.replace('/shelf')} size={50} />
+          <View style={{ width: 50 }} />
         </View>
 
-        <T variant="caption" color={onPhoto.textSecondary}>
-          Menu, item(s), or barcode
-        </T>
+        {picked && onShelf ? null : (
+          <T variant="caption" color={onPhoto.textSecondary}>
+            {onShelf ? 'Tap a box for the product' : 'Menu, shelf, item or barcode'}
+          </T>
+        )}
       </View>
     </View>
   );
@@ -298,6 +420,7 @@ const styles = StyleSheet.create({
   top: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg },
   hint: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   hintPill: { paddingHorizontal: space.lg, paddingVertical: space.sm + 2 },
+  shelfPill: { height: 40, paddingHorizontal: space.lg, justifyContent: 'center', maxWidth: 240 },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', gap: space.xl },
   shutterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch', paddingHorizontal: space.xxxl + space.sm },
   shutter: { width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: onPhoto.text, alignItems: 'center', justifyContent: 'center' },

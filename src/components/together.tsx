@@ -5,10 +5,10 @@ import { ActionSheetIOS, ActivityIndicator, Alert, Platform, StyleSheet, View } 
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 
 import { celebrate } from '@/lib/celebrate';
-import { useMealForScan, useTogether as useTogetherRooms, type Reaction, type RoomView } from '@/lib/community';
+import { useMealForScan, type Reaction, type RoomView } from '@/lib/community';
 import { signInWithWhop, useWhopAccount } from '@/lib/whop';
 import { joinOnWhop, needsMembership } from '@/lib/whopForum';
-import { radius, space, spring, useTheme } from '@/theme';
+import { radius, shadow, space, spring, useTheme } from '@/theme';
 import { GlassSurface } from './Glass';
 import { Icon, type IconName } from './Icon';
 import { T } from './T';
@@ -45,19 +45,6 @@ export function useSignedIn(): (then: () => void) => Promise<void> {
     if (r.ok) then();
     else if (!r.cancelled) Alert.alert('Couldn’t sign in', r.message ?? 'Try again in a moment.');
   };
-}
-
-/** On a result reached from a room's "Share a meal": one button to share this scan to that room. */
-export function ShareToRoom({ scanId, room }: { scanId: string; room: string }) {
-  const { all } = useTogetherRooms();
-  const r = all.find((x) => x.slug === room);
-  return (
-    <GlassAction
-      label={r ? `Share with ${r.title}` : 'Share'}
-      icon="send"
-      onPress={() => router.push({ pathname: '/share/[scanId]', params: { scanId, room, fixed: '1' } })}
-    />
-  );
 }
 
 /** A section's title, as on Manage, with an optional small action on the right. */
@@ -191,20 +178,22 @@ export function MealCard({ scanId }: { scanId: string }) {
   }, [meal, pop, reduced]);
   const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
   if (meal === undefined) return null;
+  const ordered = meal.length > 0;
+  const names = meal.map((m) => m.dishName).join(', ');
 
   const open = () => router.push({ pathname: '/share/[scanId]', params: { scanId } });
   return (
-    <Tap accessibilityRole="button" accessibilityLabel={meal ? `You ordered ${meal.dishName}. Change` : 'What did you order?'} feedback="tap" scaleTo={0.98} onPress={open}>
+    <Tap accessibilityRole="button" accessibilityLabel={ordered ? `You ordered ${names}. Change` : 'What did you order?'} feedback="tap" scaleTo={0.98} onPress={open}>
       <GlassSurface tone="theme" interactive style={styles.row}>
-        <Animated.View style={[styles.rowIcon, { backgroundColor: meal ? c.goodSoft : c.primary }, iconStyle]}>
-          <Icon name={meal ? 'check' : 'fork'} size={20} color={meal ? c.good : c.onPrimary} weight="bold" />
+        <Animated.View style={[styles.rowIcon, { backgroundColor: ordered ? c.goodSoft : c.primary }, iconStyle]}>
+          <Icon name={ordered ? 'check' : 'fork'} size={20} color={ordered ? c.good : c.onPrimary} weight="bold" />
         </Animated.View>
         <View style={{ flex: 1, gap: 2 }}>
           <T variant="headline" numberOfLines={1}>
-            {meal ? meal.dishName : 'What did you order?'}
+            {ordered ? names : 'What did you order?'}
           </T>
           <T variant="caption" tone="secondary">
-            {meal ? 'Logged · tap to change or share' : 'Log it, share it if you like'}
+            {ordered ? 'Logged · tap to change or share' : 'Log it, share it if you like'}
           </T>
         </View>
         <Icon name="chevron" size={14} color={c.textTertiary} />
@@ -215,7 +204,7 @@ export function MealCard({ scanId }: { scanId: string }) {
 
 /** Two or three tabs on glass, with a sliding thumb. */
 export function GlassTabs<V extends string>({ options, value, onChange }: { options: { value: V; label: string }[]; value: V; onChange: (v: V) => void }) {
-  const { c } = useTheme();
+  const { c, dark } = useTheme();
   const [width, setWidth] = useState(0);
   const index = Math.max(0, options.findIndex((o) => o.value === value));
   const seg = width / options.length;
@@ -224,10 +213,13 @@ export function GlassTabs<V extends string>({ options, value, onChange }: { opti
     x.value = withSpring(index * seg, spring.snappy);
   }, [index, seg, x]);
   const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  // The selected pill is a sibling of the glass, not a child of it: on iOS 26 a view inside the glass effect is
+  // blended into it and the pill disappears, leaving nothing but bolder text.
   return (
-    <GlassSurface tone="theme" style={styles.tabs}>
+    <View style={styles.tabs}>
+      <GlassSurface tone="theme" style={StyleSheet.absoluteFill} />
       <View accessibilityRole="tablist" style={styles.tabRow} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-        {width > 0 ? <Animated.View style={[styles.thumb, { width: seg, backgroundColor: c.card }, thumb]} /> : null}
+        {width > 0 ? <Animated.View style={[styles.thumb, { width: seg, backgroundColor: c.card, borderColor: c.hairline }, shadow('card', dark), thumb]} /> : null}
         {options.map((o) => (
           <Tap
             key={o.value}
@@ -244,7 +236,7 @@ export function GlassTabs<V extends string>({ options, value, onChange }: { opti
           </Tap>
         ))}
       </View>
-    </GlassSurface>
+    </View>
   );
 }
 
@@ -254,8 +246,8 @@ const styles = StyleSheet.create({
   live: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.card },
   rowIcon: { width: 52, height: 52, borderRadius: radius.sm + 4, alignItems: 'center', justifyContent: 'center' },
-  tabs: { height: 44, padding: 4 },
+  tabs: { height: 44, padding: 4, borderRadius: radius.chip },
   tabRow: { flexDirection: 'row', flex: 1 },
-  thumb: { position: 'absolute', top: 0, bottom: 0, left: 0, borderRadius: radius.chip },
+  thumb: { position: 'absolute', top: 0, bottom: 0, left: 0, borderRadius: radius.chip, borderWidth: StyleSheet.hairlineWidth },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

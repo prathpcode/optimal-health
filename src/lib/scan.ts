@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { api } from '@convex/_generated/api';
 import type { Id } from '@convex/_generated/dataModel';
+import { tidyName, tidySentence } from '@engine/casing';
 import { afterAnswer, buildQuestions, buildRanking, buildVerdicts } from '@engine/pipeline';
 import type { Box, HardCheck, Item, RankedItem, Rule, ScanQuestion, ScanStatus, TextOutline, Verdict } from '@engine/types';
 import profileJson from '../../fixtures/profile.json';
@@ -189,6 +190,15 @@ function useRulesLive(): Rule[] {
   return useMemo(() => rules ?? [], [rules]);
 }
 
+/**
+ * A menu printed in capitals is tidied before anything draws it (engine/casing.ts). The backend tidies what it
+ * stores from now on; doing it here too means scans taken before that, and any deployment still running the older
+ * pipeline, read the same way.
+ */
+function shown(items: Item[]): Item[] {
+  return items.map((i) => ({ ...i, name: tidyName(i.name), ...(i.description ? { description: tidySentence(i.description) } : {}) }));
+}
+
 function useLiveScan(id: string | null) {
   const record = useQuery(api.scans.get, id ? { scanId: id as Id<'scans'> } : 'skip');
   const rules = useRulesLive();
@@ -211,7 +221,7 @@ function useLiveScan(id: string | null) {
       photo: photo ? { uri: photo.uri } : null,
       imageWidth: photo?.width ?? 0,
       imageHeight: photo?.height ?? 0,
-      items: record.items,
+      items: shown(record.items),
       verdicts: record.verdicts,
       ranking: record.ranking,
       // PLAN 7.1: never ask anything on a provisional result.
@@ -219,7 +229,7 @@ function useLiveScan(id: string | null) {
       explanations: record.explanations,
       rules,
       summary: record.summary,
-      restaurant: record.restaurantName,
+      restaurant: record.restaurantName ? tidyName(record.restaurantName) : undefined,
       restaurantId: record.restaurantId,
       textBoxes: record.textBoxes,
       earlyHints: record.earlyHints,
@@ -343,7 +353,7 @@ function useRecentLive(): RecentScan[] | undefined {
     () =>
       rows?.map((r) => ({
         id: r.scanId,
-        title: r.title,
+        title: tidyName(r.title),
         createdAt: r.createdAt,
         status: r.status,
         kind: r.kind,

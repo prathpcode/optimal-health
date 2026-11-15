@@ -254,6 +254,24 @@ describe('likes', () => {
     expect(likes.view(POST, 0)).toEqual({ liked: false, likes: 0 });
   });
 
+  it('hands back the same view until it changes, and a new one the moment it does', async () => {
+    const { whop, likes } = setup();
+    likes.seen(whop.feed(POST), ME);
+    await settle();
+    const before = likes.view(POST, 0);
+    // A screen that re-renders for its own reasons must not be told anything changed.
+    expect(likes.view(POST, 0)).toBe(before);
+    likes.seen(whop.feed(POST), ME);
+    await settle();
+    expect(likes.view(POST, 0)).toBe(before);
+
+    const sent = likes.toggle(POST, ME);
+    const after = likes.view(POST, 0);
+    expect(after).not.toBe(before);
+    expect(after).toEqual({ liked: true, likes: 1 });
+    await sent;
+  });
+
   it('shows the same state to every screen and tells them when it changes', async () => {
     const { whop, likes } = setup();
     let told = 0;

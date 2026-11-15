@@ -92,20 +92,24 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
   (`engine/memory.ts`), and its box takes the verdict's colour as verdicts land. The service only locates text; it
   decides nothing. With no key, or if the call fails, the app falls back to chips in a row. A phone that sends
   `lines` itself (on-device recognition, needs a development build) skips the service.
-- Shelf view (`src/app/shelf.tsx`, `convex/shelf.ts`, `engine/shelf.ts`): the camera sends a still about once a second
-  to `shelf.look`, which returns a box per package. Packages are found by grouping the recognised text into one
-  block per package front, and named by matching those words against products already known by barcode
-  (`productCache`); the matcher refuses when two products fit equally or the brand differs. Each still stands alone,
-  so nothing is tracked between frames. A recognised product is shown as a good fit only after the careful
-  reading of its ingredients is in (the same verdict a barcode scan gives, with the same "confirm" note when a Never
-  rule is in play); until then it is "unflagged". Unknown packages get a dashed outline and are identified in the background (`shelf.identify`): the photo
-  reader reads each front properly, the product database is searched for it, and a record is accepted only if the
-  word match and the judge (Jev: "same product, same variety?") both agree. Nothing is inferred about a product
-  that is not in the database. With `ROBOFLOW_API_KEY` set, a detector (SAM 3 on Roboflow's hosted API, given the
-  photo and nothing else) outlines every package it can see, and each package is named from the words inside its
-  outline; a package with no readable name is outlined as unknown. The detector only says where things are. Naming
-  and verdicts need
-  `GOOGLE_VISION_API_KEY`. Built and checked against a shelf photo; not yet run on a phone in a store.
+- Packages in the scan camera (`src/app/scan.tsx`, `src/components/ShelfMarks.tsx`, `convex/shelf.ts`,
+  `convex/identify.ts`, `engine/shelf.ts`): there is no separate mode. While the camera is open it sends a still to
+  `shelf.look` every so often, and each still is handled on its own:
+  1. The judge (Jev) looks at the picture: no packaged product, one, or several. "None" ends there, in about a
+     tenth of a second, without the text being read.
+  2. With `ROBOFLOW_API_KEY` set, a detector (SAM 3 on Roboflow's hosted API, given the photo and nothing else)
+     outlines every package it can see, and each package gets the words printed inside its outline; the detector
+     only says where things are. Without it, one package gets the judge's own box and several get one box per
+     block of recognised text (Google Vision).
+  3. A package whose words match a product known by barcode gets its real verdict. It is shown as a good fit only
+     once the careful reading of its ingredients is in; until then it is "unflagged".
+  4. Any other package gets a first colour from the judge's opinion of the words on its front ("Snickers":
+     peanuts). That can raise a flag, never clear one, and is drawn dashed.
+  5. In the background the photo reader reads each unknown front, the product database is searched, and a record
+     is kept only if the judge is nearly sure it is the same product and variety AND its words fit. Nothing is
+     inferred about a product that is not in the database.
+  A photo of a package's front taken with the shutter goes through the same step 5 (`convex/pipeline.ts`).
+  Checked against photos of shelves and single cans; not yet run on a phone in a store.
 - Money races (`convex/pay.ts`, `engine/challenge.ts` `settlePot`): a race can have an entry price; every player pays
   it through a Whop checkout and the winner takes the pool. An entry is "pending" until Whop's webhook
   (`/whop/webhook`) reports the payment and we read it back from Whop's API; only then is the player in. Entries
@@ -193,6 +197,9 @@ Docs: https://docs.expo.dev/eas/index.md
 - Always start Expo with `--tunnel` (`npm start`, or `npx expo start --tunnel`). A worktree's dev server is often not
   on the same network as the phone, and the LAN URL then never connects; the tunnel always does. The same goes for
   the platform shortcuts: `npx expo start --tunnel --ios`, `--android`.
+- Always end a change to the app with a QR code to try it on: start the tunnelled dev server, read the `exp://` URL
+  it prints, and give the QR code (as an image, with the URL beside it) in the message that reports the change. Do
+  this without being asked, every time, in every conversation.
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
