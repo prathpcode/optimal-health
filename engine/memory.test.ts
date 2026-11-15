@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyRemembered, dishKey, positionsFor, restaurantId, type RememberedAnswer } from "./memory";
 import { evaluate } from "./evaluate";
+import { afterAnswer, afterRestaurant, answersToRemember, buildQuestions, buildRanking, buildVerdicts } from "./pipeline";
 import type { HardCheck, Item, Rule } from "./types";
 
 const NUTS: Rule = { id: "nuts", level: "never", tag: "tree_nuts", reason: "t", source: { title: "t", url: "u" }, from: { type: "allergy", label: "tree nut allergy" }, status: "library", enabled: true };
@@ -86,5 +87,69 @@ describe("positionsFor", () => {
     const twice = positionsFor([{ name: "Fresh Lemonade" }, { name: "Fresh Lemonade" }], lines);
     expect(twice[0]).toEqual([box(5)]);
     expect(twice[1]).toBeUndefined();
+  });
+});
+
+describe("afterRestaurant", () => {
+  const build = (checks: HardCheck[]) => {
+    const verdicts = buildVerdicts([pesto], [NUTS], checks);
+    return { items: [pesto], checks, verdicts, ranking: buildRanking([pesto], verdicts, [NUTS]), questions: buildQuestions([pesto], verdicts) };
+  };
+  it("a restaurant's earlier 'yes' blocks the dish on a scan that only now knows where it is", () => {
+    const scan = build([check]);
+    expect(scan.verdicts.d1.fit).toBe("cant_tell");
+    const next = afterRestaurant(scan, [NUTS], [ans({ value: "yes", deviceId: "someone" })], "me", now);
+    expect(next.verdicts.d1.fit).toBe("not_fit");
+    expect(next.ranking[0].section).toBe("not_fit");
+    expect(next.questions).toEqual([]);
+  });
+  it("my own earlier 'no' there removes the question", () => {
+    const next = afterRestaurant(build([check]), [NUTS], [ans({})], "me", now);
+    expect(next.verdicts.d1.fit).not.toBe("cant_tell");
+    expect(next.questions).toEqual([]);
+  });
+  it("changes nothing when the restaurant has said nothing", () => {
+    const scan = build([check]);
+    const next = afterRestaurant(scan, [NUTS], [], "me", now);
+    expect(next.verdicts).toEqual(scan.verdicts);
+    expect(next.questions).toEqual(scan.questions);
+  });
+  it("leaves an answer given on this scan alone, and keeps it on the question list", () => {
+    const scan = build([check]);
+    const answered = afterAnswer(scan, [NUTS], scan.questions[0].id, "no", "2026-11-14T19:59:00Z")!;
+    const next = afterRestaurant({ ...scan, ...answered }, [NUTS], [ans({ value: "no", at: "2026-11-01T00:00:00Z" })], "me", now);
+    expect(next.checks[0].answer?.at).toBe("2026-11-14T19:59:00Z");
+    expect(next.questions).toMatchObject([{ answer: "no" }]);
+  });
+});
+
+describe("afterRestaurant, when the scan was first matched to the wrong place", () => {
+  it("drops an answer remembered from the other restaurant and asks again", () => {
+    const wrong: HardCheck = { ...check, answer: { value: "no", by: "this_user", at: "2026-11-10T19:00:00Z" } };
+    const verdicts = buildVerdicts([pesto], [NUTS], [wrong]);
+    const scan = { items: [pesto], checks: [wrong], verdicts, ranking: buildRanking([pesto], verdicts, [NUTS]), questions: buildQuestions([pesto], verdicts) };
+    expect(scan.questions).toEqual([]);
+    const next = afterRestaurant(scan, [NUTS], [], "me", now);
+    expect(next.checks[0].answer).toBeUndefined();
+    expect(next.verdicts.d1.fit).toBe("cant_tell");
+    expect(next.questions).toHaveLength(1);
+  });
+});
+
+describe("answersToRemember", () => {
+  const verdicts = buildVerdicts([pesto], [NUTS], [check]);
+  const asked = { items: [pesto], checks: [check], verdicts, ranking: buildRanking([pesto], verdicts, [NUTS]), questions: buildQuestions([pesto], verdicts) };
+  it("returns the answers given on this scan, keyed by dish and tag", () => {
+    const answered = { ...asked, ...afterAnswer(asked, [NUTS], asked.questions[0].id, "no", "2026-11-14T19:59:00Z")! };
+    expect(answersToRemember(answered, [NUTS])).toEqual([{ dishKey: dishKey(pesto), tag: "tree_nuts", value: "no", at: "2026-11-14T19:59:00Z" }]);
+  });
+  it("leaves out answers that were remembered from an earlier visit, and other people's", () => {
+    const mineFromMemory: HardCheck = { ...check, answer: { value: "no", by: "this_user", at: "2026-11-10T19:00:00Z" } };
+    const theirs: HardCheck = { ...check, itemId: "d2", answer: { value: "yes", by: "another_user", at: "2026-11-01T00:00:00Z" } };
+    expect(answersToRemember({ items: [pesto, { ...pesto, id: "d2" }], checks: [mineFromMemory, theirs], questions: [] }, [NUTS])).toEqual([]);
+  });
+  it("does not remember a skipped question", () => {
+    const skipped = { ...asked, ...afterAnswer(asked, [NUTS], asked.questions[0].id, "skipped", "2026-11-14T19:59:00Z")! };
+    expect(answersToRemember(skipped, [NUTS])).toEqual([]);
   });
 });
