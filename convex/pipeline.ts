@@ -1,11 +1,12 @@
 "use node";
 
+import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { v } from "convex/values";
 import { z } from "zod";
 import { internal } from "./_generated/api";
-import { internalAction } from "./_generated/server";
+import { internalAction, type ActionCtx } from "./_generated/server";
 import {
   applySecondOpinions, buildChecks, buildQuestions, buildRanking, buildVerdicts, hardRules, itemsFromReader, type ReaderDish, type ReaderOpinion,
 } from "../engine/pipeline";
@@ -47,6 +48,94 @@ async function ask<T extends z.ZodType>(client: Anthropic, step: Step, schema: T
   if (response.stop_reason === "max_tokens") throw new ScanError("There is too much on this photo to read at once. Try one page or section at a time.");
   if (!response.parsed_output) throw new ScanError("The reader returned something we could not use. Please try again.");
   return response.parsed_output;
+}
+
+// ---- Not asking the same thing twice ----
+//
+// Tagging a set of dishes and the per-tag second pass depend only on the text sent, never on who is scanning, so the
+// answer to one exact request can be kept and reused (convex/cache.ts). The key is a hash of everything that shapes
+// the answer: the model, the instructions and the text. A hit therefore means the very same question; nothing is
+// matched loosely, and the model is never shown less than it would have been. Only answers that parsed are kept, so
+// a failed call is asked again next time. Not cached: reading the photo (each photo is new), the wording (it is
+// written for one person's rules) and matching package warnings to a profile.
+
+/** Bump when a cached step's output shape or meaning changes; every older entry then stops matching. */
+const CACHE_VERSION = 1;
+const TAG_CACHE_DAYS = 30;
+/** Product records change (reformulations, corrections), so they are refetched weekly. */
+const PRODUCT_CACHE_DAYS = 7;
+const DAY_MS = 86_400_000;
+
+export type AnswerCache = {
+  get: (keys: string[]) => Promise<Map<string, string>>;
+  put: (entries: { key: string; step: string; value: string }[]) => Promise<void>;
+};
+
+const cacheOn = () => process.env.SCAN_CACHE !== "off";
+
+function answerCache(ctx: ActionCtx): AnswerCache | null {
+  if (!cacheOn()) return null;
+  return {
+    get: async (keys) => {
+      const rows: { key: string; value: string; at: number }[] = await ctx.runQuery(internal.cache.getAnswers, { keys });
+      const oldest = Date.now() - TAG_CACHE_DAYS * DAY_MS;
+      return new Map(rows.filter((r) => r.at >= oldest).map((r) => [r.key, r.value]));
+    },
+    put: async (entries) => {
+      await ctx.runMutation(internal.cache.putAnswers, { entries });
+    },
+  };
+}
+
+function cacheKey(step: Step, system: string, text: string): string {
+  return createHash("sha256").update(JSON.stringify([CACHE_VERSION, step, MODELS[step](), system, text])).digest("hex");
+}
+
+/**
+ * Asks text-only questions through the cache. `prime` looks every request up in one query; `ask` answers from that
+ * or calls the model; `flush` stores what was newly learnt. A cache that cannot be read or written is ignored: the
+ * scan then simply asks the model, as it always did.
+ */
+export class Memo {
+  private hits = new Map<string, string>();
+  private fresh: { key: string; step: string; value: string }[] = [];
+  constructor(private client: Anthropic, private cache: AnswerCache | null) {}
+
+  async prime(requests: { step: Step; system: string; text: string }[]): Promise<void> {
+    if (!this.cache || !requests.length) return;
+    try {
+      this.hits = await this.cache.get(requests.map((r) => cacheKey(r.step, r.system, r.text)));
+    } catch (e) {
+      console.error("cache read failed", e);
+    }
+  }
+
+  async ask<T extends z.ZodType>(step: Step, schema: T, system: string, text: string): Promise<z.infer<T>> {
+    const key = cacheKey(step, system, text);
+    const hit = this.hits.get(key);
+    if (hit !== undefined) {
+      try {
+        const parsed = schema.safeParse(JSON.parse(hit));
+        if (parsed.success) return parsed.data;
+      } catch {
+        // An entry that no longer parses is treated as absent and replaced below.
+      }
+    }
+    const answer = await ask(this.client, step, schema, system, [{ type: "text", text }]);
+    if (this.cache) this.fresh.push({ key, step, value: JSON.stringify(answer) });
+    return answer;
+  }
+
+  async flush(): Promise<void> {
+    if (!this.cache || !this.fresh.length) return;
+    const entries = this.fresh;
+    this.fresh = [];
+    try {
+      await this.cache.put(entries);
+    } catch (e) {
+      console.error("cache write failed", e);
+    }
+  }
 }
 
 // ---- 1. Transcribe the photo (the only step that looks at the image) ----
@@ -214,6 +303,29 @@ async function fetchProduct(barcode: string): Promise<ProductFacts | null> {
   return fromOpenFoodFacts(await res.json());
 }
 
+/** The database's record for a barcode, from the cache when it is recent. Only records with something in them are kept. */
+async function lookUpProduct(ctx: ActionCtx, barcode: string): Promise<ProductFacts | null> {
+  const code = barcode.replace(/\D/g, "");
+  if (!code) return null;
+  if (cacheOn()) {
+    try {
+      const hit: { facts: string; at: number } | null = await ctx.runQuery(internal.cache.getProduct, { barcode: code });
+      if (hit && hit.at >= Date.now() - PRODUCT_CACHE_DAYS * DAY_MS) return JSON.parse(hit.facts) as ProductFacts;
+    } catch (e) {
+      console.error("product cache read failed", e);
+    }
+  }
+  const facts = await fetchProduct(code);
+  if (facts && hasSubstance(facts) && cacheOn()) {
+    try {
+      await ctx.runMutation(internal.cache.putProduct, { barcode: code, facts: JSON.stringify(facts) });
+    } catch (e) {
+      console.error("product cache write failed", e);
+    }
+  }
+  return facts;
+}
+
 // ---- 3. Rank and explain ----
 
 const RankSchema = z.object({
@@ -272,28 +384,30 @@ function describeForWording(items: Item[], verdicts: Record<string, Verdict>, ru
 /**
  * From transcribed dishes to tagged Items plus the reader's per-rule opinions. Text only; no photo, no profile.
  * A dish the second pass did not flag is a "no" for that tag: it looked at every dish.
+ * With a `cache`, a request identical to one already answered is not sent again. The benchmark passes none, so it
+ * always measures the models themselves.
  */
 export async function tagAndCheck(
   client: Anthropic,
   printed: { name: string; description: string }[],
   watch: string[],
+  cache: AnswerCache | null = null,
 ): Promise<{ items: Item[]; opinions: ReaderOpinion[] }> {
   const numbered = (from: number, to: number) =>
     printed.slice(from, to).map((d, i) => `${from + i + 1}. ${d.name}${d.description.trim() ? ` — ${d.description}` : ""}`).join("\n");
   const chunkStarts = Array.from({ length: Math.ceil(printed.length / TAG_CHUNK) }, (_, i) => i * TAG_CHUNK);
-  const [tagged, flaggedPerTag] = await Promise.all([
-    Promise.all(chunkStarts.map((from) => ask(client, "tag", TagSchema, TAG_SYSTEM, [{ type: "text", text: `Dishes:\n${numbered(from, from + TAG_CHUNK)}` }]))),
-    Promise.all(
-      watch.map((t) =>
-        ask(client, "check", SecondPassSchema, SECOND_PASS_SYSTEM, [
-          {
-            type: "text",
-            text: `Thing to watch for: ${tagLabel(t)}.\nIt commonly hides in: ${hidesInTerms(t).slice(0, 25).join(", ") || "(no list)"}.\n\nDishes:\n${numbered(0, printed.length)}`,
-          },
-        ]),
-      ),
-    ),
+  const tagTexts = chunkStarts.map((from) => `Dishes:\n${numbered(from, from + TAG_CHUNK)}`);
+  const checkTexts = watch.map((t) => `Thing to watch for: ${tagLabel(t)}.\nIt commonly hides in: ${hidesInTerms(t).slice(0, 25).join(", ") || "(no list)"}.\n\nDishes:\n${numbered(0, printed.length)}`);
+  const memo = new Memo(client, cache);
+  await memo.prime([
+    ...tagTexts.map((text) => ({ step: "tag" as const, system: TAG_SYSTEM, text })),
+    ...checkTexts.map((text) => ({ step: "check" as const, system: SECOND_PASS_SYSTEM, text })),
   ]);
+  const [tagged, flaggedPerTag] = await Promise.all([
+    Promise.all(tagTexts.map((text) => memo.ask("tag", TagSchema, TAG_SYSTEM, text))),
+    Promise.all(checkTexts.map((text) => memo.ask("check", SecondPassSchema, SECOND_PASS_SYSTEM, text))),
+  ]);
+  await memo.flush();
   const dishes: ReaderDish[] = printed.map((d) => ({ name: d.name, description: d.description, ingredients: [], tags: [], levels: [] }));
   for (const chunk of tagged) {
     for (const t of chunk.dishes) {
@@ -380,7 +494,7 @@ export const run = internalAction({
               ),
             }
           : null;
-        const dbFacts = scan.barcode ? await fetchProduct(scan.barcode).catch(() => null) : null;
+        const dbFacts = scan.barcode ? await lookUpProduct(ctx, scan.barcode).catch(() => null) : null;
         const labelHasSubstance = hasSubstance(labelFacts);
         const facts = mergeFacts(labelFacts && (labelHasSubstance || labelFacts.name) ? labelFacts : null, dbFacts);
         const kind = labelHasSubstance ? "label" : "product";
@@ -418,13 +532,18 @@ export const run = internalAction({
         let opinions: ReaderOpinion[] = [];
         if (list) {
           const listing = `Product: ${facts.name}\nIngredients: ${list}${facts.contains ? `\n${facts.contains}` : ""}${facts.mayContain ? `\n${facts.mayContain}` : ""}`;
+          const checkTexts = watch.map((t) => `Thing to watch for: ${tagLabel(t)}.\n\n${listing}`);
+          const memo = new Memo(client, answerCache(ctx));
+          await memo.prime([{ step: "tag", system: PRODUCT_TAG_SYSTEM, text: listing }, ...checkTexts.map((text) => ({ step: "check" as const, system: PRODUCT_CHECK_SYSTEM, text }))]);
           const [tagged, flaggedPerTag] = await Promise.all([
-            ask(client, "tag", TagSchema, PRODUCT_TAG_SYSTEM, [{ type: "text", text: listing }]).catch((e) => {
+            // A tagging call that failed is answered with nothing for this scan, and is not remembered.
+            memo.ask("tag", TagSchema, PRODUCT_TAG_SYSTEM, listing).catch((e) => {
               console.error("product tagging failed", e);
               return { dishes: [] };
             }),
-            Promise.all(watch.map((t) => ask(client, "check", SecondPassSchema, PRODUCT_CHECK_SYSTEM, [{ type: "text", text: `Thing to watch for: ${tagLabel(t)}.\n\n${listing}` }]))),
+            Promise.all(checkTexts.map((text) => memo.ask("check", SecondPassSchema, PRODUCT_CHECK_SYSTEM, text))),
           ]);
+          await memo.flush();
           modelTags = tagged.dishes.flatMap((d) => d.tags);
           opinions = watch.map((tag, k) => ({ itemId: "p1", tag, answer: flaggedPerTag[k].flagged[0]?.answer ?? ("no" as const) }));
         }
@@ -495,7 +614,7 @@ export const run = internalAction({
       // 2. Tagging and the per-rule second pass run side by side; both work from the transcription alone.
       //    The judge then gives its own probability per dish and rule, if it is configured.
       const hard = hardRules(rules);
-      const careful = tagAndCheck(client, printed, [...new Set(hard.map((r) => r.tag))]);
+      const careful = tagAndCheck(client, printed, [...new Set(hard.map((r) => r.tag))], answerCache(ctx));
       careful.catch(() => {}); // awaited below; this only stops an early failure being reported as unhandled
 
       // Fast first pass: while the careful check runs, the judge reads each dish in a fraction of a second and the

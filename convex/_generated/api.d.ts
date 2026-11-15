@@ -9,6 +9,7 @@
  */
 
 import type * as bench from "../bench.js";
+import type * as cache from "../cache.js";
 import type * as drugRules from "../drugRules.js";
 import type * as followups from "../followups.js";
 import type * as judge from "../judge.js";
@@ -28,6 +29,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   bench: typeof bench;
+  cache: typeof cache;
   drugRules: typeof drugRules;
   followups: typeof followups;
   judge: typeof judge;
