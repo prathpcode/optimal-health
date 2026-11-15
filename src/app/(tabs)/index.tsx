@@ -9,7 +9,7 @@ import { Icon, type IconName } from '@/components/Icon';
 import { RulesRing } from '@/components/RulesRing';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { Button, Card, SectionLabel, Skeleton } from '@/components/ui';
+import { Card, SectionLabel, Skeleton } from '@/components/ui';
 import { useProfile } from '@/lib/profile';
 import { restartSample, SAMPLE_ID, SAMPLE_PHOTO, useRecentScans, type RecentScan } from '@/lib/scan';
 import { enterAt, gutter, radius, shadow, space, useTheme } from '@/theme';
@@ -110,29 +110,18 @@ export default function HomeScreen() {
           </Animated.View>
         ) : null}
 
-        <SectionLabel style={{ marginTop: space.xxxl, marginBottom: space.md }}>Recent scans</SectionLabel>
+        {/* No empty-state card: the + button is how a scan starts, with or without past scans. */}
+        {recent === undefined || recent.length > 0 ? (
+          <SectionLabel style={{ marginTop: space.xxxl, marginBottom: space.md }}>Recent scans</SectionLabel>
+        ) : null}
 
         {recent === undefined ? (
           <Card style={{ gap: space.md }}>
             <Skeleton width="60%" />
             <Skeleton width="40%" />
           </Card>
-        ) : recent.length === 0 ? (
-          <Animated.View entering={enterAt(4, reduced)}>
-            <Card style={{ alignItems: 'flex-start', gap: space.md }}>
-              <View style={[styles.emptyIcon, { backgroundColor: c.cardMuted }]}>
-                <Icon name="menu" size={22} color={c.text} />
-              </View>
-              <T variant="headline">Scan your first menu</T>
-              <T tone="secondary">Point your camera at a menu and see what fits you, what to skip, and what to ask.</T>
-              <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.xs, alignSelf: 'stretch' }}>
-                <Button label="Scan a menu" icon="camera" onPress={once(() => router.push('/scan'))} style={{ flex: 1 }} />
-                <Button label="Try a sample" variant="secondary" onPress={once(openSample)} style={{ flex: 1 }} />
-              </View>
-            </Card>
-          </Animated.View>
         ) : (
-          <View style={{ gap: space.md }}>
+          <View style={{ gap: space.md, marginTop: recent.length === 0 ? space.xxxl : 0 }}>
             {recent.map((s, i) => (
               <Animated.View key={s.id} entering={enterAt(i + 4, reduced)}>
                 <RecentCard scan={s} />
@@ -148,7 +137,6 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {recent && recent.length > 0 ? (
       <Tap
         accessibilityRole="button"
         accessibilityLabel="Scan a menu"
@@ -158,7 +146,6 @@ export default function HomeScreen() {
         style={[styles.fab, { backgroundColor: c.primary, bottom: bottom + space.lg }, shadow('floating', dark)]}>
         <Icon name="plus" size={26} color={c.onPrimary} weight="bold" />
       </Tap>
-      ) : null}
     </View>
   );
 }
@@ -261,7 +248,6 @@ const styles = StyleSheet.create({
   miniRow: { flexDirection: 'row', gap: space.md, marginTop: space.md },
   mini: { padding: space.lg, gap: 2, borderRadius: radius.md + 2 },
   miniIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: space.sm },
-  emptyIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   recent: { flexDirection: 'row', alignItems: 'center', gap: space.lg, padding: space.md, borderRadius: radius.card - 4 },
   thumb: { width: 72, height: 72, borderRadius: radius.md, overflow: 'hidden' },
   recentTop: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
