@@ -24,7 +24,7 @@ import type { Fit, Item, RankedItem, ScanQuestion } from '@engine/types';
 import { AnswerButtons } from '@/components/AnswerButtons';
 import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
-import { MenuOverlay, ScanSweep } from '@/components/MenuOverlay';
+import { MenuOverlay, ScanSweep, TextOutlines } from '@/components/MenuOverlay';
 import { ProductResult } from '@/components/ProductResult';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { Sheet, type SheetHandle } from '@/components/Sheet';
@@ -181,8 +181,12 @@ export default function ResultScreen() {
           {view.items.some((i) => i.position?.length) ? (
             <MenuOverlay photo={target} bounds={{ width, height: area.top + area.height }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={selectDish} />
           ) : (
-            // No dish positions (they need on-device text recognition): verdict chips in a row over the photo.
-            <ChipRow view={view} bottom={height - (area.top + area.height) + space.md} selectedId={selected} onSelect={selectDish} />
+            // No dish positions (text recognition is off, or found nothing to match): the text that was found, if
+            // any, as faint outlines, and verdict chips in a row over the photo.
+            <>
+              {view.textBoxes?.length ? <TextOutlines photo={target} boxes={view.textBoxes} /> : null}
+              <ChipRow view={view} bottom={height - (area.top + area.height) + space.md} selectedId={selected} onSelect={selectDish} />
+            </>
           )}
         </Animated.View>
       ) : null}
@@ -466,6 +470,9 @@ function CheckingTag({ small }: { small?: boolean }) {
   );
 }
 
+/** When there are more dishes than chips, the ones that are out or need a question are the ones to keep. */
+const CHIP_ORDER: Record<Fit | 'none', number> = { not_fit: 0, cant_tell: 1, okay: 2, good: 3, none: 4 };
+
 /** Verdict chips in a wrapping row over the photo, for scans without dish positions. */
 function ChipRow({ view, bottom, selectedId, onSelect }: { view: ScanView; bottom: number; selectedId: string | null; onSelect: (id: string) => void }) {
   const reduced = useReducedMotion();
@@ -473,7 +480,7 @@ function ChipRow({ view, bottom, selectedId, onSelect }: { view: ScanView; botto
   const names = new Map(view.items.map((i) => [i.id, i.name]));
   return (
     <View pointerEvents="box-none" style={[styles.chipRow, { bottom }]}>
-      {rows.slice(0, 12).map((r, i) => (
+      {[...rows].sort((a, b) => CHIP_ORDER[a.fit ?? 'none'] - CHIP_ORDER[b.fit ?? 'none']).slice(0, 12).map((r, i) => (
         <Animated.View key={r.id} entering={reduced ? FadeIn : ZoomIn.springify().damping(14).delay(i * 40)} layout={reduced ? undefined : LinearTransition.springify().damping(20)}>
           <Tap accessibilityRole="button" accessibilityLabel={names.get(r.id) ?? 'Dish'} feedback="select" scaleTo={0.94} onPress={() => onSelect(r.id)}>
             <View style={[styles.lensChip, selectedId === r.id ? styles.lensChipSelected : null]}>

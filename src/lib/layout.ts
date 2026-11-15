@@ -22,6 +22,16 @@ export function boxToRect(box: Box, photo: Rect): Rect {
   };
 }
 
+/** The smallest box that holds all of a dish's lines (its name and the description under it). */
+export function unionBox(boxes: Box[]): Box {
+  return {
+    top: Math.min(...boxes.map((b) => b.top)),
+    left: Math.min(...boxes.map((b) => b.left)),
+    bottom: Math.max(...boxes.map((b) => b.bottom)),
+    right: Math.max(...boxes.map((b) => b.right)),
+  };
+}
+
 export type ChipInput = {
   id: string;
   box: Box;

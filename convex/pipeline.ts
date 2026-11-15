@@ -13,6 +13,7 @@ import {
 import { applyRemembered, positionsFor, restaurantId, type RememberedAnswer, type TextLine } from "../engine/memory";
 import { fromOpenFoodFacts, hasSubstance, itemFromProduct, mergeFacts, sanitiseNutrients, type ModelTag, type ProductFacts } from "../engine/product";
 import { hidesInTerms } from "../engine/tagMatch";
+import { linesFromVision, type VisionText } from "../engine/textLines";
 import { judgeAvailable, judgeEnabledForScans, judgeItems } from "./judge";
 import { TAGS, tagLabel } from "../engine/tags";
 import { duplicateFindings, warningClauses, warningFindings, withLabelFindings, type ProfileItem, type Taking } from "../engine/otc";
@@ -204,6 +205,46 @@ export async function transcribe(client: Anthropic, imageUrls: string[], model?:
 
 /** The model that reads photos when nothing overrides it. */
 export const readerModel = () => MODELS.transcribe();
+
+// ---- 1b. Where the text is on the photo ----
+//
+// Outlining each dish on the photo needs the position of every printed line. The phone can send them (on-device
+// recognition, in a development build); when it has not, a text-recognition service reads them from the photo here.
+// The service only locates text: which lines belong to which dish is decided by code from the dish's own words
+// (engine/memory.ts positionsFor), and what the dishes ARE still comes from the reader above. With no
+// GOOGLE_VISION_API_KEY set, or if the call fails or is slow, the scan carries on without positions.
+
+const LINES_TIMEOUT_MS = 6000;
+
+async function recogniseLines(imageUrl: string): Promise<TextLine[] | null> {
+  const key = process.env.GOOGLE_VISION_API_KEY;
+  if (!key) return null;
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), LINES_TIMEOUT_MS);
+  try {
+    const photo = await fetch(imageUrl, { signal: abort.signal });
+    if (!photo.ok) return null;
+    const content = Buffer.from(await photo.arrayBuffer()).toString("base64");
+    const res = await fetch("https://vision.googleapis.com/v1/images:annotate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key },
+      body: JSON.stringify({ requests: [{ image: { content }, features: [{ type: "DOCUMENT_TEXT_DETECTION" }] }] }),
+      signal: abort.signal,
+    });
+    if (!res.ok) {
+      console.error("text recognition failed", res.status, (await res.text()).slice(0, 200));
+      return null;
+    }
+    const data = (await res.json()) as { responses?: { fullTextAnnotation?: VisionText; error?: { message?: string } }[] };
+    if (data.responses?.[0]?.error) console.error("text recognition failed", data.responses[0].error.message);
+    return linesFromVision(data.responses?.[0]?.fullTextAnnotation);
+  } catch (e) {
+    console.error("text recognition failed", e);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // ---- 2a. Tag the dishes (text only, in parallel chunks) ----
 
@@ -469,7 +510,18 @@ export const run = internalAction({
         return false;
       })();
 
-      // 1. Transcribe. This is the only call that sees the photo.
+      // Where the text is on the first photo, found while the photo is being read. Stored as soon as it is known,
+      // so the app can outline the text before any dish has a name.
+      const linesReady: Promise<TextLine[] | null> = scan.lines?.length
+        ? Promise.resolve(scan.lines)
+        : scan.imageUrls.length
+          ? recogniseLines(scan.imageUrls[0]).then(async (found) => {
+              if (found?.length) await ctx.runMutation(internal.scans.patch, { scanId, lines: found });
+              return found;
+            }).catch(() => null)
+          : Promise.resolve(null);
+
+      // 1. Transcribe. This is the only call that reads the photo for meaning.
       const read = scan.imageUrls.length ? await transcribe(client, scan.imageUrls) : null;
       const ready = await rulesReady;
       const rules: Rule[] = await ctx.runMutation(internal.scans.refreshRules, { scanId });
@@ -619,9 +671,17 @@ export const run = internalAction({
       const printed = read.dishes.filter((d) => d.name.trim());
       if (!printed.length) return await fail(read.unreadable ? `We could not read the menu: ${read.unreadable}.` : "We could not find any dishes on this photo.");
       const bare: ReaderDish[] = printed.map((d) => ({ name: d.name, description: d.description, ingredients: [], tags: [], levels: [] }));
+      // Where each dish is on the photo (first photo only), from its own printed words. Worked out once, here, and
+      // put on every version of the items from now on, so the outlines are there as soon as the names are.
+      const lines = await linesReady;
+      const positions = lines?.length ? positionsFor(printed, lines) : [];
+      const placed = (list: Item[]): Item[] => {
+        positions.forEach((boxes, i) => boxes && list[i] && (list[i].position = boxes));
+        return list;
+      };
       // Show the dish list straight away; tags and verdicts follow.
       await ctx.runMutation(internal.scans.patch, {
-        scanId, kind: "menu", items: itemsFromReader(bare), status: "judging", ...(read.restaurantName.trim() ? { restaurantName: read.restaurantName.trim() } : {}),
+        scanId, kind: "menu", items: placed(itemsFromReader(bare)), status: "judging", ...(read.restaurantName.trim() ? { restaurantName: read.restaurantName.trim() } : {}),
       });
       // 2. Tagging and the per-rule second pass run side by side; both work from the transcription alone.
       //    The judge then gives its own probability per dish and rule, if it is configured.
@@ -649,8 +709,7 @@ export const run = internalAction({
 
       const { items, opinions } = await careful;
       const judged = judgeEnabledForScans() ? await judgeItems(items, hard) : [];
-      // Where each dish is on the photo, when the phone sent the text it recognised (first photo only).
-      if (scan.lines?.length) positionsFor(items, scan.lines).forEach((boxes, i) => boxes && (items[i].position = boxes));
+      placed(items);
       // What this restaurant has told people before.
       const rid = restaurantId(read.restaurantName, scan.location ?? undefined);
       const remembered: RememberedAnswer[] = rid ? await ctx.runQuery(internal.scans.remembered, { restaurantId: rid }) : [];

@@ -35,6 +35,8 @@ export type ScanView = {
   restaurant?: string;
   /** Set once the backend knows which restaurant this is (a name plus a location); answers are remembered against it. */
   restaurantId?: string;
+  /** Every line of text found on the photo, shown as faint outlines until the dishes have positions of their own. */
+  textBoxes?: Box[];
   /** Fast first-pass verdicts, still being checked (PLAN 7.1). Shown as "checking", no questions yet. */
   provisional: boolean;
   notice?: string;
@@ -217,6 +219,7 @@ function useLiveScan(id: string | null) {
       summary: record.summary,
       restaurant: record.restaurantName,
       restaurantId: record.restaurantId,
+      textBoxes: record.textBoxes,
       provisional: record.provisional === true,
       notice: record.notice,
       generic: record.generic,

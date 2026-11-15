@@ -37,7 +37,8 @@ backend only through the public functions in `convex/scans.ts`, `profile.ts`, `r
 - `engine/` has no network calls and no framework imports. Tests are pure-function tests; no DOM shim.
 - New fields on stored records are optional on read.
 - Profile contents never go to analytics or third-party logging. Model providers get the photo, item text, rule text
-  and profile labels; never a name, contact detail or device identifier.
+  and profile labels; never a name, contact detail or device identifier. The text-recognition service gets the photo
+  and nothing else.
 
 ## Vocabulary
 
@@ -52,7 +53,8 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
 
 ## Not built yet
 
-- App: second menu page (`scans.addPage`), on-device text recognition for dish boxes (`lines`), product Compare,
+- App: second menu page (`scans.addPage`), on-device text recognition (`lines`; boxes currently come from the
+  backend, see below), product Compare,
   condition search and option chips from `lookup`, `rules.notes`, a daily amount on a custom Limit rule. Restaurant
   confirmation and custom rules are built but have not been run on a phone.
 - Backend: the benchmark covers one chain and allergens only; the faster photo reader
@@ -69,6 +71,12 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
   The app asks for location once, on the result screen, when the person confirms the name. `scans.setRestaurant`
   returns the restaurant id, or null with no location (answers then apply to that scan only); on a finished menu scan
   it also applies what that restaurant has told people before and stores answers already given on the scan.
+- Boxes on the menu photo: with `GOOGLE_VISION_API_KEY` set on the deployment, the backend sends the first photo to
+  Google Cloud Vision for the position of every printed line. About a second into a scan the record carries
+  `textBoxes` (every line, drawn faint); when dish names arrive each dish gets `position` from its own printed words
+  (`engine/memory.ts`), and its box takes the verdict's colour as verdicts land. The service only locates text; it
+  decides nothing. With no key, or if the call fails, the app falls back to chips in a row. A phone that sends
+  `lines` itself (on-device recognition, needs a development build) skips the service.
 - A custom rule replaces every rule on its tag. The app will not swap a switched-on profile rule for a weaker custom
   one (`engine/customRules.ts`).
 - Cache (`convex/cache.ts`): the answer to one exact tagging or second-pass request is reused for 30 days, a barcode's

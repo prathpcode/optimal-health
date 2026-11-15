@@ -68,6 +68,8 @@ function toRecord(row: Doc<"scans">): ScanRecord {
     ...(row.summary ? { summary: row.summary } : {}),
     ...(row.restaurantName ? { restaurantName: row.restaurantName } : {}),
     ...(row.restaurantId ? { restaurantId: row.restaurantId } : {}),
+    // Only until the dishes have positions of their own: after that the app outlines dishes, not raw text.
+    ...(row.lines?.length && !row.items.some((i) => i.position?.length) && row.status !== "failed" ? { textBoxes: row.lines.slice(0, 300).map((l) => l.box) } : {}),
     ...(row.notice ? { notice: row.notice } : {}),
     ...(row.error ? { error: row.error } : {}),
   };
@@ -154,6 +156,7 @@ export const patch = internalMutation({
     explanations: v.optional(v.record(v.string(), v.string())),
     restaurantName: v.optional(v.string()),
     restaurantId: v.optional(v.string()),
+    lines: v.optional(v.array(textLine)),
     notice: v.optional(v.string()),
     provisional: v.optional(v.boolean()),
     error: v.optional(v.string()),
