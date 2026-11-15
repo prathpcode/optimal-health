@@ -60,6 +60,27 @@ export function textBlocks(lines: TextLine[]): TextBlock[] {
     .sort((a, b) => a.box.top - b.box.top || a.box.left - b.box.left);
 }
 
+/**
+ * Is the camera looking at a shelf of packages, rather than a menu, a single label, or nothing in particular? The
+ * camera looks for packages all the time it is open, so this decides whether to draw anything.
+ *
+ * A shelf is many small blocks of big words standing side by side: a line on a package front is a word or two, and
+ * nearly every package has neighbours level with it on both sides. A menu is the opposite: long lines stacked into
+ * one or two tall columns. A product the app already knows settles it on its own, so a single known package held
+ * up to the camera is marked too.
+ */
+export function looksLikeShelf(blocks: TextBlock[], recognised: number): boolean {
+  if (recognised >= 1) return true;
+  if (blocks.length < 3) return false;
+  const counts = blocks.flatMap((b) => b.lines.map((l) => words(l.text).length)).sort((a, b) => a - b);
+  const typicalWords = counts[Math.floor(counts.length / 2)] ?? 0;
+  if (typicalWords > 2) return false;
+  const level = (a: Box, b: Box) => Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5 * Math.min(height(a), height(b));
+  const beside = (a: Box, b: Box) => b.left >= a.right || b.right <= a.left;
+  const inARow = blocks.filter((a) => blocks.filter((b) => b !== a && level(a.box, b.box) && beside(a.box, b.box)).length >= 2).length;
+  return inARow / blocks.length >= 0.5;
+}
+
 export type KnownProduct = { key: string; name: string; brand?: string };
 
 /** Words that say nothing about which product this is. */

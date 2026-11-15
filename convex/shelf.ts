@@ -1,6 +1,6 @@
 "use node";
 
-// The shelf view: point the camera along a shelf and see which packages are worth picking up.
+// Packages on a shelf: point the scan camera along a shelf and see which packages are worth picking up.
 //
 // One still in, boxes out, about once a second. Each still is handled on its own (no tracking): the text on it is
 // recognised, grouped into one block per package front (engine/shelf.ts), and each block is compared with the
@@ -18,7 +18,7 @@ import { action, internalAction } from "./_generated/server";
 import { tidyName } from "../engine/casing";
 import { hardRules } from "../engine/pipeline";
 import { hasSubstance, type ProductFacts } from "../engine/product";
-import { blockSignature, matchProduct, searchTerms, shelfVerdict, textBlocks, type KnownProduct, type ShelfBox } from "../engine/shelf";
+import { blockSignature, looksLikeShelf, matchProduct, searchTerms, shelfVerdict, textBlocks, type KnownProduct, type ShelfBox } from "../engine/shelf";
 import { judgeSameProduct } from "./judge";
 import { answerCache, lookUpProduct, Memo, productOpinions, readPackages, recogniseLinesIn, rememberedProductOpinions, type PackageReading } from "./pipeline";
 
@@ -28,7 +28,7 @@ const MINUTE = 60_000;
 
 export const look = action({
   args: { deviceId: v.string(), image: v.string() },
-  handler: async (ctx, { deviceId, image }): Promise<{ boxes: ShelfBox[]; ms: number; reading: boolean }> => {
+  handler: async (ctx, { deviceId, image }): Promise<{ boxes: ShelfBox[]; ms: number; reading: boolean; shelf: boolean }> => {
     const started = Date.now();
     if (image.length > MAX_IMAGE_CHARS) throw new Error("That picture is too large");
     const timed = async <T>(what: string, p: Promise<T>): Promise<T> => {
@@ -40,7 +40,7 @@ export const look = action({
     const steps: Record<string, number> = {};
     const [lines, context] = await Promise.all([timed("text", recogniseLinesIn(image)), timed("context", ctx.runQuery(internal.shelfData.context, { deviceId }))]);
     // No text recognition configured, or it failed: say so rather than show an empty shelf as if nothing were there.
-    if (!lines) return { boxes: [], ms: Date.now() - started, reading: false };
+    if (!lines) return { boxes: [], ms: Date.now() - started, reading: false, shelf: false };
     const blocks = textBlocks(lines);
     const facts = new Map<string, ProductFacts>();
     for (const p of context.products) {
@@ -56,6 +56,9 @@ export const look = action({
       ...context.fronts.filter((f) => facts.has(f.barcode)).map((f) => ({ key: f.barcode, name: f.name, ...(f.brand ? { brand: f.brand } : {}) })),
     ];
     const named = blocks.map((b) => ({ block: b, product: matchProduct(b.text, known) }));
+    // The camera asks this all the time it is open, whatever it is pointed at. If this is not a shelf (a menu, a
+    // label, a table top), there is nothing to mark and nothing to look up.
+    if (!looksLikeShelf(blocks, named.filter((n) => n.product).length)) return { boxes: [], ms: Date.now() - started, reading: true, shelf: false };
 
     // The models' careful reading of each recognised product, where it is already remembered.
     const watch = [...new Set(hardRules(context.rules).map((r) => r.tag))];
@@ -97,7 +100,7 @@ export const look = action({
     }
     steps.jobs = Date.now() - beforeJobs;
     console.log("shelf look", JSON.stringify({ ms: Date.now() - started, ...steps, blocks: blocks.length, known: known.length }));
-    return { boxes, ms: Date.now() - started, reading: true };
+    return { boxes, ms: Date.now() - started, reading: true, shelf: true };
   },
 });
 

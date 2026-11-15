@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import menu from "../bench/data/menu-lines.json";
 import sample from "../bench/data/shelf-lines.json";
 import type { TextLine } from "./memory";
 import type { ProductFacts } from "./product";
-import { blockSignature, matchProduct, searchTerms, shelfVerdict, textBlocks, type KnownProduct } from "./shelf";
+import { blockSignature, looksLikeShelf, matchProduct, searchTerms, shelfVerdict, textBlocks, type KnownProduct } from "./shelf";
 import type { Rule } from "./types";
 
 const KNOWN: KnownProduct[] = [
@@ -99,5 +100,21 @@ describe("shelfVerdict", () => {
   it("gives a package the same signature however its words were ordered or cased", () => {
     expect(blockSignature("HEINZ Classic Chicken")).toBe(blockSignature("chicken heinz CLASSIC"));
     expect(searchTerms("HEINZ Classic Chicken & Sweet Corn 400g")).toEqual(["classic", "chicken", "heinz", "sweet"]);
+  });
+});
+
+describe("looksLikeShelf", () => {
+  it("knows a real shelf of tins for a shelf", () => {
+    expect(looksLikeShelf(textBlocks(sample.lines as TextLine[]), 0)).toBe(true);
+  });
+  it("does not take a real restaurant menu for one", () => {
+    expect(looksLikeShelf(textBlocks(menu.lines as TextLine[]), 0)).toBe(false);
+  });
+  it("does not take a couple of stray blocks of text for one", () => {
+    expect(looksLikeShelf(textBlocks([line("Fresh", 0.1, 0.3), line("Bread", 0.1, 0.325), line("Open", 0.6, 0.7), line("Daily", 0.6, 0.725)]), 0)).toBe(false);
+    expect(looksLikeShelf([], 0)).toBe(false);
+  });
+  it("marks a single package when it is one the app knows", () => {
+    expect(looksLikeShelf(textBlocks([line("HEINZ", 0.4, 0.4), line("Classic", 0.4, 0.425)]), 1)).toBe(true);
   });
 });

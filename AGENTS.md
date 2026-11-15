@@ -92,8 +92,11 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
   (`engine/memory.ts`), and its box takes the verdict's colour as verdicts land. The service only locates text; it
   decides nothing. With no key, or if the call fails, the app falls back to chips in a row. A phone that sends
   `lines` itself (on-device recognition, needs a development build) skips the service.
-- Shelf view (`src/app/shelf.tsx`, `convex/shelf.ts`, `engine/shelf.ts`): the camera sends a still about once a second
-  to `shelf.look`, which returns a box per package. Packages are found by grouping the recognised text into one
+- Packages on a shelf (`src/app/scan.tsx`, `src/components/ShelfMarks.tsx`, `convex/shelf.ts`, `engine/shelf.ts`):
+  there is no separate mode. While the scan camera is open it sends a still to `shelf.look` every so often; when
+  the still shows a shelf (`looksLikeShelf`: many short blocks of words side by side, or a product it knows) the
+  answer is a box per package and the camera keeps looking about once a second. For a menu, a label or anything
+  else it answers with nothing, and the camera behaves as it always did. Packages are found by grouping the recognised text into one
   block per package front, and named by matching those words against products already known by barcode
   (`productCache`); the matcher refuses when two products fit equally or the brand differs. Each still stands alone,
   so nothing is tracked between frames. A recognised product is shown as a good fit only after the careful

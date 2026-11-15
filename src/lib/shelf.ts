@@ -30,7 +30,8 @@ export async function shelfStill(uri: string): Promise<ShelfStill> {
   return { base64: saved.base64, width: saved.width, height: saved.height };
 }
 
-export type ShelfLook = (still: ShelfStill, deviceId: string) => Promise<{ boxes: ShelfBox[]; reading: boolean }>;
+/** `shelf` is false when the still does not show a shelf of packages (a menu, a label, nothing): there is then nothing to draw. */
+export type ShelfLook = (still: ShelfStill, deviceId: string) => Promise<{ boxes: ShelfBox[]; reading: boolean; shelf: boolean }>;
 
 function useShelfLookLive(): ShelfLook {
   const look = useAction(api.shelf.look);
