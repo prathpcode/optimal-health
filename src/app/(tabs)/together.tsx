@@ -4,7 +4,8 @@ import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChallengeRow, PointsKey } from '@/components/challenge';
-import { RoomIcon, RoomRow } from '@/components/community';
+import { RoomIcon } from '@/components/community';
+import { joinRooms, RoomPicker } from '@/components/RoomPicker';
 import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon, type IconName } from '@/components/Icon';
 import { T } from '@/components/T';
@@ -56,7 +57,6 @@ function SignedOut() {
   const { all, matched } = useTogether();
   const signedIn = useSignedIn();
   const rooms = [...matched, ...all.filter((r) => !matched.some((m) => m.slug === r.slug))];
-  const open = (slug: string) => signedIn(() => router.push({ pathname: '/community/[slug]', params: { slug } }));
 
   return (
     <View style={{ gap: space.xxxl }}>
@@ -67,16 +67,21 @@ function SignedOut() {
       </Animated.View>
 
       <Animated.View entering={enterAt(1, reduced)}>
-        <SectionTitle title="Rooms" />
-        <View style={{ gap: space.sm + 2 }}>
-          {rooms.map((r) => (
-            <RoomRow key={r.slug} room={r} detail={<RoomStatus room={r} />} onPress={() => open(r.slug)} />
-          ))}
-        </View>
+        <SectionTitle title="Pick your rooms" />
+        <RoomPicker
+          rooms={rooms}
+          initial={matched.map((r) => r.slug)}
+          verb="Sign in and join"
+          onJoin={(slugs) =>
+            signedIn(async () => {
+              await joinRooms(slugs);
+            })
+          }
+        />
         <View style={[styles.privacy, { marginTop: space.lg }]}>
           <Icon name="lock" size={12} color={c.textTertiary} />
           <T variant="caption" tone="tertiary">
-            Tap a room to sign in with Whop. Your profile stays private.
+            Signs you in with Whop. Your profile stays private.
           </T>
         </View>
       </Animated.View>
@@ -102,9 +107,11 @@ function SignedOut() {
  */
 function SignedIn() {
   const { c } = useTheme();
-  const { mine, challenges, loading } = useTogether();
+  const { all, mine, matched, challenges, loading } = useTogether();
   const reduced = useReducedMotion();
   const top = mine[0]?.slug;
+  // With no rooms yet, offer them all (matches first); otherwise any matching room you're not in.
+  const suggest = mine.length ? matched.filter((r) => !r.joined) : [...matched, ...all.filter((r) => !r.reasons.length)];
 
   if (loading) {
     return (
@@ -154,6 +161,13 @@ function SignedIn() {
           </Tap>
         </ScrollView>
       </Animated.View>
+
+      {suggest.length ? (
+        <Animated.View entering={enterAt(2, reduced)}>
+          <SectionTitle title={mine.length ? 'Rooms for you' : 'Pick your rooms'} />
+          <RoomPicker rooms={suggest} initial={suggest.filter((r) => r.reasons.length).map((r) => r.slug)} onJoin={async (slugs) => void (await joinRooms(slugs))} />
+        </Animated.View>
+      ) : null}
 
       <LatestPosts slugs={mine.map((r) => r.slug)} />
 

@@ -25,7 +25,6 @@ import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon, type IconName } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { HomeRoomPill } from '@/components/together';
 import { haptic } from '@/lib/haptics';
 import { useFirstName } from '@/lib/name';
 import { useRecentScans, type RecentScan } from '@/lib/scan';
@@ -157,9 +156,6 @@ export default function HomeScreen() {
         </View>
       </Animated.ScrollView>
 
-      <View style={{ position: 'absolute', top: insets.top + topBar, left: gutter, right: gutter + 44 + space.md, flexDirection: 'row' }}>
-        <HomeRoomPill />
-      </View>
       <View style={{ position: 'absolute', top: insets.top + topBar, right: gutter }}>
         <GlassButton tone="theme" icon="person" label="Your profile" onPress={() => router.push('/profile')} />
       </View>

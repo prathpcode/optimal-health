@@ -5,12 +5,11 @@ import { ActionSheetIOS, ActivityIndicator, Alert, Platform, StyleSheet, View } 
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 
 import { celebrate } from '@/lib/celebrate';
-import { useMealForScan, useTogether as useTogetherRooms, useTopRoom, type Reaction, type RoomView } from '@/lib/community';
+import { useMealForScan, useTogether as useTogetherRooms, type Reaction, type RoomView } from '@/lib/community';
 import { signInWithWhop, useWhopAccount } from '@/lib/whop';
 import { joinOnWhop, needsMembership } from '@/lib/whopForum';
 import { radius, space, spring, useTheme } from '@/theme';
 import { GlassSurface } from './Glass';
-import { RoomIcon } from './community';
 import { Icon, type IconName } from './Icon';
 import { T } from './T';
 import { Tap } from './Tap';
@@ -181,41 +180,6 @@ export async function postWithWhop(run: () => Promise<unknown>): Promise<boolean
   }
 }
 
-/** Home's way into Together: a glass pill with your matched room, top left, opposite the profile button. */
-export function HomeRoomPill() {
-  const { c } = useTheme();
-  const { account } = useWhopAccount();
-  const room = useTopRoom();
-  if (!room) {
-    return (
-      <Tap accessibilityRole="button" accessibilityLabel="Eat healthier with people like you" feedback="tap" hitSlop={8} onPress={() => router.navigate('/together')}>
-        <GlassSurface tone="theme" interactive style={styles.pillRound}>
-          <Icon name="people" size={18} color={c.text} />
-        </GlassSurface>
-      </Tap>
-    );
-  }
-  const open = () => (account ? router.push({ pathname: '/community/[slug]', params: { slug: room.slug } }) : router.navigate('/together'));
-  return (
-    <Tap accessibilityRole="button" accessibilityLabel={room.online > 0 ? `${room.title}, ${room.online} online` : room.title} feedback="tap" hitSlop={8} onPress={open}>
-      <GlassSurface tone="theme" interactive style={styles.pill}>
-        <RoomIcon icon={room.icon} slug={room.slug} size={24} />
-        <T variant="bodyStrong" numberOfLines={1}>
-          {room.title}
-        </T>
-        {room.online > 0 ? (
-          <View style={styles.live}>
-            <PulseDot color={c.good} size={6} />
-            <T variant="caption" color={c.good}>
-              {room.online}
-            </T>
-          </View>
-        ) : null}
-      </GlassSurface>
-    </Tap>
-  );
-}
-
 /** On a finished scan: "What did you order?", or what you logged. */
 export function MealCard({ scanId }: { scanId: string }) {
   const { c } = useTheme();
@@ -290,9 +254,6 @@ const styles = StyleSheet.create({
   live: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.card },
   rowIcon: { width: 52, height: 52, borderRadius: radius.sm + 4, alignItems: 'center', justifyContent: 'center' },
-  pill: { height: 44, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingLeft: 6, paddingRight: space.md, maxWidth: 220 },
-  pillRound: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  pillIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   tabs: { height: 44, padding: 4 },
   tabRow: { flexDirection: 'row', flex: 1 },
   thumb: { position: 'absolute', top: 0, bottom: 0, left: 0, borderRadius: radius.chip },
