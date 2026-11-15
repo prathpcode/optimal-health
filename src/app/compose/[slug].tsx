@@ -1,92 +1,115 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RoomIcon } from '@/components/community';
-import { GlassButton } from '@/components/Glass';
+import { GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { GlassAction, pickPhoto, postWithWhop } from '@/components/together';
-import { createPost, useRoom } from '@/lib/community';
-import { radius, space, type as typeScale, useTheme } from '@/theme';
+import { useRoom } from '@/lib/community';
+import { useRecentScans, type RecentScan } from '@/lib/scan';
+import { enterAt, radius, space, useTheme } from '@/theme';
 
-/** Write a post for a room: an optional title, words, and a photo of your meal. */
-export default function ComposeSheet() {
+/**
+ * Share a meal with a room: pick one of your scans (or scan something new), then say which dish and how it was.
+ * The post carries the dish, the place and the scan's photo, so people see what you actually ate.
+ */
+export default function ShareAMeal() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { room } = useRoom(slug);
-  const { c } = useTheme();
+  const recent = (useRecentScans() ?? []).filter((s) => s.status === 'done' && s.itemCount > 0);
   const insets = useSafeAreaInsets();
-  const [title, setTitle] = useState('');
-  const [text, setText] = useState('');
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const ready = Boolean(text.trim() || photo);
+  const reduced = useReducedMotion();
+  const { c } = useTheme();
 
-  const post = async () => {
-    setBusy(true);
-    const ok = await postWithWhop(() => createPost(slug, { title: title.trim() || undefined, text, photoUri: photo ?? undefined }));
-    setBusy(false);
-    if (ok) router.back();
+  const newScan = () => {
+    router.back();
+    router.push({ pathname: '/scan', params: { share: slug } });
   };
+  const pick = (scan: RecentScan) => router.replace({ pathname: '/share/[scanId]', params: { scanId: scan.id, room: slug } });
 
   return (
-    <ScrollView contentContainerStyle={{ padding: space.xxl, paddingBottom: insets.bottom + space.xxxl, gap: space.xl }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={{ padding: space.xxl, paddingBottom: insets.bottom + space.xxxl, gap: space.xl }} showsVerticalScrollIndicator={false}>
       <View style={styles.head}>
         {room ? <RoomIcon icon={room.icon} slug={room.slug} size={36} /> : null}
-        <T variant="heading" style={{ flex: 1 }} numberOfLines={1}>
-          {room?.title ?? 'New post'}
-        </T>
-      </View>
-      <TextInput
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Title (optional)"
-        placeholderTextColor={c.textTertiary}
-        style={[typeScale.heading, styles.title, { color: c.text }]}
-        maxLength={120}
-        accessibilityLabel="Title"
-      />
-      <TextInput
-        value={text}
-        onChangeText={setText}
-        placeholder="What did you eat? What worked?"
-        placeholderTextColor={c.textTertiary}
-        style={[typeScale.body, styles.body, { color: c.text, backgroundColor: c.cardMuted }]}
-        multiline
-        maxLength={2000}
-        autoFocus
-        accessibilityLabel="Post"
-      />
-      {photo ? (
-        <View style={styles.photo}>
-          <Image source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          <View style={styles.remove}>
-            <GlassButton icon="close" label="Remove photo" size={36} onPress={() => setPhoto(null)} />
-          </View>
+        <View style={{ flex: 1 }}>
+          <T variant="heading">Share a meal</T>
+          {room ? (
+            <T variant="caption" tone="secondary" numberOfLines={1}>
+              with {room.title}
+            </T>
+          ) : null}
         </View>
-      ) : (
-        <Tap accessibilityRole="button" accessibilityLabel="Add a photo of your meal" feedback="tap" onPress={async () => setPhoto((await pickPhoto()) ?? photo)} scaleTo={0.98}>
-          <View style={[styles.add, { borderColor: c.hairline }]}>
-            <Icon name="camera" size={18} color={c.textSecondary} />
-            <T variant="bodyStrong" tone="secondary">
-              Add a photo of your meal
+      </View>
+
+      <Tap accessibilityRole="button" accessibilityLabel="Scan something new" feedback="tap" onPress={newScan} scaleTo={0.98}>
+        <GlassSurface tone="theme" interactive style={styles.row}>
+          <View style={[styles.newIcon, { backgroundColor: c.cardMuted }]}>
+            <Icon name="camera" size={20} color={c.text} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <T variant="headline">New scan</T>
+            <T variant="caption" tone="secondary">
+              Scan the menu or the package
             </T>
           </View>
-        </Tap>
+          <Icon name="chevron" size={14} color={c.textTertiary} />
+        </GlassSurface>
+      </Tap>
+
+      {recent.length ? (
+        <View style={{ gap: space.sm + 2 }}>
+          <T variant="heading">Your scans</T>
+          {recent.map((s, i) => (
+            <Animated.View key={s.id} entering={enterAt(i, reduced)}>
+              <ScanRow scan={s} onPress={() => pick(s)} />
+            </Animated.View>
+          ))}
+        </View>
+      ) : (
+        <T tone="secondary" style={{ textAlign: 'center' }}>
+          Your scans show up here.
+        </T>
       )}
-      <GlassAction label="Post" icon="send" onPress={post} loading={busy} disabled={!ready} />
     </ScrollView>
   );
 }
 
+function ScanRow({ scan, onPress }: { scan: RecentScan; onPress: () => void }) {
+  const { c } = useTheme();
+  return (
+    <Tap accessibilityRole="button" accessibilityLabel={`Share from ${scan.title}`} onPress={onPress} scaleTo={0.98}>
+      <GlassSurface tone="theme" interactive style={styles.row}>
+        <View style={[styles.thumb, { backgroundColor: c.cardMuted }]}>
+          {scan.photo ? <Image source={scan.photo} style={StyleSheet.absoluteFill} contentFit="cover" /> : <Icon name={scan.kind === 'product' ? 'barcode' : 'menu'} size={20} color={c.textSecondary} />}
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <T variant="headline" numberOfLines={1}>
+            {scan.title}
+          </T>
+          <T variant="caption" tone="secondary">
+            {when(scan.createdAt)} · {scan.itemCount} {scan.itemCount === 1 ? 'item' : 'dishes'}
+          </T>
+        </View>
+        <Icon name="chevron" size={14} color={c.textTertiary} />
+      </GlassSurface>
+    </Tap>
+  );
+}
+
+function when(ms: number): string {
+  const s = Math.max(0, (Date.now() - ms) / 1000);
+  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  title: { paddingVertical: space.xs },
-  body: { minHeight: 120, maxHeight: 240, borderRadius: radius.md, padding: space.lg, textAlignVertical: 'top' },
-  photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.md, overflow: 'hidden' },
-  remove: { position: 'absolute', top: space.sm, right: space.sm },
-  add: { height: 56, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.card },
+  newIcon: { width: 52, height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  thumb: { width: 52, height: 52, borderRadius: radius.md, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
 });

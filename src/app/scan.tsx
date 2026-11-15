@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -26,6 +26,8 @@ import { duration, onPhoto, radius, space, spring } from '@/theme';
 type Phase = 'live' | 'capturing' | 'uploading' | 'error';
 
 export default function ScanScreen() {
+  // Started from a room's "Share a meal": the result offers to share to that room.
+  const { share } = useLocalSearchParams<{ share?: string }>();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
@@ -83,7 +85,7 @@ export default function ScanScreen() {
     try {
       const id = await startScan(image, deviceId, lastLocation());
       // Hand the local photo over so the result screen draws it before the record arrives.
-      router.replace({ pathname: '/result/[id]', params: { id, uri: image.uri, w: String(image.width), h: String(image.height) } });
+      router.replace({ pathname: '/result/[id]', params: { id, uri: image.uri, w: String(image.width), h: String(image.height), ...(share ? { share } : {}) } });
     } catch {
       fail();
     }
@@ -97,7 +99,7 @@ export default function ScanScreen() {
     setPhase('uploading');
     try {
       const id = await startBarcode(data, deviceId);
-      router.replace({ pathname: '/result/[id]', params: { id } });
+      router.replace({ pathname: '/result/[id]', params: { id, ...(share ? { share } : {}) } });
     } catch {
       barcodeSeen.current = false;
       fail();

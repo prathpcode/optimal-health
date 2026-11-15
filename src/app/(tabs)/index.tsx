@@ -17,7 +17,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -29,7 +29,7 @@ import { HomeRoomPill } from '@/components/together';
 import { haptic } from '@/lib/haptics';
 import { useFirstName } from '@/lib/name';
 import { useRecentScans, type RecentScan } from '@/lib/scan';
-import { gutter, radius, space, spring, useTheme } from '@/theme';
+import { gutter, radius, space, spring, titleTop, topBar, useTheme } from '@/theme';
 
 const FOOD = {
   coffee: require('@/assets/food/coffee.webp'),
@@ -81,7 +81,9 @@ export default function HomeScreen() {
   );
 
   const size = Math.min(width * 0.86, height * 0.42);
-  const top = Math.max(insets.top + 250, height * 0.36);
+  // The food sits below the greeting, however many lines the greeting wraps to.
+  const [headlineHeight, setHeadlineHeight] = useState(0);
+  const top = Math.max(insets.top + 250, height * 0.36, insets.top + titleTop + headlineHeight + space.xl);
 
   const foodStyle = useAnimatedStyle(() => {
     const { pitch, roll } = tilt.sensor.value;
@@ -143,8 +145,8 @@ export default function HomeScreen() {
         decelerationRate="fast"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: gutter, paddingBottom: bottom + SCAN_SIZE + space.xxxl }}>
-        <Animated.View style={[{ minHeight: height, paddingTop: insets.top + 64 }, headlineStyle]}>
-          <T variant="hero" accessibilityRole="header" style={{ textAlign: 'center' }}>
+        <Animated.View style={[{ minHeight: height, paddingTop: insets.top + titleTop }, headlineStyle]}>
+          <T variant="hero" accessibilityRole="header" style={{ textAlign: 'center' }} onLayout={(e) => setHeadlineHeight(e.nativeEvent.layout.height)}>
             Hello {name} 👋{'\n'}🏃 time to hit the <T variant="heroBold">ground running</T>
           </T>
         </Animated.View>
@@ -155,10 +157,10 @@ export default function HomeScreen() {
         </View>
       </Animated.ScrollView>
 
-      <View style={{ position: 'absolute', top: insets.top + space.md, left: gutter, right: gutter + 44 + space.md, flexDirection: 'row' }}>
+      <View style={{ position: 'absolute', top: insets.top + topBar, left: gutter, right: gutter + 44 + space.md, flexDirection: 'row' }}>
         <HomeRoomPill />
       </View>
-      <View style={{ position: 'absolute', top: insets.top + space.md, right: gutter }}>
+      <View style={{ position: 'absolute', top: insets.top + topBar, right: gutter }}>
         <GlassButton tone="theme" icon="person" label="Your profile" onPress={() => router.push('/profile')} />
       </View>
       {recent?.length ? (

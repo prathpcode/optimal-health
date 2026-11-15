@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,11 +9,12 @@ import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { GlassAction, RoomStatus, SectionTitle } from '@/components/together';
+import { GlassAction, REACTION_LABEL, RoomStatus, SectionTitle, useSignedIn } from '@/components/together';
 import { Skeleton } from '@/components/ui';
-import { useTogether, useTopRoom } from '@/lib/community';
-import { signInWithWhop, signOutOfWhop, useWhopAccount } from '@/lib/whop';
-import { enterAt, gutter, radius, space, useTheme } from '@/theme';
+import { useTogether, type SharedDish } from '@/lib/community';
+import { dishEmoji, REACTION_EMOJI } from '@/lib/emoji';
+import { signOutOfWhop, useWhopAccount } from '@/lib/whop';
+import { enterAt, gutter, radius, space, titleTop, topBar, useTheme } from '@/theme';
 
 export default function TogetherScreen() {
   const { c } = useTheme();
@@ -32,16 +32,18 @@ export default function TogetherScreen() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView
         contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={{ paddingTop: insets.top + space.md, paddingHorizontal: gutter, paddingBottom: bottom + 62 + space.huge }}
+        contentContainerStyle={{ paddingTop: insets.top + titleTop, paddingHorizontal: gutter, paddingBottom: bottom + 62 + space.huge }}
         showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <T variant="heroBold" accessibilityRole="header">
-            Together
-          </T>
-          {account ? <GlassButton tone="theme" icon="person" label="Account" onPress={accountMenu} /> : null}
-        </View>
+        <T variant="heroBold" accessibilityRole="header" style={styles.title}>
+          Together
+        </T>
         {!ready ? null : account ? <SignedIn /> : <SignedOut />}
       </ScrollView>
+      {account ? (
+        <View style={{ position: 'absolute', top: insets.top + topBar, right: gutter }}>
+          <GlassButton tone="theme" icon="person" label="Account" onPress={accountMenu} />
+        </View>
+      ) : null}
       {ready && account ? (
         <View style={[styles.cta, { bottom: bottom + space.md }]}>
           <GlassAction label="New challenge" icon="trophy" onPress={() => router.push('/challenge/new')} />
@@ -51,46 +53,83 @@ export default function TogetherScreen() {
   );
 }
 
+/** Examples of what people share, shown before signing in. Labelled as examples; they are not real posts. */
+const EXAMPLES: { room: string; dish: SharedDish; note: string }[] = [
+  { room: 'heart-health', dish: { name: 'Grilled salmon bowl', reaction: 'loved' }, note: 'Asked for the sauce on the side. Still full of flavour.' },
+  { room: 'gluten-free', dish: { name: 'Corn tortilla tacos', reaction: 'loved' }, note: 'They fry the chips separately, so no cross-contact.' },
+  { room: 'diabetes', dish: { name: 'Burrito bowl, no rice', reaction: 'okay' }, note: 'Swapped the rice for extra beans and fajita veg.' },
+];
+
+/** Signed out: everything is visible, and tapping anything asks you to sign in with Whop, then opens it. */
 function SignedOut() {
   const { c } = useTheme();
-  const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-  const room = useTopRoom();
-  const [busy, setBusy] = useState(false);
-
-  const signIn = async () => {
-    setBusy(true);
-    const r = await signInWithWhop();
-    setBusy(false);
-    if (!r.ok && !r.cancelled) Alert.alert('Couldn’t sign in', r.message ?? 'Try again in a moment.');
-  };
+  const { all, matched } = useTogether();
+  const signedIn = useSignedIn();
+  const rooms = [...matched, ...all.filter((r) => !matched.some((m) => m.slug === r.slug))];
+  const open = (slug: string) => signedIn(() => router.push({ pathname: '/community/[slug]', params: { slug } }));
 
   return (
-    <Animated.View entering={enterAt(0, reduced)} style={{ gap: space.xxl, minHeight: 420 + insets.top }}>
-      <T variant="hero">
-        Eat healthier with people <T variant="heroBold">like you</T>
-      </T>
-      {room ? (
-        <GlassSurface tone="theme" style={styles.lead}>
-          <RoomIcon icon={room.icon} slug={room.slug} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <T variant="headline">{room.title}</T>
-            <T variant="caption" tone="secondary">
-              {room.reasons[0] ? `Your room for ${room.reasons[0].toLowerCase()}` : 'Your room'}
-            </T>
-          </View>
-        </GlassSurface>
-      ) : null}
-      <View style={{ gap: space.md }}>
-        <GlassAction label="Continue with Whop" onPress={signIn} loading={busy} />
-        <View style={styles.privacy}>
+    <View style={{ gap: space.xxxl }}>
+      <Animated.View entering={enterAt(0, reduced)}>
+        <T variant="hero" style={styles.lede}>
+          Eat healthier with people <T variant="heroBold">like you</T>
+        </T>
+      </Animated.View>
+
+      <Animated.View entering={enterAt(1, reduced)}>
+        <SectionTitle title="What people share" />
+        <View style={{ gap: space.sm + 2 }}>
+          {EXAMPLES.map((ex) => {
+            const room = all.find((r) => r.slug === ex.room)!;
+            return (
+              <Tap key={ex.dish.name} accessibilityRole="button" accessibilityLabel={`Example post in ${room.title}: ${ex.dish.name}`} onPress={() => open(ex.room)} scaleTo={0.98}>
+                <GlassSurface tone="theme" interactive style={styles.example}>
+                  <View style={styles.exampleTop}>
+                    <RoomIcon icon={room.icon} slug={room.slug} size={28} />
+                    <T variant="caption" tone="secondary" style={{ flex: 1 }} numberOfLines={1}>
+                      {room.title}
+                    </T>
+                    <View style={[styles.examplePill, { backgroundColor: c.cardMuted }]}>
+                      <T variant="caption" tone="tertiary">
+                        Example
+                      </T>
+                    </View>
+                  </View>
+                  <View style={styles.exampleDish}>
+                    <T style={styles.exampleEmoji}>{dishEmoji(ex.dish.name)}</T>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <T variant="headline">{ex.dish.name}</T>
+                      <T variant="caption" tone="secondary">
+                        {REACTION_EMOJI[ex.dish.reaction]} {REACTION_LABEL[ex.dish.reaction]}
+                      </T>
+                    </View>
+                  </View>
+                  <T tone="secondary" numberOfLines={2}>
+                    {ex.note}
+                  </T>
+                </GlassSurface>
+              </Tap>
+            );
+          })}
+        </View>
+      </Animated.View>
+
+      <Animated.View entering={enterAt(2, reduced)}>
+        <SectionTitle title="Rooms" />
+        <View style={{ gap: space.sm + 2 }}>
+          {rooms.map((r) => (
+            <RoomRow key={r.slug} room={r} detail={<RoomStatus room={r} />} onPress={() => open(r.slug)} />
+          ))}
+        </View>
+        <View style={[styles.privacy, { marginTop: space.lg }]}>
           <Icon name="lock" size={12} color={c.textTertiary} />
           <T variant="caption" tone="tertiary">
-            Your profile, medicines and scans stay private.
+            Tap a room to sign in with Whop. Your profile stays private.
           </T>
         </View>
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -150,8 +189,13 @@ function SignedIn() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xxl, minHeight: 44 },
-  lead: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.card },
+  title: { textAlign: 'center', marginBottom: space.xxl },
+  lede: { textAlign: 'center' },
+  example: { borderRadius: radius.card, padding: space.lg, gap: space.md },
+  exampleTop: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  examplePill: { paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.chip },
+  exampleDish: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  exampleEmoji: { fontSize: 30, lineHeight: 36 },
   privacy: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs },
   more: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, height: 52, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed' },
   empty: { borderRadius: radius.card, padding: space.lg, gap: space.sm },

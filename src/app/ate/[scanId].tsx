@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Fit } from '@engine/types';
 import { CelebrationLayer } from '@/components/Celebration';
-import { Icon, type IconName } from '@/components/Icon';
+import { RoomIcon } from '@/components/community';
+import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { GlassSurface } from '@/components/Glass';
@@ -109,9 +110,7 @@ export default function AteSheet() {
               feedback="tap"
               onPress={() => router.replace({ pathname: '/share/[scanId]', params: { scanId, room: room.slug } })}>
               <GlassSurface tone="theme" interactive style={[styles.tell, { backgroundColor: tint(roomAccent[room.slug] ?? c.text, dark ? 0.2 : 0.11) }]}>
-                <View style={[styles.tellIcon, { backgroundColor: roomAccent[room.slug] ?? c.text }]}>
-                  <Icon name={room.icon as IconName} size={18} color="#FFFFFF" />
-                </View>
+                <RoomIcon icon={room.icon} slug={room.slug} size={40} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <T variant="headline">Tell {room.title}</T>
                   <T variant="caption" tone="secondary">

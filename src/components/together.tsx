@@ -5,11 +5,12 @@ import { ActionSheetIOS, ActivityIndicator, Alert, Platform, StyleSheet, View } 
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 
 import { celebrate } from '@/lib/celebrate';
-import { useMealForScan, useTopRoom, type Reaction, type RoomView } from '@/lib/community';
-import { useWhopAccount } from '@/lib/whop';
+import { useMealForScan, useTogether as useTogetherRooms, useTopRoom, type Reaction, type RoomView } from '@/lib/community';
+import { signInWithWhop, useWhopAccount } from '@/lib/whop';
 import { joinOnWhop, needsMembership } from '@/lib/whopForum';
-import { radius, roomAccent, space, spring, useTheme } from '@/theme';
+import { radius, space, spring, useTheme } from '@/theme';
 import { GlassSurface } from './Glass';
+import { RoomIcon } from './community';
 import { Icon, type IconName } from './Icon';
 import { T } from './T';
 import { Tap } from './Tap';
@@ -30,6 +31,33 @@ export function GlassAction({ label, icon, onPress, loading, disabled }: { label
         )}
       </GlassSurface>
     </Tap>
+  );
+}
+
+/**
+ * Anything you can see without an account, you can tap: if you're signed out, this asks you to sign in with Whop
+ * first, then carries on to what you tapped.
+ */
+export function useSignedIn(): (then: () => void) => Promise<void> {
+  const { account } = useWhopAccount();
+  return async (then) => {
+    if (account) return then();
+    const r = await signInWithWhop();
+    if (r.ok) then();
+    else if (!r.cancelled) Alert.alert('Couldn’t sign in', r.message ?? 'Try again in a moment.');
+  };
+}
+
+/** On a result reached from a room's "Share a meal": one button to share this scan to that room. */
+export function ShareToRoom({ scanId, room }: { scanId: string; room: string }) {
+  const { all } = useTogetherRooms();
+  const r = all.find((x) => x.slug === room);
+  return (
+    <GlassAction
+      label={r ? `Share with ${r.title}` : 'Share'}
+      icon="send"
+      onPress={() => router.push({ pathname: '/share/[scanId]', params: { scanId, room } })}
+    />
   );
 }
 
@@ -167,14 +195,11 @@ export function HomeRoomPill() {
       </Tap>
     );
   }
-  const accent = roomAccent[room.slug] ?? c.text;
   const open = () => (account ? router.push({ pathname: '/community/[slug]', params: { slug: room.slug } }) : router.navigate('/together'));
   return (
     <Tap accessibilityRole="button" accessibilityLabel={room.online > 0 ? `${room.title}, ${room.online} online` : room.title} feedback="tap" hitSlop={8} onPress={open}>
       <GlassSurface tone="theme" interactive style={styles.pill}>
-        <View style={[styles.pillIcon, { backgroundColor: accent }]}>
-          <Icon name={room.icon as IconName} size={13} color="#FFFFFF" />
-        </View>
+        <RoomIcon icon={room.icon} slug={room.slug} size={24} />
         <T variant="bodyStrong" numberOfLines={1}>
           {room.title}
         </T>

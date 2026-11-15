@@ -46,6 +46,22 @@ const ICONS = {
   share: { ios: 'square.and.arrow.up', android: 'ios_share' },
   clock: { ios: 'clock.fill', android: 'schedule' },
   more: { ios: 'ellipsis', android: 'more_horiz' },
+  like: { ios: 'heart', android: 'favorite_border' },
+  liked: { ios: 'heart.fill', android: 'favorite' },
+  pin: { ios: 'pin.fill', android: 'push_pin' },
+  image: { ios: 'photo', android: 'image' },
+  // One symbol per community room.
+  roomHeart: { ios: 'heart.fill', android: 'favorite' },
+  roomKidney: { ios: 'drop.fill', android: 'water_drop' },
+  roomDiabetes: { ios: 'gauge.with.needle.fill', android: 'speed' },
+  roomGluten: { ios: 'laurel.leading', android: 'grass' },
+  roomDairy: { ios: 'waterbottle.fill', android: 'local_drink' },
+  roomLiver: { ios: 'leaf.arrow.triangle.circlepath', android: 'spa' },
+  roomGut: { ios: 'flame.fill', android: 'local_fire_department' },
+  roomGout: { ios: 'figure.walk', android: 'directions_walk' },
+  roomPlant: { ios: 'carrot.fill', android: 'nutrition' },
+  roomNut: { ios: 'allergens', android: 'emergency' },
+  roomFish: { ios: 'fish.fill', android: 'set_meal' },
 } as const;
 
 export type IconName = keyof typeof ICONS;

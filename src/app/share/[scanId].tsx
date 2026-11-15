@@ -5,22 +5,21 @@ import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassButton } from '@/components/Glass';
-import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { GlassAction, pickPhoto, postWithWhop, REACTION_LABEL } from '@/components/together';
+import { GlassAction, postWithWhop, REACTION_LABEL } from '@/components/together';
 import { Chip } from '@/components/ui';
 import { shareDish, useMyRooms, type Reaction } from '@/lib/community';
+import { dishEmoji, REACTION_EMOJI } from '@/lib/emoji';
 import { useScan } from '@/lib/scan';
 import { radius, roomAccent, space, tint, type as typeScale, useTheme } from '@/theme';
 
-const REACTIONS: { value: Reaction; icon: 'heart' | 'check' | 'close' }[] = [
-  { value: 'loved', icon: 'heart' },
-  { value: 'okay', icon: 'check' },
-  { value: 'nope', icon: 'close' },
-];
+const REACTIONS: Reaction[] = ['loved', 'okay', 'nope'];
 
-/** Tell a room how a dish went: the dish, the place, how it went, a note and a photo. Never a verdict or a rule. */
+/**
+ * Tell a room how a dish went: the dish, the place, how it went, a note, and the scan's own photo so people see what
+ * you ate. Never a verdict or a rule.
+ */
 export default function ShareSheet() {
   const { scanId, room: initialRoom } = useLocalSearchParams<{ scanId: string; room?: string }>();
   const { view } = useScan(scanId);
@@ -38,7 +37,10 @@ export default function ShareSheet() {
   const [dish, setDish] = useState<string | null>(null);
   const [reaction, setReaction] = useState<Reaction | null>(null);
   const [note, setNote] = useState('');
-  const [photo, setPhoto] = useState<string | null>(null);
+  // The scan's photo goes with the post unless removed; bundled sample photos (numbers) are never shared.
+  const scanPhoto = view?.photo && typeof view.photo === 'object' ? view.photo.uri : null;
+  const [removed, setRemoved] = useState(false);
+  const photo = removed ? null : scanPhoto;
   const [busy, setBusy] = useState(false);
   const [room, setRoom] = useState(initialRoom ?? rooms[0]?.slug);
   const picked = dish ?? dishes[0];
@@ -66,29 +68,33 @@ export default function ShareSheet() {
       {dishes.length > 1 ? (
         <View style={styles.chips}>
           {dishes.map((d) => (
-            <Chip key={d} label={d} selected={picked === d} onPress={() => setDish(d)} />
+            <Chip key={d} label={`${dishEmoji(d)} ${d}`} selected={picked === d} onPress={() => setDish(d)} />
           ))}
         </View>
       ) : picked ? (
-        <T variant="heading">{picked}</T>
+        <T variant="heading">
+          {dishEmoji(picked)} {picked}
+        </T>
       ) : null}
 
       <View style={styles.reactions}>
         {REACTIONS.map((r) => {
-          const on = reaction === r.value;
+          const on = reaction === r;
           return (
             <Tap
-              key={r.value}
+              key={r}
               accessibilityRole="radio"
               accessibilityState={{ selected: on }}
-              accessibilityLabel={REACTION_LABEL[r.value]}
+              accessibilityLabel={REACTION_LABEL[r]}
               feedback="select"
               scaleTo={0.94}
-              onPress={() => setReaction(r.value)}
+              onPress={() => setReaction(r)}
               style={[styles.reaction, { backgroundColor: on ? accent : dark ? c.cardMuted : tint(accent, 0.08) }]}>
-              <Icon name={r.icon} size={22} color={on ? '#FFFFFF' : accent} />
+              <T style={styles.reactionEmoji} accessibilityElementsHidden>
+                {REACTION_EMOJI[r]}
+              </T>
               <T variant="caption" color={on ? '#FFFFFF' : c.text} style={{ textAlign: 'center' }}>
-                {REACTION_LABEL[r.value]}
+                {REACTION_LABEL[r]}
               </T>
             </Tap>
           );
@@ -99,19 +105,10 @@ export default function ShareSheet() {
         <View style={styles.photo}>
           <Image source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
           <View style={styles.remove}>
-            <GlassButton icon="close" label="Remove photo" size={36} onPress={() => setPhoto(null)} />
+            <GlassButton icon="close" label="Don’t include the photo" size={36} onPress={() => setRemoved(true)} />
           </View>
         </View>
-      ) : (
-        <Tap accessibilityRole="button" accessibilityLabel="Add a photo of your meal" feedback="tap" scaleTo={0.98} onPress={async () => setPhoto((await pickPhoto()) ?? photo)}>
-          <View style={[styles.add, { borderColor: c.hairline }]}>
-            <Icon name="camera" size={18} color={c.textSecondary} />
-            <T variant="bodyStrong" tone="secondary">
-              Add a photo of your meal
-            </T>
-          </View>
-        </Tap>
-      )}
+      ) : null}
 
       <TextInput
         value={note}
@@ -143,6 +140,6 @@ const styles = StyleSheet.create({
   reaction: { flex: 1, height: 96, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: space.sm, padding: space.sm },
   photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.md, overflow: 'hidden' },
   remove: { position: 'absolute', top: space.sm, right: space.sm },
-  add: { height: 56, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
+  reactionEmoji: { fontSize: 28, lineHeight: 34 },
   note: { minHeight: 52, maxHeight: 120, borderRadius: radius.md, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md },
 });

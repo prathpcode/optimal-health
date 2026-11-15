@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 
+import { dishEmoji, REACTION_EMOJI } from '@/lib/emoji';
 import { haptic } from '@/lib/haptics';
 import { likePost, type Photo, type Post } from '@/lib/whopForum';
 import { radius, roomAccent, space, spring, tint, useTheme } from '@/theme';
@@ -39,8 +40,10 @@ export function DishCard({ post, slug }: { post: Post; slug: string }) {
   const dish = post.dish!;
   return (
     <View style={[styles.dish, { backgroundColor: tint(accent, dark ? 0.18 : 0.09) }]}>
-      <View style={[styles.dishIcon, { backgroundColor: accent }]}>
-        <Icon name="fork" size={16} color="#FFFFFF" />
+      <View style={[styles.dishIcon, { backgroundColor: tint(accent, dark ? 0.24 : 0.16) }]}>
+        <T style={styles.dishEmoji} accessibilityElementsHidden>
+          {dishEmoji(dish.name)}
+        </T>
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <T variant="headline" numberOfLines={2}>
@@ -54,7 +57,7 @@ export function DishCard({ post, slug }: { post: Post; slug: string }) {
       </View>
       <View style={[styles.reaction, { backgroundColor: dish.reaction === 'loved' ? accent : c.cardMuted }]}>
         <T variant="caption" color={dish.reaction === 'loved' ? '#FFFFFF' : c.text}>
-          {REACTION_LABEL[dish.reaction]}
+          {REACTION_EMOJI[dish.reaction]} {REACTION_LABEL[dish.reaction]}
         </T>
       </View>
     </View>
@@ -74,7 +77,7 @@ function Like({ post, slug }: { post: Post; slug: string }) {
   return (
     <Tap accessibilityRole="button" accessibilityLabel={post.liked ? `Liked, ${post.likes}` : `Like, ${post.likes}`} accessibilityState={{ selected: post.liked }} onPress={like} hitSlop={8} style={styles.stat}>
       <Animated.View style={style}>
-        <Icon name="heart" size={17} color={post.liked ? c.notFit : c.textSecondary} />
+        <Icon name={post.liked ? "liked" : "like"} size={17} color={post.liked ? c.notFit : c.textSecondary} />
       </Animated.View>
       {post.likes > 0 ? (
         <T variant="caption" color={post.liked ? c.notFit : c.textSecondary}>
@@ -101,7 +104,7 @@ export function PostCard({ post, slug, full }: { post: Post; slug: string; full?
             {post.pending ? 'Posting…' : timeAgo(post.at)}
           </T>
         </View>
-        {post.pinned ? <Icon name="note" size={14} color={c.textTertiary} /> : null}
+        {post.pinned ? <Icon name="pin" size={13} color={c.textTertiary} /> : null}
       </View>
       {post.title ? <T variant="heading">{post.title}</T> : null}
       {post.dish ? <DishCard post={post} slug={slug} /> : null}
@@ -135,6 +138,7 @@ export function PostCard({ post, slug, full }: { post: Post; slug: string; full?
 }
 
 const styles = StyleSheet.create({
+  dishEmoji: { fontSize: 20, lineHeight: 24 },
   card: { borderRadius: radius.card, padding: space.lg, gap: space.md },
   author: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   photo: { width: '100%', borderRadius: radius.md, overflow: 'hidden' },

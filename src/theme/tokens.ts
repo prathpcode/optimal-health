@@ -88,6 +88,13 @@ export function tint(hex: string, alpha: number): string {
 export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32, huge: 48 } as const;
 export const gutter = space.xl;
 
+/**
+ * Every tab lays out its top the same way: a row of round glass buttons at `topBar` below the safe area, and the
+ * page title starting at `titleTop` below it, centred. Keeping these shared is what lines the tabs up.
+ */
+export const topBar = space.md;
+export const titleTop = 64;
+
 export const radius = { chip: 999, sm: 10, button: 16, md: 18, card: 24, sheet: 28 } as const;
 
 const tabular: TextStyle = { fontVariant: ['tabular-nums'] };

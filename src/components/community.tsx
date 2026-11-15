@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { initials, type RoomView } from '@/lib/community';
-import { radius, roomAccent, space, useTheme } from '@/theme';
+import { radius, roomAccent, space, tint, useTheme } from '@/theme';
 import { GlassSurface } from './Glass';
 import { Icon, type IconName } from './Icon';
 import { T } from './T';
@@ -24,12 +24,13 @@ export function Avatar({ name, url, size = 32 }: { name: string; url?: string; s
 }
 
 /** A room's icon on its accent colour. */
-export function RoomIcon({ icon, size = 52, slug }: { icon: string; size?: number; slug?: string }) {
-  const { c } = useTheme();
-  const accent = slug ? roomAccent[slug] : undefined;
+/** A room's mark: its symbol in the room's colour on a soft tint of it. */
+export function RoomIcon({ icon, size = 48, slug }: { icon: string; size?: number; slug?: string }) {
+  const { c, dark } = useTheme();
+  const accent = (slug && roomAccent[slug]) || c.text;
   return (
-    <View style={[styles.center, { width: size, height: size, borderRadius: size * 0.3, backgroundColor: accent ?? c.cardMuted }]}>
-      <Icon name={icon as IconName} size={size * 0.42} color={accent ? '#FFFFFF' : c.text} />
+    <View style={[styles.center, { width: size, height: size, borderRadius: size / 2, backgroundColor: tint(accent, dark ? 0.2 : 0.12) }]}>
+      <Icon name={icon as IconName} size={Math.round(size * 0.44)} color={accent} />
     </View>
   );
 }

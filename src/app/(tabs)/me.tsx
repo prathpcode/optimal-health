@@ -17,7 +17,7 @@ import { Card, Chip } from '@/components/ui';
 import { HAS_BACKEND } from '@/lib/backend';
 import { useProfile, type MedStatus, type ProfileRule } from '@/lib/profile';
 import { LEVEL_LABEL } from '@/lib/verdict';
-import { duration, enterAt, gutter, radius, space, useTheme, type Colors } from '@/theme';
+import { duration, enterAt, gutter, radius, space, titleTop, topBar, type Colors, useTheme } from '@/theme';
 
 const ALLERGIES = allergyOptions().map((a) => ({ key: a.tag, label: capital(a.label) }));
 const DIETS = dietOptions();
@@ -43,12 +43,14 @@ export default function MeScreen() {
       style={{ flex: 1, backgroundColor: c.bg }}
       contentInsetAdjustmentBehavior="never"
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingTop: insets.top + space.md, paddingHorizontal: gutter, paddingBottom: (Platform.OS === 'ios' ? insets.bottom : 0) + space.xxxl }}
+      contentContainerStyle={{ paddingTop: insets.top + titleTop, paddingHorizontal: gutter, paddingBottom: (Platform.OS === 'ios' ? insets.bottom : 0) + space.xxxl }}
       showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <T variant="heroBold">Manage</T>
+        <T variant="heroBold" accessibilityRole="header">
+          Manage
+        </T>
         {saved ? (
-          <Animated.View entering={FadeIn.duration(duration.fast)} exiting={FadeOut.duration(duration.base)} style={[styles.saved, { backgroundColor: c.goodSoft }]}>
+          <Animated.View entering={FadeIn.duration(duration.fast)} exiting={FadeOut.duration(duration.base)} style={[styles.saved, styles.savedPin, { backgroundColor: c.goodSoft }]}>
             <Icon name="check" size={12} color={c.good} weight="bold" />
             <T variant="caption" color={c.good}>
               Saved
@@ -468,7 +470,9 @@ function RuleRow({ rule, onToggle, onRemove }: { rule: Rule; onToggle: (on: bool
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xxl },
+  header: { alignItems: 'center', justifyContent: 'center', marginBottom: space.xxl },
+  // The Saved note sits in the top bar's corner, so the title stays centred and at the same height as every tab.
+  savedPin: { position: 'absolute', right: 0, top: -(titleTop - topBar) + 10 },
   saved: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.chip },
   sectionTitle: { flexDirection: 'row', alignItems: 'center', marginBottom: space.md },
   reveal: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: space.lg },
