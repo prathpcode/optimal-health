@@ -15,8 +15,8 @@ import { convex, HAS_BACKEND } from './backend';
 const CLIENT_ID = process.env.EXPO_PUBLIC_WHOP_CLIENT_ID ?? 'app_rj4GAiFKxG1sTm';
 const API = 'https://api.whop.com';
 const REDIRECT = 'fitscanner://auth';
-/** Sign-in asks for profile plus reading and posting in Whop chat, so rooms run on Whop as the person themselves. */
-export const SCOPES = 'openid profile chat:read chat:message:create';
+/** Sign-in asks for profile plus reading and posting in Whop forums, so rooms run on Whop as the person themselves. */
+export const SCOPES = 'openid profile forum:read forum:post:create';
 const STORE_KEY = 'fit.whop';
 
 /**

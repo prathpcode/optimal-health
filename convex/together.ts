@@ -168,26 +168,6 @@ export const home = query({
   },
 });
 
-export const room = query({
-  args: { session: v.string(), room: v.string() },
-  handler: async (ctx, { session, room }) => {
-    const me = await requireMember(ctx, session);
-    if (!isRoom(room)) return null;
-    const recent = await ctx.db.query("messages").withIndex("by_room_and_at", (q) => q.eq("room", room)).order("desc").take(100);
-    return {
-      messages: recent.reverse().map((m) => ({
-        id: m._id,
-        author: m.name,
-        avatarUrl: m.avatarUrl ?? null,
-        text: m.text,
-        at: m.at,
-        mine: m.memberId === me._id,
-        dish: m.dish ?? null,
-      })),
-    };
-  },
-});
-
 export const challenge = query({
   args: { session: v.string(), id: v.id("challenges") },
   handler: async (ctx, { session, id }) => {
@@ -237,34 +217,6 @@ export const leaveRoom = mutation({
     await removeFromRoom(ctx, me._id, room);
     const has = await ctx.db.query("roomOptOuts").withIndex("by_memberId_and_room", (q) => q.eq("memberId", me._id).eq("room", room)).unique();
     if (!has) await ctx.db.insert("roomOptOuts", { memberId: me._id, room });
-    return null;
-  },
-});
-
-const reaction = v.union(v.literal("loved"), v.literal("okay"), v.literal("nope"));
-
-export const send = mutation({
-  args: {
-    session: v.string(),
-    room: v.string(),
-    text: v.string(),
-    dish: v.optional(v.object({ name: v.string(), place: v.optional(v.string()), reaction })),
-  },
-  handler: async (ctx, { session, room, text, dish }) => {
-    const me = await requireMember(ctx, session);
-    const inRoom = await ctx.db.query("roomMembers").withIndex("by_room_and_memberId", (q) => q.eq("room", room).eq("memberId", me._id)).unique();
-    if (!inRoom) throw new Error("Join the room to post");
-    const body = text.trim().slice(0, 1000);
-    if (!body && !dish) return null;
-    await ctx.db.insert("messages", {
-      room,
-      memberId: me._id,
-      name: me.name,
-      avatarUrl: me.avatarUrl,
-      text: body,
-      at: Date.now(),
-      dish: dish ? { name: dish.name.slice(0, 120), place: dish.place?.slice(0, 120), reaction: dish.reaction } : undefined,
-    });
     return null;
   },
 });

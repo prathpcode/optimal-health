@@ -10,7 +10,7 @@ import type { Fit } from '@engine/types';
 import { convex, useDeviceId } from './backend';
 import { useProfile } from './profile';
 import { currentAccount, currentSession, TOGETHER_LIVE, useWhopAccount } from './whop';
-import { postToRoom, type SharedDish } from './whopChat';
+import { commentOn, postToRoom, type SharedDish } from './whopForum';
 
 /**
  * Together: community rooms, chat, meals and challenges between friends.
@@ -40,9 +40,8 @@ function useMinute(): number {
 
 // ── Local store (used until Together is live) ────────────────────────────────────────────────────────────────────
 
-export type { Reaction, SharedDish } from './whopChat';
+export type { Reaction, SharedDish } from './whopForum';
 
-export type Message = { id: string; room: string; author: string; avatarUrl?: string; text: string; at: number; mine?: boolean; dish?: SharedDish };
 
 type LocalMeal = { scanId: string; itemId: string; dishName: string; fit: Fit; at: number };
 type LocalChallenge = { id: string; days: number; startsAt: number; tzOffsetMinutes: number; joinedAt: number };
@@ -50,20 +49,18 @@ type LocalChallenge = { id: string; days: number; startsAt: number; tzOffsetMinu
 type Store = {
   optOuts: string[];
   manual: string[];
-  sent: Message[];
   meals: LocalMeal[];
   challenges: LocalChallenge[];
 };
 
 const STORE_KEY = 'fit.together';
-let store: Store = { optOuts: [], manual: [], sent: [], meals: [], challenges: [] };
+let store: Store = { optOuts: [], manual: [], meals: [], challenges: [] };
 const listeners = new Set<() => void>();
 let loaded = false;
 
 function update(fn: (s: Store) => Store) {
   store = fn(store);
   listeners.forEach((l) => l());
-  // Meals and challenges are worth keeping between launches; chat is not stored locally.
   const { optOuts, manual, meals, challenges } = store;
   SecureStore.setItemAsync(STORE_KEY, JSON.stringify({ optOuts, manual, meals: meals.slice(-120), challenges: challenges.slice(-20) })).catch(() => {});
 }
@@ -76,7 +73,7 @@ function subscribe(l: () => void) {
       .then((raw) => {
         if (!raw) return;
         const saved = JSON.parse(raw) as Partial<Store>;
-        store = { ...store, ...saved, sent: store.sent };
+        store = { ...store, ...saved };
         listeners.forEach((x) => x());
       })
       .catch(() => {});
@@ -185,11 +182,7 @@ function useTogetherLocal() {
 
 function useRoomLocal(slug: string) {
   const together = useTogetherLocal();
-  const s = useStore();
-  return useMemo(
-    () => ({ room: together.all.find((r) => r.slug === slug), messages: s.sent.filter((m) => m.room === slug) }),
-    [together.all, s.sent, slug],
-  );
+  return useMemo(() => ({ room: together.all.find((r) => r.slug === slug) }), [together.all, slug]);
 }
 
 function useChallengeLocal(id: string) {
@@ -233,21 +226,7 @@ function useTogetherLive() {
 
 function useRoomLive(slug: string) {
   const together = useTogetherLive();
-  const { session } = useHomeLive();
-  const data = useQuery(api.together.room, session ? { session, room: slug } : 'skip');
-  return useMemo(() => {
-    const messages: Message[] = (data?.messages ?? []).map((m) => ({
-      id: m.id,
-      room: slug,
-      author: m.author,
-      avatarUrl: m.avatarUrl ?? undefined,
-      text: m.text,
-      at: m.at,
-      mine: m.mine,
-      dish: m.dish ?? undefined,
-    }));
-    return { room: together.all.find((r) => r.slug === slug), messages };
-  }, [together.all, data, slug]);
+  return useMemo(() => ({ room: together.all.find((r) => r.slug === slug) }), [together.all, slug]);
 }
 
 function useChallengeLive(id: string) {
@@ -262,7 +241,8 @@ function useChallengeLive(id: string) {
 export type TogetherState = ReturnType<typeof useTogetherLocal>;
 
 export const useTogether: () => TogetherState = TOGETHER_LIVE ? useTogetherLive : useTogetherLocal;
-export const useRoom: (slug: string) => { room: RoomView | undefined; messages: Message[] } = TOGETHER_LIVE ? useRoomLive : useRoomLocal;
+/** A room's details. Its posts come from Whop: see useRoomFeed in ./whopForum. */
+export const useRoom: (slug: string) => { room: RoomView | undefined } = TOGETHER_LIVE ? useRoomLive : useRoomLocal;
 export const useChallenge: (id: string) => ChallengeView | undefined = TOGETHER_LIVE ? useChallengeLive : useChallengeLocal;
 
 /** The rooms you can share to (rooms you're in), best match first. */
@@ -301,12 +281,17 @@ function me() {
   return { id: a.userId, name: a.name, avatarUrl: a.avatarUrl };
 }
 
-/** Post text and/or a photo to a room's Whop chat as yourself. */
-export async function sendMessage(room: string, text: string, photoUri?: string): Promise<void> {
-  await postToRoom(room, { text, photoUri }, me());
+/** Post to a room's Whop forum as yourself: an optional title, text and/or a photo. */
+export async function createPost(room: string, post: { title?: string; text?: string; photoUri?: string }): Promise<void> {
+  await postToRoom(room, post, me());
 }
 
-/** Share a dish from a scan to a room's Whop chat: the dish, the place, how it went, an optional note and photo. Never a verdict or rule. */
+/** Reply to a post in a room's Whop forum. */
+export async function reply(room: string, postId: string, text: string): Promise<void> {
+  await commentOn(room, postId, text, me());
+}
+
+/** Share a dish from a scan to a room's Whop forum: the dish, the place, how it went, an optional note and photo. Never a verdict or rule. */
 export async function shareDish(room: string, dish: SharedDish, note: string, photoUri?: string): Promise<void> {
   await postToRoom(room, { dish, text: note, photoUri }, me());
 }
