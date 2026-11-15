@@ -1,0 +1,341 @@
+{
+  "_note": "Diet rules for conditions. Every quote here was copied from the page at its url and is re-checked by `npm run verify:sources`, which fetches each page and matches the quote word for word. Reasons restate the quote and add nothing. Status in the app is \"sourced\" until a clinician has reviewed the rule.",
+  "conditions": {
+    "hypertension": {
+      "label": "High blood pressure",
+      "match": [
+        "hypertension",
+        "high blood pressure"
+      ],
+      "unless": [
+        "pulmonary hypertension",
+        "portal hypertension",
+        "ocular hypertension",
+        "intracranial hypertension"
+      ],
+      "source": {
+        "title": "Sodium in Your Diet (FDA)",
+        "url": "https://www.fda.gov/food/nutrition-education-resources-materials/sodium-your-diet"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "sodium",
+          "reason": "U.S. dietary guidance recommends adults limit sodium to less than 2,300 mg a day.",
+          "quote": "the Dietary Guidelines for Americans recommends adults limit sodium intake to less than 2,300 mg per day",
+          "budget": {
+            "nutrient": "sodiumMg",
+            "amount": 2300,
+            "unit": "mg",
+            "per": "day"
+          }
+        }
+      ]
+    },
+    "heart_failure": {
+      "label": "Heart failure",
+      "match": [
+        "heart failure"
+      ],
+      "source": {
+        "title": "Living With Heart Failure (NHLBI)",
+        "url": "https://www.nhlbi.nih.gov/health/heart-failure/living-with"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "sodium",
+          "reason": "People with heart failure may be asked to limit salt to reduce fluid buildup.",
+          "quote": "You may also be asked to limit the amount of salt and liquids that you drink to reduce fluid buildup."
+        }
+      ]
+    },
+    "ckd": {
+      "label": "Chronic kidney disease",
+      "match": [
+        "chronic kidney disease",
+        "ckd",
+        "kidney failure",
+        "renal failure",
+        "renal insufficiency",
+        "kidney disease"
+      ],
+      "source": {
+        "title": "Eating Right for Chronic Kidney Disease (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/kidney-disease/chronic-kidney-disease-ckd/eating-nutrition"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "sodium",
+          "reason": "With chronic kidney disease you are advised to watch sodium and agree a limit with your care team.",
+          "quote": "Be aware of the amount of sodium in the foods and beverages you consume and work with your dietitian or health care professional to determine your sodium limit."
+        },
+        {
+          "level": "limit",
+          "tag": "phosphorus",
+          "reason": "With chronic kidney disease, packaged and processed foods with added phosphorus are ones to limit or avoid.",
+          "quote": "Limit or avoid packaged and processed foods and drinks that have added phosphorus, such as deli meats, flavored drinks, and other processed foods."
+        },
+        {
+          "level": "limit",
+          "tag": "potassium_salt_substitute",
+          "reason": "With chronic kidney disease, foods listing potassium chloride are ones to limit.",
+          "quote": "Limit foods with potassium chloride on the ingredient list."
+        }
+      ]
+    },
+    "diabetes": {
+      "label": "Diabetes",
+      "match": [
+        "diabetes",
+        "diabetic"
+      ],
+      "unless": [
+        "diabetes insipidus"
+      ],
+      "source": {
+        "title": "Healthy Living with Diabetes (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/diabetes/overview/healthy-living-with-diabetes"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "sugar",
+          "reason": "With diabetes, drinks with little or no added sugar are the ones to choose.",
+          "quote": "Also try to choose drinks with little or no added sugar"
+        },
+        {
+          "level": "limit",
+          "tag": "alcohol",
+          "reason": "With diabetes you are advised to limit how much alcohol you drink.",
+          "quote": "You should also limit how much alcohol you drink."
+        }
+      ]
+    },
+    "celiac": {
+      "label": "Celiac disease",
+      "match": [
+        "celiac",
+        "coeliac",
+        "celiac disease"
+      ],
+      "source": {
+        "title": "Eating, Diet, & Nutrition for Celiac Disease (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/digestive-diseases/celiac-disease/eating-diet-nutrition"
+      },
+      "rules": [
+        {
+          "level": "never",
+          "tag": "gluten",
+          "reason": "With celiac disease, foods and drinks that contain gluten are to be identified and avoided.",
+          "quote": "A registered dietitian can help you learn to identify and avoid foods and drinks that contain gluten when you shop, prepare foods at home, or eat out."
+        }
+      ]
+    },
+    "gerd": {
+      "label": "Acid reflux (GERD)",
+      "match": [
+        "gerd",
+        "acid reflux",
+        "gastroesophageal reflux",
+        "gastro esophageal reflux",
+        "heartburn",
+        "reflux esophagitis"
+      ],
+      "source": {
+        "title": "Eating, Diet, & Nutrition for GER & GERD (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/digestive-diseases/acid-reflux-ger-gerd-adults/eating-diet-nutrition"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "spicy",
+          "reason": "Spicy foods are commonly linked to GERD symptoms.",
+          "quote": "Foods and drinks that have been commonly linked to GERD symptoms include acidic foods, such as citrus fruits and tomatoes alcoholic drinks chocolate coffee and other sources of caffeine high-fat foods mint spicy foods"
+        },
+        {
+          "level": "limit",
+          "tag": "alcohol",
+          "reason": "Alcoholic drinks are commonly linked to GERD symptoms.",
+          "quote": "Foods and drinks that have been commonly linked to GERD symptoms include acidic foods, such as citrus fruits and tomatoes alcoholic drinks chocolate coffee and other sources of caffeine high-fat foods mint spicy foods"
+        },
+        {
+          "level": "limit",
+          "tag": "caffeine",
+          "reason": "Coffee and other sources of caffeine are commonly linked to GERD symptoms.",
+          "quote": "Foods and drinks that have been commonly linked to GERD symptoms include acidic foods, such as citrus fruits and tomatoes alcoholic drinks chocolate coffee and other sources of caffeine high-fat foods mint spicy foods"
+        },
+        {
+          "level": "limit",
+          "tag": "fried",
+          "reason": "High-fat foods are commonly linked to GERD symptoms.",
+          "quote": "Foods and drinks that have been commonly linked to GERD symptoms include acidic foods, such as citrus fruits and tomatoes alcoholic drinks chocolate coffee and other sources of caffeine high-fat foods mint spicy foods"
+        }
+      ]
+    },
+    "lactose_intolerance": {
+      "label": "Lactose intolerance",
+      "match": [
+        "lactose intolerance",
+        "lactose intolerant",
+        "lactase deficiency"
+      ],
+      "source": {
+        "title": "Eating, Diet, & Nutrition for Lactose Intolerance (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/digestive-diseases/lactose-intolerance/eating-diet-nutrition"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "dairy",
+          "reason": "With lactose intolerance you may need to reduce the lactose you eat or drink.",
+          "quote": "To manage your symptoms, you may need to reduce the amount of lactose you eat or drink."
+        }
+      ]
+    },
+    "cirrhosis": {
+      "label": "Cirrhosis",
+      "match": [
+        "cirrhosis"
+      ],
+      "source": {
+        "title": "Eating, Diet, & Nutrition for Cirrhosis (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/liver-disease/cirrhosis/eating-diet-nutrition"
+      },
+      "rules": [
+        {
+          "level": "avoid",
+          "tag": "raw_or_undercooked",
+          "reason": "With cirrhosis you are advised to avoid raw or undercooked shellfish, fish and meat.",
+          "quote": "Avoid eating raw or undercooked shellfish, fish, and meat, and unpasteurized milk and milk products."
+        },
+        {
+          "level": "avoid",
+          "tag": "unpasteurized",
+          "reason": "With cirrhosis you are advised to avoid unpasteurized milk and milk products.",
+          "quote": "Avoid eating raw or undercooked shellfish, fish, and meat, and unpasteurized milk and milk products."
+        },
+        {
+          "level": "avoid",
+          "tag": "alcohol",
+          "reason": "With cirrhosis you are advised to stop drinking alcohol completely.",
+          "quote": "You should completely stop drinking alcohol because it can cause more liver damage."
+        },
+        {
+          "level": "limit",
+          "tag": "sodium",
+          "reason": "With cirrhosis your doctor may recommend limiting sodium.",
+          "quote": "Your doctor may recommend limiting sodium in foods and drinks."
+        }
+      ]
+    },
+    "kidney_stones": {
+      "label": "Kidney stones",
+      "match": [
+        "kidney stone",
+        "kidney stones",
+        "nephrolithiasis",
+        "renal calculi",
+        "renal calculus"
+      ],
+      "source": {
+        "title": "Eating, Diet, & Nutrition for Kidney Stones (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/urologic-diseases/kidney-stones/eating-diet-nutrition"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "sodium",
+          "reason": "The chance of developing kidney stones increases when you eat more sodium.",
+          "quote": "Your chance of developing kidney stones increases when you eat more sodium."
+        }
+      ]
+    },
+    "high_cholesterol": {
+      "label": "High cholesterol",
+      "match": [
+        "high cholesterol",
+        "hypercholesterolemia",
+        "hyperlipidemia",
+        "dyslipidemia",
+        "elevated cholesterol"
+      ],
+      "source": {
+        "title": "Preventing High Cholesterol (CDC)",
+        "url": "https://www.cdc.gov/cholesterol/prevention/index.html"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "saturated_fat",
+          "reason": "Limiting foods high in saturated fat is advised for cholesterol.",
+          "quote": "Limit foods high in saturated fat."
+        },
+        {
+          "level": "limit",
+          "tag": "alcohol",
+          "reason": "Too much alcohol can raise cholesterol and triglyceride levels.",
+          "quote": "Too much alcohol can raise cholesterol levels"
+        }
+      ]
+    },
+    "gout": {
+      "label": "Gout",
+      "match": [
+        "gout",
+        "gouty arthritis"
+      ],
+      "source": {
+        "title": "Gout (NIAMS)",
+        "url": "https://www.niams.nih.gov/health-topics/gout"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "alcohol",
+          "reason": "Gout flares can be triggered by alcohol and certain foods.",
+          "quote": "Gout flares usually occur in one joint and can be triggered by certain foods, alcohol, certain medications, physical trauma, or certain illnesses."
+        }
+      ]
+    },
+    "fatty_liver": {
+      "label": "Fatty liver disease",
+      "match": [
+        "fatty liver",
+        "nafld",
+        "masld",
+        "nash",
+        "steatotic liver disease",
+        "steatohepatitis"
+      ],
+      "source": {
+        "title": "Eating, Diet, & Nutrition for NAFLD & NASH (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/liver-disease/nafld-nash/eating-diet-nutrition"
+      },
+      "rules": [
+        {
+          "level": "limit",
+          "tag": "sugar",
+          "reason": "With fatty liver disease, foods and drinks with large amounts of simple sugars are ones to avoid.",
+          "quote": "avoiding foods and drinks that contain large amounts of simple sugars, especially fructose"
+        }
+      ]
+    },
+    "ulcerative_colitis": {
+      "label": "Ulcerative colitis",
+      "match": [
+        "ulcerative colitis"
+      ],
+      "source": {
+        "title": "Eating, Diet, & Nutrition for Ulcerative Colitis (NIDDK)",
+        "url": "https://www.niddk.nih.gov/health-information/digestive-diseases/ulcerative-colitis/eating-diet-nutrition"
+      },
+      "rules": [],
+      "note": {
+        "text": "There are no standard food rules for ulcerative colitis. Add your own rules for foods that seem to bother you.",
+        "quote": "Researchers have not found that specific foods worsen ulcerative colitis."
+      }
+    }
+  }
+}

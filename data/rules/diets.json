@@ -1,0 +1,60 @@
+{
+  "_note": "Diets as sets of Never rules. The source is the user's own choice.",
+  "diets": {
+    "vegetarian": {
+      "label": "Vegetarian",
+      "never": [
+        "meat",
+        "fish",
+        "shellfish",
+        "mollusc",
+        "gelatin"
+      ]
+    },
+    "vegan": {
+      "label": "Vegan",
+      "never": [
+        "meat",
+        "fish",
+        "shellfish",
+        "mollusc",
+        "gelatin",
+        "dairy",
+        "egg",
+        "honey"
+      ]
+    },
+    "pescatarian": {
+      "label": "Pescatarian",
+      "never": [
+        "meat",
+        "gelatin"
+      ]
+    },
+    "gluten_free": {
+      "label": "Gluten-free",
+      "never": [
+        "gluten",
+        "wheat"
+      ]
+    },
+    "no_pork": {
+      "label": "No pork",
+      "never": [
+        "pork"
+      ]
+    },
+    "no_alcohol": {
+      "label": "No alcohol",
+      "never": [
+        "alcohol"
+      ]
+    },
+    "dairy_free": {
+      "label": "Dairy-free",
+      "never": [
+        "dairy"
+      ]
+    }
+  }
+}

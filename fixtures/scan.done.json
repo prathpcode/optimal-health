@@ -1,0 +1,149 @@
+{
+  "status": "done",
+  "kind": "menu",
+  "imageId": "fixture-image",
+  "generic": false,
+  "restaurantId": "fixture-restaurant",
+  "items": [
+    {
+      "id": "d1",
+      "kind": "dish",
+      "name": "Grilled salmon",
+      "description": "with lemon, herbs and steamed rice",
+      "ingredients": [
+        { "name": "salmon", "origin": "menu_text", "evidence": "Grilled salmon" },
+        { "name": "lemon", "origin": "menu_text", "evidence": "with lemon, herbs" },
+        { "name": "rice", "origin": "menu_text", "evidence": "steamed rice" }
+      ],
+      "tags": [{ "tag": "fish", "sureness": "certain", "origin": "menu_text", "evidence": "Grilled salmon" }],
+      "levels": { "sodium": "low" }
+    },
+    {
+      "id": "d2",
+      "kind": "dish",
+      "name": "Pesto pasta",
+      "description": "basil pesto, parmesan",
+      "ingredients": [
+        { "name": "basil pesto", "origin": "menu_text", "evidence": "basil pesto" },
+        { "name": "parmesan", "origin": "menu_text", "evidence": "parmesan" },
+        { "name": "pine nuts", "origin": "inferred" }
+      ],
+      "tags": [
+        { "tag": "tree_nuts", "sureness": "unsure", "origin": "inferred", "evidence": "basil pesto", "p": 0.42 },
+        { "tag": "dairy", "sureness": "certain", "origin": "menu_text", "evidence": "parmesan" },
+        { "tag": "wheat", "sureness": "likely", "origin": "inferred", "evidence": "pasta" }
+      ],
+      "levels": { "sodium": "medium" }
+    },
+    {
+      "id": "d3",
+      "kind": "dish",
+      "name": "Walnut and beet salad",
+      "description": "candied walnuts, goat cheese",
+      "ingredients": [
+        { "name": "walnuts", "origin": "menu_text", "evidence": "candied walnuts" },
+        { "name": "beets", "origin": "menu_text", "evidence": "beet salad" },
+        { "name": "goat cheese", "origin": "menu_text", "evidence": "goat cheese" }
+      ],
+      "tags": [
+        { "tag": "tree_nuts", "sureness": "certain", "origin": "menu_text", "evidence": "candied walnuts", "p": 0.99 },
+        { "tag": "dairy", "sureness": "certain", "origin": "menu_text", "evidence": "goat cheese" }
+      ],
+      "levels": { "sodium": "low" }
+    },
+    {
+      "id": "d4",
+      "kind": "dish",
+      "name": "Ramen",
+      "description": "pork broth, soft egg, noodles",
+      "ingredients": [
+        { "name": "pork broth", "origin": "menu_text", "evidence": "pork broth" },
+        { "name": "egg", "origin": "menu_text", "evidence": "soft egg" },
+        { "name": "noodles", "origin": "menu_text", "evidence": "noodles" }
+      ],
+      "tags": [
+        { "tag": "sodium", "sureness": "likely", "origin": "inferred", "evidence": "pork broth" },
+        { "tag": "egg", "sureness": "certain", "origin": "menu_text", "evidence": "soft egg" },
+        { "tag": "wheat", "sureness": "likely", "origin": "inferred", "evidence": "noodles" }
+      ],
+      "levels": { "sodium": "high" }
+    },
+    {
+      "id": "d5",
+      "kind": "dish",
+      "name": "Paloma",
+      "description": "tequila, grapefruit soda, lime",
+      "ingredients": [
+        { "name": "tequila", "origin": "menu_text", "evidence": "tequila" },
+        { "name": "grapefruit soda", "origin": "menu_text", "evidence": "grapefruit soda" }
+      ],
+      "tags": [
+        { "tag": "grapefruit", "sureness": "certain", "origin": "menu_text", "evidence": "grapefruit soda", "p": 0.97 },
+        { "tag": "alcohol", "sureness": "certain", "origin": "menu_text", "evidence": "tequila" }
+      ]
+    }
+  ],
+  "checks": [
+    { "itemId": "d1", "ruleId": "r_tree_nuts", "code": "no_match", "judgeP": 0.03, "reader": "no" },
+    { "itemId": "d1", "ruleId": "r_grapefruit", "code": "no_match", "judgeP": 0.02, "reader": "no" },
+    { "itemId": "d2", "ruleId": "r_tree_nuts", "code": "hides_in", "judgeP": 0.42, "reader": "maybe" },
+    { "itemId": "d2", "ruleId": "r_grapefruit", "code": "no_match", "judgeP": 0.01, "reader": "no" },
+    { "itemId": "d3", "ruleId": "r_tree_nuts", "code": "match", "judgeP": 0.99, "reader": "yes" },
+    { "itemId": "d3", "ruleId": "r_grapefruit", "code": "no_match", "judgeP": 0.01, "reader": "no" },
+    { "itemId": "d4", "ruleId": "r_tree_nuts", "code": "no_match", "judgeP": 0.04, "reader": "no" },
+    { "itemId": "d4", "ruleId": "r_grapefruit", "code": "no_match", "judgeP": 0.01, "reader": "no" },
+    { "itemId": "d5", "ruleId": "r_tree_nuts", "code": "no_match", "judgeP": 0.01, "reader": "no" },
+    { "itemId": "d5", "ruleId": "r_grapefruit", "code": "match", "judgeP": 0.97, "reader": "yes" }
+  ],
+  "verdicts": {
+    "d1": {
+      "fit": "good",
+      "score": 0.9,
+      "findings": [
+        { "ruleId": "r_tree_nuts", "outcome": "confirm", "because": "No tree nuts found in the menu text; menus do not list everything.", "question": "Can you confirm the salmon is prepared without tree nuts?" },
+        { "ruleId": "r_sodium", "outcome": "note", "because": "Likely low in sodium." }
+      ]
+    },
+    "d2": {
+      "fit": "cant_tell",
+      "findings": [
+        { "ruleId": "r_tree_nuts", "outcome": "ask", "because": "Pesto is commonly made with pine nuts or walnuts.", "question": "Does the pesto contain pine nuts, walnuts or any other tree nuts?" }
+      ]
+    },
+    "d3": {
+      "fit": "not_fit",
+      "findings": [{ "ruleId": "r_tree_nuts", "outcome": "blocked", "because": "Lists candied walnuts." }]
+    },
+    "d4": {
+      "fit": "okay",
+      "score": 0.4,
+      "findings": [
+        { "ruleId": "r_sodium", "outcome": "note", "because": "Broth-based ramen is usually high in sodium." },
+        { "ruleId": "r_tree_nuts", "outcome": "confirm", "because": "No tree nuts found in the menu text; menus do not list everything.", "question": "Can you confirm the ramen has no tree nuts, including in any chili oil or topping?" },
+        { "outcome": "note", "because": "Some ramen broths are finished with sesame or nut-based pastes.", "unsourced": true }
+      ]
+    },
+    "d5": {
+      "fit": "not_fit",
+      "findings": [{ "ruleId": "r_grapefruit", "outcome": "blocked", "because": "Lists grapefruit soda." }]
+    }
+  },
+  "ranking": [
+    { "itemId": "d1", "section": "best", "line": "Low sodium. Confirm no tree nuts." },
+    { "itemId": "d4", "section": "okay", "line": "High sodium.", "modification": "Ask for less broth or a lighter seasoning." },
+    { "itemId": "d2", "section": "cant_tell", "line": "Pesto often contains tree nuts." },
+    { "itemId": "d3", "section": "not_fit", "line": "Walnuts (your tree nut allergy)." },
+    { "itemId": "d5", "section": "not_fit", "line": "Grapefruit (simvastatin)." }
+  ],
+  "questions": [
+    { "id": "q1", "itemId": "d2", "ruleId": "r_tree_nuts", "text": "Does the pesto contain pine nuts, walnuts or any other tree nuts?" }
+  ],
+  "summary": "The grilled salmon looks like the best fit. Two dishes are out: the walnut salad and the paloma. Ask about the pesto before ordering it.",
+  "explanations": {
+    "d1": "Nothing on the menu points to tree nuts or grapefruit, and it is likely low in sodium. Because menus do not list every ingredient, confirm with your server that it is prepared without tree nuts.",
+    "d2": "Pesto is commonly made with pine nuts or walnuts, and this menu does not say which. Ask before ordering.",
+    "d3": "The menu lists candied walnuts, which conflicts with your tree nut allergy.",
+    "d4": "Broth-based ramen is usually high in sodium, which you are limiting. Nothing on the menu points to tree nuts, but confirm with your server.",
+    "d5": "The menu lists grapefruit soda, and your rules say to avoid grapefruit because of simvastatin."
+  }
+}

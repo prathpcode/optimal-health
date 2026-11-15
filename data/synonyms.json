@@ -1,0 +1,900 @@
+{
+  "_note": "Literal names. A match here means the word itself is the tagged ingredient. `unless` lists phrases in which the term does not count. Keep terms lowercase.",
+  "synonyms": {
+    "peanuts": [
+      {
+        "term": "peanut"
+      },
+      {
+        "term": "peanuts"
+      },
+      {
+        "term": "groundnut"
+      },
+      {
+        "term": "satay sauce"
+      }
+    ],
+    "tree_nuts": [
+      {
+        "term": "almond"
+      },
+      {
+        "term": "almonds"
+      },
+      {
+        "term": "walnut"
+      },
+      {
+        "term": "walnuts"
+      },
+      {
+        "term": "pecan"
+      },
+      {
+        "term": "pecans"
+      },
+      {
+        "term": "cashew"
+      },
+      {
+        "term": "cashews"
+      },
+      {
+        "term": "pistachio"
+      },
+      {
+        "term": "pistachios"
+      },
+      {
+        "term": "hazelnut"
+      },
+      {
+        "term": "hazelnuts"
+      },
+      {
+        "term": "macadamia"
+      },
+      {
+        "term": "brazil nut"
+      },
+      {
+        "term": "brazil nuts"
+      },
+      {
+        "term": "pine nut"
+      },
+      {
+        "term": "pine nuts"
+      },
+      {
+        "term": "pignoli"
+      },
+      {
+        "term": "praline"
+      },
+      {
+        "term": "marzipan"
+      },
+      {
+        "term": "frangipane"
+      },
+      {
+        "term": "gianduja"
+      },
+      {
+        "term": "nutella"
+      },
+      {
+        "term": "almond milk"
+      },
+      {
+        "term": "almond flour"
+      },
+      {
+        "term": "tree nuts"
+      },
+      {
+        "term": "tree nut"
+      }
+    ],
+    "dairy": [
+      {
+        "term": "milk",
+        "unless": [
+          "coconut milk",
+          "almond milk",
+          "oat milk",
+          "soy milk",
+          "rice milk",
+          "cashew milk",
+          "milk thistle"
+        ]
+      },
+      {
+        "term": "cheese",
+        "unless": [
+          "vegan cheese"
+        ]
+      },
+      {
+        "term": "butter",
+        "unless": [
+          "peanut butter",
+          "almond butter",
+          "cashew butter",
+          "cocoa butter",
+          "apple butter",
+          "butter lettuce",
+          "butter beans",
+          "nut butter",
+          "shea butter",
+          "sunflower butter"
+        ]
+      },
+      {
+        "term": "cream",
+        "unless": [
+          "coconut cream",
+          "cream of tartar",
+          "cream soda"
+        ]
+      },
+      {
+        "term": "yogurt"
+      },
+      {
+        "term": "yoghurt"
+      },
+      {
+        "term": "whey"
+      },
+      {
+        "term": "casein"
+      },
+      {
+        "term": "ghee"
+      },
+      {
+        "term": "parmesan"
+      },
+      {
+        "term": "mozzarella"
+      },
+      {
+        "term": "cheddar"
+      },
+      {
+        "term": "feta"
+      },
+      {
+        "term": "ricotta"
+      },
+      {
+        "term": "paneer"
+      },
+      {
+        "term": "mascarpone"
+      },
+      {
+        "term": "goat cheese"
+      },
+      {
+        "term": "custard"
+      },
+      {
+        "term": "lactose"
+      }
+    ],
+    "egg": [
+      {
+        "term": "egg",
+        "unless": [
+          "eggplant",
+          "egg noodles free"
+        ]
+      },
+      {
+        "term": "eggs"
+      },
+      {
+        "term": "albumen"
+      },
+      {
+        "term": "mayonnaise"
+      },
+      {
+        "term": "mayo"
+      },
+      {
+        "term": "aioli"
+      },
+      {
+        "term": "meringue"
+      }
+    ],
+    "wheat": [
+      {
+        "term": "wheat",
+        "unless": [
+          "buckwheat"
+        ]
+      },
+      {
+        "term": "flour",
+        "unless": [
+          "almond flour",
+          "rice flour",
+          "corn flour",
+          "coconut flour",
+          "chickpea flour",
+          "tapioca flour",
+          "potato flour",
+          "oat flour"
+        ]
+      },
+      {
+        "term": "semolina"
+      },
+      {
+        "term": "durum"
+      },
+      {
+        "term": "spelt"
+      },
+      {
+        "term": "farro"
+      },
+      {
+        "term": "couscous"
+      },
+      {
+        "term": "bulgur"
+      },
+      {
+        "term": "seitan"
+      },
+      {
+        "term": "breadcrumbs"
+      },
+      {
+        "term": "panko"
+      }
+    ],
+    "gluten": [
+      {
+        "term": "gluten",
+        "unless": [
+          "gluten free",
+          "gluten-free"
+        ]
+      },
+      {
+        "term": "barley"
+      },
+      {
+        "term": "rye"
+      },
+      {
+        "term": "malt"
+      }
+    ],
+    "soy": [
+      {
+        "term": "soy"
+      },
+      {
+        "term": "soya"
+      },
+      {
+        "term": "soybean"
+      },
+      {
+        "term": "soybeans"
+      },
+      {
+        "term": "tofu"
+      },
+      {
+        "term": "edamame"
+      },
+      {
+        "term": "tempeh"
+      },
+      {
+        "term": "miso"
+      },
+      {
+        "term": "soy sauce"
+      },
+      {
+        "term": "tamari"
+      }
+    ],
+    "fish": [
+      {
+        "term": "fish",
+        "unless": [
+          "shellfish",
+          "fish free"
+        ]
+      },
+      {
+        "term": "salmon"
+      },
+      {
+        "term": "tuna"
+      },
+      {
+        "term": "cod"
+      },
+      {
+        "term": "anchovy"
+      },
+      {
+        "term": "anchovies"
+      },
+      {
+        "term": "sardine"
+      },
+      {
+        "term": "sardines"
+      },
+      {
+        "term": "trout"
+      },
+      {
+        "term": "halibut"
+      },
+      {
+        "term": "tilapia"
+      },
+      {
+        "term": "mackerel"
+      },
+      {
+        "term": "sea bass"
+      },
+      {
+        "term": "branzino"
+      },
+      {
+        "term": "fish sauce"
+      },
+      {
+        "term": "bonito"
+      }
+    ],
+    "shellfish": [
+      {
+        "term": "shrimp"
+      },
+      {
+        "term": "prawn"
+      },
+      {
+        "term": "prawns"
+      },
+      {
+        "term": "crab"
+      },
+      {
+        "term": "lobster"
+      },
+      {
+        "term": "crayfish"
+      },
+      {
+        "term": "crawfish"
+      },
+      {
+        "term": "langoustine"
+      },
+      {
+        "term": "shellfish"
+      }
+    ],
+    "mollusc": [
+      {
+        "term": "clam"
+      },
+      {
+        "term": "clams"
+      },
+      {
+        "term": "oyster"
+      },
+      {
+        "term": "oysters"
+      },
+      {
+        "term": "mussel"
+      },
+      {
+        "term": "mussels"
+      },
+      {
+        "term": "scallop"
+      },
+      {
+        "term": "scallops"
+      },
+      {
+        "term": "squid"
+      },
+      {
+        "term": "calamari"
+      },
+      {
+        "term": "octopus"
+      },
+      {
+        "term": "snail"
+      },
+      {
+        "term": "escargot"
+      }
+    ],
+    "sesame": [
+      {
+        "term": "sesame"
+      },
+      {
+        "term": "tahini"
+      },
+      {
+        "term": "gomasio"
+      }
+    ],
+    "mustard": [
+      {
+        "term": "mustard"
+      }
+    ],
+    "celery": [
+      {
+        "term": "celery"
+      },
+      {
+        "term": "celeriac"
+      }
+    ],
+    "sulfites": [
+      {
+        "term": "sulfites"
+      },
+      {
+        "term": "sulphites"
+      },
+      {
+        "term": "sulfur dioxide"
+      }
+    ],
+    "corn": [
+      {
+        "term": "corn",
+        "unless": [
+          "corned beef",
+          "peppercorn",
+          "peppercorns"
+        ]
+      },
+      {
+        "term": "cornmeal"
+      },
+      {
+        "term": "polenta"
+      },
+      {
+        "term": "corn syrup"
+      }
+    ],
+    "coconut": [
+      {
+        "term": "coconut"
+      }
+    ],
+    "grapefruit": [
+      {
+        "term": "grapefruit"
+      }
+    ],
+    "alcohol": [
+      {
+        "term": "wine",
+        "unless": [
+          "wine vinegar"
+        ]
+      },
+      {
+        "term": "beer",
+        "unless": [
+          "root beer",
+          "ginger beer"
+        ]
+      },
+      {
+        "term": "vodka"
+      },
+      {
+        "term": "rum"
+      },
+      {
+        "term": "whiskey"
+      },
+      {
+        "term": "whisky"
+      },
+      {
+        "term": "tequila"
+      },
+      {
+        "term": "gin"
+      },
+      {
+        "term": "bourbon"
+      },
+      {
+        "term": "brandy"
+      },
+      {
+        "term": "sake"
+      },
+      {
+        "term": "liqueur"
+      },
+      {
+        "term": "champagne"
+      },
+      {
+        "term": "prosecco"
+      },
+      {
+        "term": "mezcal"
+      },
+      {
+        "term": "sherry"
+      },
+      {
+        "term": "marsala"
+      }
+    ],
+    "caffeine": [
+      {
+        "term": "coffee"
+      },
+      {
+        "term": "espresso"
+      },
+      {
+        "term": "matcha"
+      },
+      {
+        "term": "cold brew"
+      },
+      {
+        "term": "energy drink"
+      },
+      {
+        "term": "caffeine"
+      }
+    ],
+    "licorice": [
+      {
+        "term": "licorice"
+      },
+      {
+        "term": "liquorice"
+      }
+    ],
+    "leafy_greens_vitamin_k": [
+      {
+        "term": "kale"
+      },
+      {
+        "term": "spinach"
+      },
+      {
+        "term": "collard greens"
+      },
+      {
+        "term": "swiss chard"
+      },
+      {
+        "term": "chard"
+      },
+      {
+        "term": "mustard greens"
+      },
+      {
+        "term": "turnip greens"
+      }
+    ],
+    "aged_fermented_tyramine": [
+      {
+        "term": "aged cheese"
+      },
+      {
+        "term": "blue cheese"
+      },
+      {
+        "term": "salami"
+      },
+      {
+        "term": "pepperoni"
+      },
+      {
+        "term": "prosciutto"
+      },
+      {
+        "term": "cured meat"
+      },
+      {
+        "term": "sauerkraut"
+      },
+      {
+        "term": "kimchi"
+      }
+    ],
+    "potassium_salt_substitute": [
+      {
+        "term": "potassium chloride"
+      },
+      {
+        "term": "salt substitute"
+      }
+    ],
+    "cranberry": [
+      {
+        "term": "cranberry"
+      },
+      {
+        "term": "cranberries"
+      }
+    ],
+    "artificial_sweetener": [
+      {
+        "term": "aspartame"
+      },
+      {
+        "term": "sucralose"
+      },
+      {
+        "term": "saccharin"
+      },
+      {
+        "term": "acesulfame"
+      }
+    ],
+    "onion_garlic": [
+      {
+        "term": "onion"
+      },
+      {
+        "term": "onions"
+      },
+      {
+        "term": "garlic"
+      },
+      {
+        "term": "shallot"
+      },
+      {
+        "term": "shallots"
+      },
+      {
+        "term": "leek"
+      },
+      {
+        "term": "leeks"
+      }
+    ],
+    "fried": [
+      {
+        "term": "fried"
+      },
+      {
+        "term": "deep fried"
+      },
+      {
+        "term": "tempura"
+      },
+      {
+        "term": "fritter"
+      },
+      {
+        "term": "fritters"
+      }
+    ],
+    "spicy": [
+      {
+        "term": "spicy"
+      },
+      {
+        "term": "chili"
+      },
+      {
+        "term": "chilli"
+      },
+      {
+        "term": "jalapeno"
+      },
+      {
+        "term": "habanero"
+      },
+      {
+        "term": "sriracha"
+      }
+    ],
+    "raw_or_undercooked": [
+      {
+        "term": "sashimi"
+      },
+      {
+        "term": "tartare"
+      },
+      {
+        "term": "carpaccio"
+      },
+      {
+        "term": "ceviche"
+      },
+      {
+        "term": "raw oyster"
+      },
+      {
+        "term": "raw oysters"
+      },
+      {
+        "term": "rare"
+      }
+    ],
+    "unpasteurized": [
+      {
+        "term": "unpasteurized"
+      },
+      {
+        "term": "unpasteurised"
+      },
+      {
+        "term": "raw milk"
+      }
+    ],
+    "pork": [
+      {
+        "term": "pork"
+      },
+      {
+        "term": "bacon",
+        "unless": [
+          "turkey bacon",
+          "vegan bacon"
+        ]
+      },
+      {
+        "term": "ham",
+        "unless": [
+          "hamburger"
+        ]
+      },
+      {
+        "term": "prosciutto"
+      },
+      {
+        "term": "pancetta"
+      },
+      {
+        "term": "chorizo"
+      },
+      {
+        "term": "lard"
+      },
+      {
+        "term": "salami"
+      },
+      {
+        "term": "pepperoni"
+      },
+      {
+        "term": "sausage",
+        "unless": [
+          "chicken sausage",
+          "turkey sausage",
+          "vegan sausage",
+          "beef sausage"
+        ]
+      }
+    ],
+    "beef": [
+      {
+        "term": "beef"
+      },
+      {
+        "term": "steak",
+        "unless": [
+          "tuna steak",
+          "cauliflower steak",
+          "salmon steak"
+        ]
+      },
+      {
+        "term": "brisket"
+      },
+      {
+        "term": "veal"
+      },
+      {
+        "term": "hamburger"
+      },
+      {
+        "term": "short rib"
+      },
+      {
+        "term": "short ribs"
+      }
+    ],
+    "lamb": [
+      {
+        "term": "lamb"
+      },
+      {
+        "term": "mutton"
+      }
+    ],
+    "poultry": [
+      {
+        "term": "chicken"
+      },
+      {
+        "term": "turkey"
+      },
+      {
+        "term": "duck"
+      },
+      {
+        "term": "quail"
+      }
+    ],
+    "meat": [
+      {
+        "term": "meat",
+        "unless": [
+          "meatless",
+          "meat free"
+        ]
+      },
+      {
+        "term": "venison"
+      },
+      {
+        "term": "bison"
+      },
+      {
+        "term": "goat",
+        "unless": [
+          "goat cheese",
+          "goat milk"
+        ]
+      },
+      {
+        "term": "rabbit"
+      }
+    ],
+    "gelatin": [
+      {
+        "term": "gelatin"
+      },
+      {
+        "term": "gelatine"
+      }
+    ],
+    "honey": [
+      {
+        "term": "honey",
+        "unless": [
+          "honeydew"
+        ]
+      }
+    ]
+  }
+}

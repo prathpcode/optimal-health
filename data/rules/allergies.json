@@ -1,0 +1,85 @@
+{
+  "_note": "One Never rule per allergen. The source is the user's own entry, so these need no external citation.",
+  "rules": [
+    {
+      "key": "peanuts",
+      "level": "never",
+      "tag": "peanuts"
+    },
+    {
+      "key": "tree_nuts",
+      "level": "never",
+      "tag": "tree_nuts"
+    },
+    {
+      "key": "dairy",
+      "level": "never",
+      "tag": "dairy"
+    },
+    {
+      "key": "egg",
+      "level": "never",
+      "tag": "egg"
+    },
+    {
+      "key": "wheat",
+      "level": "never",
+      "tag": "wheat"
+    },
+    {
+      "key": "gluten",
+      "level": "never",
+      "tag": "gluten"
+    },
+    {
+      "key": "soy",
+      "level": "never",
+      "tag": "soy"
+    },
+    {
+      "key": "fish",
+      "level": "never",
+      "tag": "fish"
+    },
+    {
+      "key": "shellfish",
+      "level": "never",
+      "tag": "shellfish"
+    },
+    {
+      "key": "mollusc",
+      "level": "never",
+      "tag": "mollusc"
+    },
+    {
+      "key": "sesame",
+      "level": "never",
+      "tag": "sesame"
+    },
+    {
+      "key": "mustard",
+      "level": "never",
+      "tag": "mustard"
+    },
+    {
+      "key": "celery",
+      "level": "never",
+      "tag": "celery"
+    },
+    {
+      "key": "sulfites",
+      "level": "never",
+      "tag": "sulfites"
+    },
+    {
+      "key": "corn",
+      "level": "never",
+      "tag": "corn"
+    },
+    {
+      "key": "coconut",
+      "level": "never",
+      "tag": "coconut"
+    }
+  ]
+}

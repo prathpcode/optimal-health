@@ -1,0 +1,373 @@
+{
+  "_note": "The fixed tag list. Rules and items may only use ids from here.",
+  "tags": [
+    {
+      "id": "peanuts",
+      "label": "peanuts",
+      "group": "allergen"
+    },
+    {
+      "id": "tree_nuts",
+      "label": "tree nuts",
+      "group": "allergen"
+    },
+    {
+      "id": "dairy",
+      "label": "milk or dairy",
+      "group": "allergen"
+    },
+    {
+      "id": "egg",
+      "label": "egg",
+      "group": "allergen"
+    },
+    {
+      "id": "wheat",
+      "label": "wheat",
+      "group": "allergen",
+      "implies": [
+        "gluten"
+      ]
+    },
+    {
+      "id": "gluten",
+      "label": "gluten",
+      "group": "allergen"
+    },
+    {
+      "id": "soy",
+      "label": "soy",
+      "group": "allergen"
+    },
+    {
+      "id": "fish",
+      "label": "fish",
+      "group": "allergen"
+    },
+    {
+      "id": "shellfish",
+      "label": "shellfish (crab, shrimp, lobster)",
+      "group": "allergen"
+    },
+    {
+      "id": "mollusc",
+      "label": "molluscs (clams, oysters, squid)",
+      "group": "allergen"
+    },
+    {
+      "id": "sesame",
+      "label": "sesame",
+      "group": "allergen"
+    },
+    {
+      "id": "mustard",
+      "label": "mustard",
+      "group": "allergen"
+    },
+    {
+      "id": "celery",
+      "label": "celery",
+      "group": "allergen"
+    },
+    {
+      "id": "sulfites",
+      "label": "sulfites",
+      "group": "allergen"
+    },
+    {
+      "id": "corn",
+      "label": "corn",
+      "group": "allergen"
+    },
+    {
+      "id": "coconut",
+      "label": "coconut",
+      "group": "allergen"
+    },
+    {
+      "id": "grapefruit",
+      "label": "grapefruit",
+      "group": "ingredient"
+    },
+    {
+      "id": "alcohol",
+      "label": "alcohol",
+      "group": "ingredient"
+    },
+    {
+      "id": "caffeine",
+      "label": "caffeine",
+      "group": "ingredient"
+    },
+    {
+      "id": "licorice",
+      "label": "licorice",
+      "group": "ingredient"
+    },
+    {
+      "id": "leafy_greens_vitamin_k",
+      "label": "leafy greens high in vitamin K",
+      "group": "ingredient"
+    },
+    {
+      "id": "aged_fermented_tyramine",
+      "label": "aged, cured or fermented foods high in tyramine",
+      "group": "ingredient"
+    },
+    {
+      "id": "potassium_salt_substitute",
+      "label": "potassium-based salt substitute",
+      "group": "ingredient"
+    },
+    {
+      "id": "high_potassium_food",
+      "label": "foods high in potassium",
+      "group": "ingredient"
+    },
+    {
+      "id": "cranberry",
+      "label": "cranberry",
+      "group": "ingredient"
+    },
+    {
+      "id": "artificial_sweetener",
+      "label": "artificial sweetener",
+      "group": "ingredient"
+    },
+    {
+      "id": "lactose",
+      "label": "lactose",
+      "group": "ingredient"
+    },
+    {
+      "id": "onion_garlic",
+      "label": "onion or garlic",
+      "group": "ingredient"
+    },
+    {
+      "id": "fried",
+      "label": "fried food",
+      "group": "preparation"
+    },
+    {
+      "id": "spicy",
+      "label": "spicy food",
+      "group": "preparation"
+    },
+    {
+      "id": "raw_or_undercooked",
+      "label": "raw or undercooked meat, fish or egg",
+      "group": "preparation"
+    },
+    {
+      "id": "unpasteurized",
+      "label": "unpasteurized dairy or juice",
+      "group": "preparation"
+    },
+    {
+      "id": "meat",
+      "label": "meat",
+      "group": "diet"
+    },
+    {
+      "id": "pork",
+      "label": "pork",
+      "group": "diet",
+      "implies": [
+        "meat"
+      ]
+    },
+    {
+      "id": "beef",
+      "label": "beef",
+      "group": "diet",
+      "implies": [
+        "meat"
+      ]
+    },
+    {
+      "id": "lamb",
+      "label": "lamb",
+      "group": "diet",
+      "implies": [
+        "meat"
+      ]
+    },
+    {
+      "id": "poultry",
+      "label": "poultry",
+      "group": "diet",
+      "implies": [
+        "meat"
+      ]
+    },
+    {
+      "id": "gelatin",
+      "label": "gelatin",
+      "group": "diet"
+    },
+    {
+      "id": "honey",
+      "label": "honey",
+      "group": "diet"
+    },
+    {
+      "id": "sodium",
+      "label": "sodium",
+      "group": "nutrient",
+      "nutrient": "sodiumMg"
+    },
+    {
+      "id": "potassium",
+      "label": "potassium",
+      "group": "nutrient",
+      "nutrient": "potassiumMg"
+    },
+    {
+      "id": "sugar",
+      "label": "sugar",
+      "group": "nutrient",
+      "nutrient": "sugarG"
+    },
+    {
+      "id": "saturated_fat",
+      "label": "saturated fat",
+      "group": "nutrient",
+      "nutrient": "satFatG"
+    },
+    {
+      "id": "carbs",
+      "label": "carbohydrate",
+      "group": "nutrient",
+      "nutrient": "carbsG"
+    },
+    {
+      "id": "fiber",
+      "label": "fibre",
+      "group": "nutrient",
+      "nutrient": "fiberG"
+    },
+    {
+      "id": "protein",
+      "label": "protein",
+      "group": "nutrient",
+      "nutrient": "proteinG"
+    },
+    {
+      "id": "calories",
+      "label": "calories",
+      "group": "nutrient",
+      "nutrient": "kcal"
+    },
+    {
+      "id": "phosphorus",
+      "label": "phosphorus",
+      "group": "nutrient"
+    },
+    {
+      "id": "st_johns_wort",
+      "label": "St. John's wort",
+      "group": "supplement"
+    },
+    {
+      "id": "potassium_supplement",
+      "label": "potassium supplements",
+      "group": "supplement"
+    },
+    {
+      "id": "calcium_supplement",
+      "label": "calcium supplements or antacids",
+      "group": "supplement"
+    },
+    {
+      "id": "iron_supplement",
+      "label": "iron supplements",
+      "group": "supplement"
+    },
+    {
+      "id": "magnesium_supplement",
+      "label": "magnesium supplements or antacids",
+      "group": "supplement"
+    },
+    {
+      "id": "zinc_supplement",
+      "label": "zinc supplements",
+      "group": "supplement"
+    },
+    {
+      "id": "vitamin_k_supplement",
+      "label": "vitamin K supplements",
+      "group": "supplement"
+    },
+    {
+      "id": "vitamin_e_supplement",
+      "label": "vitamin E supplements",
+      "group": "supplement"
+    },
+    {
+      "id": "vitamin_a_supplement",
+      "label": "vitamin A supplements",
+      "group": "supplement"
+    },
+    {
+      "id": "ginkgo",
+      "label": "ginkgo",
+      "group": "supplement"
+    },
+    {
+      "id": "garlic_supplement",
+      "label": "garlic supplements",
+      "group": "supplement"
+    },
+    {
+      "id": "ginseng",
+      "label": "ginseng",
+      "group": "supplement"
+    },
+    {
+      "id": "fish_oil",
+      "label": "fish oil or omega-3 supplements",
+      "group": "supplement"
+    },
+    {
+      "id": "echinacea",
+      "label": "echinacea",
+      "group": "supplement"
+    },
+    {
+      "id": "goldenseal",
+      "label": "goldenseal",
+      "group": "supplement"
+    },
+    {
+      "id": "melatonin",
+      "label": "melatonin",
+      "group": "supplement"
+    },
+    {
+      "id": "biotin",
+      "label": "biotin",
+      "group": "supplement"
+    },
+    {
+      "id": "niacin_supplement",
+      "label": "niacin supplements",
+      "group": "supplement"
+    },
+    {
+      "id": "coenzyme_q10",
+      "label": "coenzyme Q10",
+      "group": "supplement"
+    },
+    {
+      "id": "turmeric_supplement",
+      "label": "turmeric or curcumin supplements",
+      "group": "supplement"
+    },
+    {
+      "id": "fiber_supplement",
+      "label": "fibre supplements",
+      "group": "supplement"
+    }
+  ]
+}
