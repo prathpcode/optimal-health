@@ -49,8 +49,8 @@ const SECTIONS: RankedItem['section'][] = ['best', 'okay', 'cant_tell', 'not_fit
 function statusText(view: ScanView | undefined): string {
   const status = view?.status ?? 'reading';
   const product = view?.kind === 'product' || view?.kind === 'label';
-  // A few lines already look like trouble: say that something is being found, not just read.
-  if ((status === 'reading' || status === 'judging') && view?.earlyHints?.length && !Object.keys(view.verdicts).length) return 'Spotting things to check';
+  // Lines are already being flagged from the recognised text while the photo is read.
+  if ((status === 'reading' || status === 'judging') && view?.earlyHints?.length && !Object.keys(view.verdicts).length) return 'Reading and analyzing';
   if (status === 'reading') return view?.kind === 'product' ? 'Looking it up' : view?.kind === 'label' ? 'Reading the label' : 'Reading';
   if (status === 'judging') return view?.provisional ? (product ? 'Checking' : 'Checking each dish') : view?.items.length ? 'Checking your rules' : product ? 'Reading the label' : 'Reading the menu';
   if (status === 'ranking') return 'Confirming';
@@ -64,6 +64,7 @@ export default function ResultScreen() {
   const id = params.id;
   const { view, answer } = useScan(id);
   const setRestaurant = useSetRestaurant();
+  const { c } = useTheme();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
@@ -266,8 +267,8 @@ export default function ResultScreen() {
                     if (rows.length === 0) return null;
                     return (
                       <Animated.View key={section} layout={reduced ? undefined : LinearTransition.springify().damping(22)} style={{ marginTop: space.lg }}>
-                        <SectionLabel style={{ marginBottom: space.sm }}>{SECTION_LABEL[section]}</SectionLabel>
-                        <Card style={{ padding: 0, overflow: 'hidden' }}>
+                        <SectionLabel style={{ marginBottom: space.md }}>{SECTION_LABEL[section]}</SectionLabel>
+                        <View style={{ gap: space.sm + 2 }}>
                           {rows.map((row, i) => (
                             <View
                               key={row.itemId}
@@ -280,12 +281,11 @@ export default function ResultScreen() {
                                 row={row}
                                 selected={selected === row.itemId}
                                 provisional={view.provisional}
-                                divider={i > 0}
                                 onPress={() => openDish(row.itemId)}
                               />
                             </View>
                           ))}
-                        </Card>
+                        </View>
                       </Animated.View>
                     );
                   })
@@ -298,17 +298,22 @@ export default function ResultScreen() {
                   <View style={styles.askHeader}>
                     <SectionLabel>Ask your server</SectionLabel>
                   </View>
-                  <Card style={{ gap: space.xl }}>
+                  <GlassSurface tone="theme" style={styles.panel}>
                     {view.questions.map((q, i) => (
                       <QuestionRow key={q.id} q={q} item={itemsById.get(q.itemId)} divider={i > 0} onAnswer={(v) => answer(q.id, v)} />
                     ))}
-                  </Card>
+                  </GlassSurface>
                 </Animated.View>
               ) : null}
 
               {view?.status === 'done' ? (
                 <Animated.View entering={FadeIn.delay(200)} style={styles.footer}>
-                  <Button label="Scan again" variant="secondary" icon="camera" onPress={() => router.replace('/scan')} style={{ flex: 1 }} />
+                  <Tap accessibilityRole="button" accessibilityLabel="Scan again" feedback="tap" scaleTo={0.97} onPress={() => router.replace('/scan')} style={{ flex: 1 }}>
+                    <GlassSurface tone="theme" interactive style={styles.footerGlass}>
+                      <Icon name="camera" size={18} color={c.text} />
+                      <T variant="heading">Scan again</T>
+                    </GlassSurface>
+                  </Tap>
                   <Button label="Done" onPress={goBack} style={{ flex: 1 }} />
                 </Animated.View>
               ) : null}
@@ -370,7 +375,7 @@ function SheetHeader({ view, working, failed, isProduct }: { view: ScanView | un
       {view?.summary ? (
         // The summary's first sentence is the headline, in the heading face; the rest reads as quieter body text.
         <Animated.View entering={FadeIn.duration(duration.slow)} style={{ gap: space.sm }}>
-          <T variant="heading" accessibilityRole="header">
+          <T variant="lead" accessibilityRole="header">
             {lead(view.summary)[0]}
           </T>
           {lead(view.summary)[1] ? (
@@ -390,9 +395,9 @@ function SheetHeader({ view, working, failed, isProduct }: { view: ScanView | un
         {view && view.ranking.length > 0 && !isProduct ? (
           <>
             {view.provisional ? <CheckingTag /> : null}
-            <Counter n={counts.good} label="Fit you" color={c.good} soft={c.goodSoft} index={0} />
-            <Counter n={counts.ask} label="Ask first" color={c.cantTell} soft={c.cantTellSoft} index={1} />
-            <Counter n={counts.out} label="Not a fit" color={c.notFit} soft={c.notFitSoft} index={2} />
+            <Counter n={counts.good} label="Fit you" color={c.good} index={0} />
+            <Counter n={counts.ask} label="Ask first" color={c.cantTell} index={1} />
+            <Counter n={counts.out} label="Not a fit" color={c.notFit} index={2} />
           </>
         ) : working && !(isProduct && view?.verdicts && Object.keys(view.verdicts).length) ? (
           <Stepper view={view} />
@@ -439,21 +444,26 @@ function StepBar({ state }: { state: 'done' | 'active' | 'todo' }) {
   );
 }
 
-function Counter({ n, label, color, soft, index }: { n: number; label: string; color: string; soft: string; index: number }) {
+function Counter({ n, label, color, index }: { n: number; label: string; color: string; index: number }) {
   const reduced = useReducedMotion();
   return (
-    <Animated.View entering={enterAt(index, reduced)} style={[styles.counter, { backgroundColor: soft }]}>
-      <T variant="heading" color={color} style={{ fontVariant: ['tabular-nums'] }}>
-        {n}
-      </T>
-      <T variant="caption" color={color}>
-        {label}
-      </T>
+    <Animated.View entering={enterAt(index, reduced)} style={{ flex: 1 }}>
+      <GlassSurface tone="theme" style={styles.counter}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
+          <T variant="leadBold" color={color} style={{ fontVariant: ['tabular-nums'] }}>
+            {n}
+          </T>
+        </View>
+        <T variant="caption" tone="secondary">
+          {label}
+        </T>
+      </GlassSurface>
     </Animated.View>
   );
 }
 
-function DishRow({ index, item, row, selected, provisional, divider, onPress }: { index: number; item?: Item; row: RankedItem; selected: boolean; provisional: boolean; divider: boolean; onPress: () => void }) {
+function DishRow({ index, item, row, selected, provisional, onPress }: { index: number; item?: Item; row: RankedItem; selected: boolean; provisional: boolean; onPress: () => void }) {
   const { c } = useTheme();
   const reduced = useReducedMotion();
   const fit = SECTION_FIT[row.section];
@@ -466,10 +476,9 @@ function DishRow({ index, item, row, selected, provisional, divider, onPress }: 
 
   return (
     <Animated.View entering={enterAt(index, reduced)}>
-      {divider ? <View style={[styles.divider, { backgroundColor: c.hairline }]} /> : null}
       <Tap accessibilityRole="button" accessibilityLabel={`${item?.name ?? 'Dish'}. ${row.line}`} onPress={onPress} scaleTo={0.985}>
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: fitColor(fit, c).soft }, bg]} />
-        <View style={styles.row}>
+        <GlassSurface tone="theme" interactive style={styles.row}>
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: fitColor(fit, c).soft }, bg]} />
           <View style={{ paddingTop: 6 }}>
             <VerdictDot fit={fit} />
           </View>
@@ -493,7 +502,7 @@ function DishRow({ index, item, row, selected, provisional, divider, onPress }: 
             ) : null}
           </View>
           <Icon name="chevron" size={13} color={c.textTertiary} />
-        </View>
+        </GlassSurface>
       </Tap>
     </Animated.View>
   );
@@ -577,13 +586,13 @@ function QuestionRow({ q, item, divider, onAnswer }: { q: ScanQuestion; item?: I
 function Banner({ icon, text, onPress }: { icon: 'person' | 'warning' | 'note'; text: string; onPress?: () => void }) {
   const { c } = useTheme();
   const body = (
-    <View style={[styles.banner, { backgroundColor: c.cardMuted }]}>
+    <GlassSurface tone="theme" interactive={!!onPress} style={styles.banner}>
       <Icon name={icon} size={16} color={c.textSecondary} />
       <T variant="caption" tone="secondary" style={{ flex: 1 }}>
         {text}
       </T>
       {onPress ? <Icon name="chevron" size={12} color={c.textTertiary} /> : null}
-    </View>
+    </GlassSurface>
   );
   return onPress ? (
     <Tap accessibilityRole="button" accessibilityLabel={text} onPress={onPress} scaleTo={0.98} style={{ marginTop: space.md }}>
@@ -658,14 +667,16 @@ const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   top: { position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg },
   pill: { flexDirection: 'row', alignItems: 'center', gap: space.sm, height: 40, paddingHorizontal: space.lg, maxWidth: 240 },
-  counters: { flexDirection: 'row', gap: space.sm, minHeight: 60 },
+  counters: { flexDirection: 'row', gap: space.sm, minHeight: 72 },
   productCounters: { flexDirection: 'row' },
-  counter: { flex: 1, borderRadius: radius.card - 6, paddingVertical: space.md - 2, paddingHorizontal: space.md + 2, gap: 0 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.lg },
+  counter: { borderRadius: radius.card - 4, paddingVertical: space.md, paddingHorizontal: space.md + 2, gap: 2 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.lg, borderRadius: radius.card },
   divider: { height: StyleSheet.hairlineWidth, marginLeft: space.lg + 10 + space.md },
   mod: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  askHeader: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.sm },
+  askHeader: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.md },
+  panel: { borderRadius: radius.card, padding: space.xl, gap: space.xl },
   answered: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -space.xs },
   banner: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderRadius: radius.md, padding: space.md },
   footer: { flexDirection: 'row', gap: space.sm, marginTop: space.xxl },
+  footerGlass: { height: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
 });

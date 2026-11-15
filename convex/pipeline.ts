@@ -10,7 +10,7 @@ import { internalAction, type ActionCtx } from "./_generated/server";
 import {
   applySecondOpinions, buildChecks, buildQuestions, buildRanking, buildVerdicts, earlyHints, hardRules, itemsFromReader, lineItems, type ReaderDish, type ReaderOpinion,
 } from "../engine/pipeline";
-import { applyRemembered, positionsFor, restaurantId, type RememberedAnswer, type TextLine } from "../engine/memory";
+import { applyRemembered, linesFor, restaurantId, type RememberedAnswer, type TextLine } from "../engine/memory";
 import { fromOpenFoodFacts, hasSubstance, itemFromProduct, mergeFacts, sanitiseNutrients, type ModelTag, type ProductFacts } from "../engine/product";
 import { hidesInTerms } from "../engine/tagMatch";
 import { linesFromVision, type VisionText } from "../engine/textLines";
@@ -692,9 +692,14 @@ export const run = internalAction({
       // Where each dish is on the photo (first photo only), from its own printed words. Worked out once, here, and
       // put on every version of the items from now on, so the outlines are there as soon as the names are.
       const lines = await linesReady;
-      const positions = lines?.length ? positionsFor(printed, lines) : [];
+      const positions = lines?.length ? linesFor(printed, lines) : [];
       const placed = (list: Item[]): Item[] => {
-        positions.forEach((boxes, i) => boxes && list[i] && (list[i].position = boxes));
+        positions.forEach((mine, i) => {
+          if (!mine || !list[i]) return;
+          list[i].position = mine.map((l) => l.box);
+          // Tilted outlines too, when every one of the dish's lines came with its corners.
+          if (mine.every((l) => l.quad?.length === 4)) list[i].quads = mine.map((l) => l.quad!);
+        });
         return list;
       };
       // Show the dish list straight away; tags and verdicts follow.

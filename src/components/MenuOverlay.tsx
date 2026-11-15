@@ -19,7 +19,7 @@ import Animated, {
 
 import type { Box, Fit, Item, Rule, Verdict } from '@engine/types';
 import { tagLabel } from '@engine/tags';
-import { boxToRect, estimateChipWidth, unionBox, type Rect } from '@/lib/layout';
+import { boxToRect, estimateChipWidth, tiltedRect, unionBox, type Rect, type Tilted } from '@/lib/layout';
 import { fitColor } from '@/lib/verdict';
 import { duration, onPhoto, palette, radius, shadow, space, spring } from '@/theme';
 import { T } from './T';
@@ -81,7 +81,8 @@ export function MenuOverlay({
       items
         .filter((i) => i.position?.[0])
         // The whole dish: its name and the description lines under it. Top to bottom, so the stagger reads down the menu.
-        .map((i) => ({ item: i, rect: boxToRect(unionBox(i.position!), photo) }))
+        // `tilt` follows the text when the menu was photographed at a slant; `rect` is its upright extent.
+        .map((i) => ({ item: i, rect: boxToRect(unionBox(i.position!), photo), tilt: i.quads?.length ? tiltedRect(i.quads, photo) : null }))
         .sort((a, b) => a.rect.y - b.rect.y),
     [items, photo],
   );
@@ -91,12 +92,13 @@ export function MenuOverlay({
   const minTop = bounds.top ?? 0;
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {boxes.map(({ item, rect }, order) => (
+      {boxes.map(({ item, rect, tilt }, order) => (
         <DishBox
           key={item.id}
           order={order}
           item={item}
           rect={rect}
+          tilt={tilt}
           fit={verdicts[item.id]?.fit ?? null}
           checking={provisional && !!verdicts[item.id]}
           selected={selectedId === item.id}
@@ -119,7 +121,7 @@ export function MenuOverlay({
   );
 }
 
-function DishBox({ order, item, rect, fit, checking, selected, hidden, onPress }: { order: number; item: Item; rect: Rect; fit: Fit | null; checking: boolean; selected: boolean; hidden: boolean; onPress: () => void }) {
+function DishBox({ order, item, rect, tilt, fit, checking, selected, hidden, onPress }: { order: number; item: Item; rect: Rect; tilt: Tilted | null; fit: Fit | null; checking: boolean; selected: boolean; hidden: boolean; onPress: () => void }) {
   const reduced = useReducedMotion();
   const pop = useSharedValue(1);
   const opacity = useSharedValue(0);
@@ -138,11 +140,16 @@ function DishBox({ order, item, rect, fit, checking, selected, hidden, onPress }
     hadFit.current = fit !== null;
   }, [fit, order, reduced, pop, opacity]);
 
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: pop.value }] }));
+  const turn = tilt?.angle ?? 0;
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ rotate: `${turn}rad` }, { scale: pop.value }] }));
   if (hidden) return null;
+  // Turned to the text's own angle when its corners are known; otherwise the upright box.
+  const frame = tilt
+    ? { left: tilt.cx - tilt.width / 2 - 5, top: tilt.cy - tilt.height / 2 - 4, width: tilt.width + 10, height: tilt.height + 8 }
+    : { left: rect.x - 5, top: rect.y - 4, width: rect.width + 10, height: rect.height + 8 };
 
   return (
-    <Animated.View style={[{ position: 'absolute', left: rect.x - 5, top: rect.y - 4, width: rect.width + 10, height: rect.height + 8 }, style]}>
+    <Animated.View style={[{ position: 'absolute' }, frame, style]}>
       <Tap accessibilityRole="button" accessibilityLabel={`${item.name}${fit ? `, ${fit.replace('_', ' ')}` : ''}`} feedback="select" onPress={onPress} hitSlop={6} scaleTo={0.98} style={StyleSheet.absoluteFill}>
         <View
           style={[
