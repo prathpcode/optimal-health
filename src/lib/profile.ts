@@ -182,7 +182,7 @@ function customRule(tag: string, level: RuleLevel): ProfileRule {
 }
 
 function useProfileLocal(): ProfileState {
-  const state = useSyncExternalStore(subscribeLocal, () => local);
+  const state = useSyncExternalStore(subscribeLocal, () => local, () => local);
   return {
     ready: true,
     profile: state.profile,

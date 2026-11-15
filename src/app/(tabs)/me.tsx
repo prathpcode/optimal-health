@@ -9,10 +9,11 @@ import { allergyOptions, conditionOptions, dietOptions } from '@engine/compileRu
 import { checkCustomRule, customLevelsFor } from '@engine/customRules';
 import { TAGS, tagLabel } from '@engine/tags';
 import type { Rule, RuleLevel } from '@engine/types';
-import { Icon, type IconName } from '@/components/Icon';
+import { GlassSurface } from '@/components/Glass';
+import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { Card, Chip, SectionLabel } from '@/components/ui';
+import { Card, Chip } from '@/components/ui';
 import { HAS_BACKEND } from '@/lib/backend';
 import { useProfile, type MedStatus, type ProfileRule } from '@/lib/profile';
 import { LEVEL_LABEL } from '@/lib/verdict';
@@ -45,7 +46,7 @@ export default function MeScreen() {
       contentContainerStyle={{ paddingTop: insets.top + space.md, paddingHorizontal: gutter, paddingBottom: (Platform.OS === 'ios' ? insets.bottom : 0) + space.xxxl }}
       showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <T variant="display">Me</T>
+        <T variant="heroBold">Manage</T>
         {saved ? (
           <Animated.View entering={FadeIn.duration(duration.fast)} exiting={FadeOut.duration(duration.base)} style={[styles.saved, { backgroundColor: c.goodSoft }]}>
             <Icon name="check" size={12} color={c.good} weight="bold" />
@@ -55,65 +56,36 @@ export default function MeScreen() {
           </Animated.View>
         ) : null}
       </View>
-      <T tone="secondary" style={{ marginBottom: space.xl }}>
-        What you choose here becomes the rules every scan is checked against.
-      </T>
+      <PickSection index={0} title="Allergies" options={ALLERGIES} selected={profile.allergies} onToggle={(key) => update((p) => ({ ...p, allergies: toggle(p.allergies, key) }))} />
 
-      <Section index={0} title="Allergies" icon="allergy">
-        <View style={styles.chips}>
-          {ALLERGIES.map((o) => (
-            <Chip key={o.key} label={o.label} selected={profile.allergies.includes(o.key)} onPress={() => update((p) => ({ ...p, allergies: toggle(p.allergies, o.key) }))} />
-          ))}
-        </View>
-      </Section>
-
-      <Section index={1} title="Medicines" icon="pill">
+      <Section index={1} title="Medicines">
         <MedicineList
           names={profile.medications.map((m) => m.name)}
           meds={meds}
           onRemove={removeMedication}
         />
         {HAS_BACKEND ? <MedicineSearch onAdd={addMedication} taken={profile.medications.map((m) => m.name.toLowerCase())} /> : null}
-        <T variant="caption" tone="tertiary" style={{ marginTop: space.sm }}>
-          Food rules are read from each medicine’s FDA label. Name only, no dose.
-        </T>
       </Section>
 
-      <Section index={2} title="Conditions" icon="heart">
-        <View style={styles.chips}>
-          {CONDITIONS.map((o) => (
-            <Chip
-              key={o.key}
-              label={o.label}
-              selected={profile.conditions.some((x) => x.key === o.key)}
-              onPress={() =>
-                update((p) => ({
-                  ...p,
-                  conditions: p.conditions.some((x) => x.key === o.key) ? p.conditions.filter((x) => x.key !== o.key) : [...p.conditions, { name: o.label, key: o.key }],
-                }))
-              }
-            />
-          ))}
-        </View>
-      </Section>
+      <PickSection
+        index={2}
+        title="Conditions"
+        options={CONDITIONS}
+        selected={profile.conditions.flatMap((x) => (x.key ? [x.key] : []))}
+        onToggle={(key) =>
+          update((p) => ({
+            ...p,
+            conditions: p.conditions.some((x) => x.key === key) ? p.conditions.filter((x) => x.key !== key) : [...p.conditions, { name: CONDITIONS.find((o) => o.key === key)?.label ?? key, key }],
+          }))
+        }
+      />
 
-      <Section index={3} title="Diet" icon="leaf">
-        <View style={styles.chips}>
-          {DIETS.map((o) => (
-            <Chip key={o.key} label={o.label} selected={profile.diets.includes(o.key)} onPress={() => update((p) => ({ ...p, diets: toggle(p.diets, o.key) }))} />
-          ))}
-        </View>
-      </Section>
+      <PickSection index={3} title="Diet" options={DIETS} selected={profile.diets} onToggle={(key) => update((p) => ({ ...p, diets: toggle(p.diets, key) }))} />
 
-      <View style={[styles.sectionTitle, { marginTop: space.sm }]}>
-        <Icon name="shield" size={15} color={c.textSecondary} />
-        <SectionLabel>Your rules</SectionLabel>
+      <View style={styles.sectionTitle}>
+        <T variant="heading">Rules</T>
       </View>
-      {rules.length === 0 ? (
-        <Card muted>
-          <T tone="secondary">No rules yet. Pick an allergy, medicine, condition or diet above and your rules appear here.</T>
-        </Card>
-      ) : (
+      {rules.length === 0 ? null : (
         <Card style={{ padding: 0, overflow: 'hidden' }}>
           {rules.map((r, i) => (
             <Animated.View
@@ -135,17 +107,54 @@ export default function MeScreen() {
   );
 }
 
-function Section({ index, title, icon, children }: { index: number; title: string; icon: IconName; children: React.ReactNode }) {
-  const { c } = useTheme();
+function Section({ index, title, action, children }: { index: number; title: string; action?: React.ReactNode; children: React.ReactNode }) {
   const reduced = useReducedMotion();
   return (
-    <Animated.View entering={enterAt(index, reduced)} style={{ marginBottom: space.xxl }}>
+    <Animated.View entering={enterAt(index, reduced)} style={{ marginBottom: space.xxxl }}>
       <View style={styles.sectionTitle}>
-        <Icon name={icon} size={15} color={c.textSecondary} />
-        <SectionLabel>{title}</SectionLabel>
+        <T variant="heading">{title}</T>
+        {action}
       </View>
       {children}
     </Animated.View>
+  );
+}
+
+/** Shows only what is chosen. The control beside the title opens the rest of the list to add from. */
+function PickSection({ index, title, options, selected, onToggle }: { index: number; title: string; options: { key: string; label: string }[]; selected: string[]; onToggle: (key: string) => void }) {
+  const { c } = useTheme();
+  const [open, setOpen] = useState(false);
+  const chosen = options.filter((o) => selected.includes(o.key));
+  const rest = options.filter((o) => !selected.includes(o.key));
+  return (
+    <Section
+      index={index}
+      title={title}
+      action={
+        <Tap accessibilityRole="button" accessibilityLabel={open ? `Hide other ${title.toLowerCase()}` : `Show all ${title.toLowerCase()}`} accessibilityState={{ expanded: open }} feedback="select" onPress={() => setOpen((o) => !o)} hitSlop={10}>
+          <GlassSurface tone="theme" interactive style={styles.reveal}>
+            <T variant="caption">{open ? 'Done' : 'Add'}</T>
+            <View style={{ transform: [{ rotate: open ? '-90deg' : '90deg' }] }}>
+              <Icon name="chevron" size={11} color={c.textSecondary} />
+            </View>
+          </GlassSurface>
+        </Tap>
+      }>
+      {chosen.length > 0 ? (
+        <View style={styles.chips}>
+          {chosen.map((o) => (
+            <Chip key={o.key} label={o.label} selected onPress={() => onToggle(o.key)} />
+          ))}
+        </View>
+      ) : null}
+      {open && rest.length > 0 ? (
+        <Animated.View entering={FadeIn.duration(duration.fast)} style={[styles.chips, chosen.length > 0 ? { marginTop: space.md } : null]}>
+          {rest.map((o) => (
+            <Chip key={o.key} label={o.label} selected={false} onPress={() => onToggle(o.key)} />
+          ))}
+        </Animated.View>
+      ) : null}
+    </Section>
   );
 }
 
@@ -467,9 +476,10 @@ function RuleRow({ rule, onToggle, onRemove }: { rule: Rule; onToggle: (on: bool
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xs },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xxl },
   saved: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.chip },
-  sectionTitle: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.md },
+  sectionTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32, marginBottom: space.md },
+  reveal: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: space.md },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   divider: { height: StyleSheet.hairlineWidth, marginLeft: space.lg },
   rule: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md + 2 },

@@ -23,6 +23,7 @@ export const palette = {
     notFitSoft: 'rgba(229,72,77,0.12)',
     cantTellSoft: 'rgba(142,142,147,0.14)',
     scrim: 'rgba(0,0,0,0.35)',
+    glass: 'rgba(255,255,255,0.72)',
   },
   dark: {
     bg: '#0B0B0C',
@@ -44,6 +45,7 @@ export const palette = {
     notFitSoft: 'rgba(255,99,105,0.16)',
     cantTellSoft: 'rgba(161,161,166,0.18)',
     scrim: 'rgba(0,0,0,0.5)',
+    glass: 'rgba(44,44,46,0.6)',
   },
 } as const;
 
@@ -68,6 +70,10 @@ export const radius = { chip: 999, sm: 10, button: 16, md: 18, card: 24, sheet: 
 const tabular: TextStyle = { fontVariant: ['tabular-nums'] };
 
 export const type = {
+  /** Headlines and headings. Geist is loaded in the root layout, one family per weight; no fontWeight with it. */
+  hero: { fontFamily: 'Geist-Regular', fontSize: 34, lineHeight: 42, letterSpacing: -0.8 },
+  heroBold: { fontFamily: 'Geist-SemiBold', fontSize: 34, lineHeight: 42, letterSpacing: -0.8 },
+  heading: { fontFamily: 'Geist-SemiBold', fontSize: 20, lineHeight: 26, letterSpacing: -0.3 },
   display: { fontSize: 34, lineHeight: 40, fontWeight: '700', letterSpacing: -0.6, ...tabular },
   title: { fontSize: 22, lineHeight: 28, fontWeight: '600', letterSpacing: -0.3 },
   headline: { fontSize: 17, lineHeight: 22, fontWeight: '600', letterSpacing: -0.2 },

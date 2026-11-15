@@ -33,6 +33,7 @@ import { Tap } from '@/components/Tap';
 import { Button, Card, SectionLabel, Skeleton, VerdictDot } from '@/components/ui';
 import { haptic } from '@/lib/haptics';
 import { containRect, unionBox, zoomRect } from '@/lib/layout';
+import { goBack } from '@/lib/nav';
 import { SAMPLE_ID, useScan, useSetRestaurant, type Answer, type ScanView } from '@/lib/scan';
 import { fitColor, SECTION_FIT, SECTION_LABEL } from '@/lib/verdict';
 import { duration, ease, enterAt, onPhoto, radius, space, spring, useTheme } from '@/theme';
@@ -215,7 +216,7 @@ export default function ResultScreen() {
 
       {/* Top bar */}
       <View style={[styles.top, { paddingTop: insets.top + space.sm }]} pointerEvents="box-none">
-        <GlassButton icon="close" label="Close" onPress={() => router.back()} />
+        <GlassButton icon="close" label="Close" onPress={goBack} />
         <StatusPill view={view} />
         <View style={{ width: 44 }} />
       </View>
@@ -235,7 +236,7 @@ export default function ResultScreen() {
             <FailedCard message={view?.error} />
           ) : (
             <>
-              {view?.generic ? <Banner icon="person" text="This is a general answer. Add your allergies and medicines in Me for one that fits you." onPress={() => router.dismissTo('/me')} /> : null}
+              {view?.generic ? <Banner icon="person" text="This is a general answer. Add your allergies and medicines in Manage for one that fits you." onPress={() => router.dismissTo('/me')} /> : null}
               {view?.notice ? <Banner icon="note" text={view.notice} /> : null}
 
               {/* Offered only once the scan has finished: until then the pipeline is still writing the record. */}
@@ -297,7 +298,7 @@ export default function ResultScreen() {
               {view?.status === 'done' ? (
                 <Animated.View entering={FadeIn.delay(200)} style={styles.footer}>
                   <Button label="Scan again" variant="secondary" icon="camera" onPress={() => router.replace('/scan')} style={{ flex: 1 }} />
-                  <Button label="Done" onPress={() => router.back()} style={{ flex: 1 }} />
+                  <Button label="Done" onPress={goBack} style={{ flex: 1 }} />
                 </Animated.View>
               ) : null}
             </>
@@ -613,7 +614,7 @@ function Missing() {
       <T variant="headline" color={onPhoto.text}>
         This scan is no longer here
       </T>
-      <Tap accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={{ padding: space.lg }}>
+      <Tap accessibilityRole="button" accessibilityLabel="Go back" onPress={goBack} style={{ padding: space.lg }}>
         <T variant="bodyStrong" color={onPhoto.textSecondary}>
           Go back
         </T>

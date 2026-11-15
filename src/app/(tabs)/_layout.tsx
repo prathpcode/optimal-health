@@ -11,8 +11,8 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="me" disableAutomaticContentInsets>
-        <NativeTabs.Trigger.Label>Me</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }} md="person" />
+        <NativeTabs.Trigger.Label>Manage</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="slider.horizontal.3" md="tune" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

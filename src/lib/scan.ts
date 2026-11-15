@@ -84,7 +84,7 @@ function subscribePhotos(l: () => void) {
 
 function usePhotos(): Record<string, LocalPhoto> {
   loadPhotos();
-  return useSyncExternalStore(subscribePhotos, () => photos);
+  return useSyncExternalStore(subscribePhotos, () => photos, () => photos);
 }
 
 // ---- The bundled sample: the fixture menu laid over the bundled menu photo, replayed through the same stages as a
@@ -174,7 +174,7 @@ function subscribeSample(l: () => void) {
 }
 
 function useSampleScan(active: boolean) {
-  const view = useSyncExternalStore(subscribeSample, () => sample.view);
+  const view = useSyncExternalStore(subscribeSample, () => sample.view, () => sample.view);
   return { view: active ? view : undefined, answer: answerSample };
 }
 
@@ -316,7 +316,7 @@ function subscribeConfirmed(l: () => void) {
 /** Whether this person has already confirmed this restaurant's name on this device. */
 export function useRestaurantConfirmed(restaurantId: string | undefined): boolean {
   loadConfirmed();
-  const all = useSyncExternalStore(subscribeConfirmed, () => confirmed);
+  const all = useSyncExternalStore(subscribeConfirmed, () => confirmed, () => confirmed);
   return !!restaurantId && all.includes(restaurantId);
 }
 

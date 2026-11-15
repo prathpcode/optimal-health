@@ -7,13 +7,12 @@ import Animated, {
   useSharedValue,
   withRepeat,
   withSequence,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 
 import type { Fit } from '@engine/types';
 import { fitColor, FIT_LABEL } from '@/lib/verdict';
-import { duration, ease, radius, shadow, space, spring, useTheme } from '@/theme';
+import { duration, ease, radius, shadow, space, useTheme } from '@/theme';
 import { Icon, type IconName } from './Icon';
 import { T } from './T';
 import { Tap } from './Tap';
@@ -139,24 +138,20 @@ export function SectionLabel({ children, style }: { children: string; style?: St
   );
 }
 
-/** Selectable chip with an animated fill and check. */
+/** Selectable chip: the fill fades between off and on. Its size never changes, so neighbours never move. */
 export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   const { c } = useTheme();
   const on = useSharedValue(selected ? 1 : 0);
   useEffect(() => {
-    on.value = withSpring(selected ? 1 : 0, spring.snappy);
+    on.value = withTiming(selected ? 1 : 0, { duration: duration.fast });
   }, [selected, on]);
   const box = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(on.value, [0, 1], [c.card, c.primary]),
     borderColor: interpolateColor(on.value, [0, 1], [c.hairline, c.primary]),
   }));
-  const check = useAnimatedStyle(() => ({ width: on.value * 18, opacity: on.value, transform: [{ scale: 0.6 + on.value * 0.4 }] }));
   return (
     <Tap accessibilityRole="checkbox" accessibilityState={{ checked: selected }} accessibilityLabel={label} feedback="select" onPress={onPress}>
       <Animated.View style={[styles.chip, box]}>
-        <Animated.View style={[styles.chipCheck, check]}>
-          <Icon name="check" size={13} color={c.onPrimary} weight="bold" />
-        </Animated.View>
         <T variant="bodyStrong" color={selected ? c.onPrimary : c.text}>
           {label}
         </T>
@@ -205,5 +200,4 @@ const styles = StyleSheet.create({
     borderRadius: radius.chip,
     borderWidth: 1.5,
   },
-  chipCheck: { overflow: 'hidden', alignItems: 'flex-start', justifyContent: 'center', height: 18 },
 });
