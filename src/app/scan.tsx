@@ -17,6 +17,7 @@ import { Tap } from '@/components/Tap';
 import { useDeviceId } from '@/lib/backend';
 import { haptic } from '@/lib/haptics';
 import { containRect, type Rect } from '@/lib/layout';
+import { lastLocation, locate } from '@/lib/location';
 import { restartSample, SAMPLE_ID } from '@/lib/scan';
 import { prepareImage, sampleMenuFile, useStartBarcode, useStartScan, type Prepared } from '@/lib/upload';
 import { duration, onPhoto, radius, space, spring } from '@/theme';
@@ -47,6 +48,12 @@ export default function ScanScreen() {
     return () => clearTimeout(t);
   }, []);
 
+  // If location is already allowed, have it ready by the time the photo is taken. Nothing is asked here: the
+  // result screen asks, at the moment it is useful (remembering what this restaurant says).
+  useEffect(() => {
+    locate();
+  }, []);
+
   // The frame the brackets sit on: the target area while live, the photo's own bounds once captured.
   const liveFrame: Rect = useMemo(() => {
     const top = insets.top + 84;
@@ -73,7 +80,7 @@ export default function ScanScreen() {
     if (!deviceId) return fail();
     setPhase('uploading');
     try {
-      const id = await startScan(image, deviceId);
+      const id = await startScan(image, deviceId, lastLocation());
       // Hand the local photo over so the result screen draws it before the record arrives.
       router.replace({ pathname: '/result/[id]', params: { id, uri: image.uri, w: String(image.width), h: String(image.height) } });
     } catch {

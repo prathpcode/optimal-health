@@ -47,6 +47,12 @@
         {
           "photosPermission": "Fit reads a menu photo you choose from your library."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Fit uses your location to recognise the restaurant you are in, so answers from its staff are remembered for next time."
+        }
       ]
     ],
     "experiments": {
