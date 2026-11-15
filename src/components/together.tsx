@@ -55,7 +55,7 @@ export function ShareToRoom({ scanId, room }: { scanId: string; room: string }) 
     <GlassAction
       label={r ? `Share with ${r.title}` : 'Share'}
       icon="send"
-      onPress={() => router.push({ pathname: '/share/[scanId]', params: { scanId, room } })}
+      onPress={() => router.push({ pathname: '/share/[scanId]', params: { scanId, room, fixed: '1' } })}
     />
   );
 }

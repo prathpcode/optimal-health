@@ -5,13 +5,12 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { RoomIcon } from '@/components/community';
+import { RoomSelect } from '@/components/RoomSelect';
 import { GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { useMyRooms, useRoom } from '@/lib/community';
-import { Chip } from '@/components/ui';
+import { useMyRooms } from '@/lib/community';
 import { useRecentScans, type RecentScan } from '@/lib/scan';
 import { enterAt, radius, space, useTheme } from '@/theme';
 
@@ -20,11 +19,11 @@ import { enterAt, radius, space, useTheme } from '@/theme';
  * The post carries the dish, the place and the scan's photo, so people see what you actually ate.
  */
 export default function ShareAMeal() {
-  const { slug: initial } = useLocalSearchParams<{ slug: string }>();
+  // From inside a room (`fixed`), the post goes to that room; from Together you choose.
+  const { slug: initial, fixed } = useLocalSearchParams<{ slug: string; fixed?: string }>();
   const rooms = useMyRooms();
   // You can only post to rooms you're in: start from the one asked for if you're in it, else your first room.
   const [slug, setSlug] = useState(rooms.some((r) => r.slug === initial) ? initial : rooms[0]?.slug);
-  const { room } = useRoom(slug ?? '');
   const recent = (useRecentScans() ?? []).filter((s) => s.status === 'done' && s.itemCount > 0);
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
@@ -34,7 +33,7 @@ export default function ShareAMeal() {
     router.back();
     router.push({ pathname: '/scan', params: { share: slug } });
   };
-  const pick = (scan: RecentScan) => router.replace({ pathname: '/share/[scanId]', params: { scanId: scan.id, room: slug } });
+  const pick = (scan: RecentScan) => router.replace({ pathname: '/share/[scanId]', params: { scanId: scan.id, room: slug, ...(fixed ? { fixed } : {}) } });
 
   if (!slug) {
     return (
@@ -49,25 +48,10 @@ export default function ShareAMeal() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.xxl, paddingBottom: insets.bottom + space.xxxl, gap: space.xl }} showsVerticalScrollIndicator={false}>
-      <View style={styles.head}>
-        {room ? <RoomIcon icon={room.icon} slug={room.slug} size={36} /> : null}
-        <View style={{ flex: 1 }}>
-          <T variant="heading">Share a meal</T>
-          {room ? (
-            <T variant="caption" tone="secondary" numberOfLines={1}>
-              with {room.title}
-            </T>
-          ) : null}
-        </View>
+      <View style={{ gap: space.md, zIndex: 10 }}>
+        <T variant="heading">Share a meal</T>
+        <RoomSelect rooms={rooms} value={slug} onChange={setSlug} locked={Boolean(fixed)} />
       </View>
-
-      {rooms.length > 1 ? (
-        <View style={styles.chips}>
-          {rooms.map((r) => (
-            <Chip key={r.slug} label={r.title} selected={slug === r.slug} onPress={() => setSlug(r.slug)} />
-          ))}
-        </View>
-      ) : null}
 
       <Tap accessibilityRole="button" accessibilityLabel="Scan something new" feedback="tap" onPress={newScan} scaleTo={0.98}>
         <GlassSurface tone="theme" interactive style={styles.row}>
@@ -132,8 +116,6 @@ function when(ms: number): string {
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.card },
   newIcon: { width: 52, height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   thumb: { width: 52, height: 52, borderRadius: radius.md, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },

@@ -152,7 +152,7 @@ function ShareMealButton({ room }: { room: RoomView }) {
   return (
     <View style={[styles.cta, { bottom: insets.bottom + space.md }]}>
       {room.joined ? (
-        <GlassAction label="Share a meal" icon="fork" onPress={() => router.push({ pathname: '/compose/[slug]', params: { slug: room.slug } })} />
+        <GlassAction label="Share a meal" icon="fork" onPress={() => router.push({ pathname: '/compose/[slug]', params: { slug: room.slug, fixed: '1' } })} />
       ) : (
         <GlassAction label="Join this room" icon="plus" onPress={() => void attempt(joinRoom(room.slug))} />
       )}

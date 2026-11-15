@@ -8,6 +8,7 @@ import { GlassButton } from '@/components/Glass';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { GlassAction, postWithWhop, REACTION_LABEL } from '@/components/together';
+import { RoomSelect } from '@/components/RoomSelect';
 import { Chip } from '@/components/ui';
 import { shareDish, useMyRooms, type Reaction } from '@/lib/community';
 import { dishEmoji, REACTION_EMOJI } from '@/lib/emoji';
@@ -21,7 +22,8 @@ const REACTIONS: Reaction[] = ['loved', 'okay', 'nope'];
  * you ate. Never a verdict or a rule.
  */
 export default function ShareSheet() {
-  const { scanId, room: initialRoom } = useLocalSearchParams<{ scanId: string; room?: string }>();
+  // `fixed`: started from a specific room, so the room isn't offered as a choice.
+  const { scanId, room: initialRoom, fixed } = useLocalSearchParams<{ scanId: string; room?: string; fixed?: string }>();
   const { view } = useScan(scanId);
   const rooms = useMyRooms();
   const { c, dark } = useTheme();
@@ -56,6 +58,8 @@ export default function ShareSheet() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.xxl, paddingBottom: insets.bottom + space.xxxl, gap: space.xl }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <RoomSelect rooms={rooms} value={room} onChange={setRoom} locked={Boolean(fixed)} />
+
       <View style={{ gap: space.xs }}>
         <T variant="heroBold">How was it?</T>
         {view?.restaurant ? (
@@ -120,14 +124,6 @@ export default function ShareSheet() {
         multiline
         accessibilityLabel="Note"
       />
-
-      {rooms.length > 1 ? (
-        <View style={styles.chips}>
-          {rooms.map((r) => (
-            <Chip key={r.slug} label={r.title} selected={room === r.slug} onPress={() => setRoom(r.slug)} />
-          ))}
-        </View>
-      ) : null}
 
       <GlassAction label="Share" icon="send" onPress={post} loading={busy} disabled={!reaction || !picked || !room} />
     </ScrollView>
