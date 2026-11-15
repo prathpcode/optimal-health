@@ -26,13 +26,14 @@ import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
 import { MenuOverlay, ScanSweep } from '@/components/MenuOverlay';
 import { ProductResult } from '@/components/ProductResult';
+import { RestaurantCard } from '@/components/RestaurantCard';
 import { Sheet, type SheetHandle } from '@/components/Sheet';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { Button, Card, SectionLabel, Skeleton, VerdictDot } from '@/components/ui';
 import { haptic } from '@/lib/haptics';
 import { containRect } from '@/lib/layout';
-import { useScan, type Answer, type ScanView } from '@/lib/scan';
+import { SAMPLE_ID, useScan, useSetRestaurant, type Answer, type ScanView } from '@/lib/scan';
 import { fitColor, SECTION_FIT, SECTION_LABEL } from '@/lib/verdict';
 import { duration, ease, enterAt, onPhoto, radius, space, spring, useTheme } from '@/theme';
 
@@ -58,6 +59,7 @@ export default function ResultScreen() {
   const params = useLocalSearchParams<{ id: string; uri?: string; w?: string; h?: string }>();
   const id = params.id;
   const { view, answer } = useScan(id);
+  const setRestaurant = useSetRestaurant();
   const { c } = useTheme();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -209,6 +211,11 @@ export default function ResultScreen() {
             <>
               {view?.generic ? <Banner icon="person" text="This is a general answer. Add your allergies and medicines in Me for one that fits you." onPress={() => router.dismissTo('/me')} /> : null}
               {view?.notice ? <Banner icon="note" text={view.notice} /> : null}
+
+              {/* Offered only once the scan has finished: until then the pipeline is still writing the record. */}
+              {view && setRestaurant && id !== SAMPLE_ID && view.kind === 'menu' && view.status === 'done' ? (
+                <RestaurantCard scanId={id} name={view.restaurant} restaurantId={view.restaurantId} setRestaurant={setRestaurant} />
+              ) : null}
 
               {view && isProduct ? (
                 <ProductResult view={view} onAnswer={answer} />

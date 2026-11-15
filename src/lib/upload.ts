@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 import { api } from '@convex/_generated/api';
 import type { Id } from '@convex/_generated/dataModel';
 import { HAS_BACKEND } from './backend';
+import type { Where } from './location';
 import { rememberPhoto, SAMPLE_PHOTO } from './scan';
 
 /**
@@ -36,7 +37,8 @@ export async function sampleMenuFile(): Promise<Prepared> {
   return { uri, width: asset.width ?? 1200, height: asset.height ?? 1600 };
 }
 
-type StartScan = (image: Prepared, deviceId: string) => Promise<string>;
+/** `location`, when the phone already has one, lets the backend recognise the restaurant (PLAN 6.5). */
+type StartScan = (image: Prepared, deviceId: string, location?: Where | null) => Promise<string>;
 
 /** Upload a prepared photo to Convex storage and start the pipeline. Resolves to the new scan id. */
 function useStartScanLive(): StartScan {
@@ -44,15 +46,15 @@ function useStartScanLive(): StartScan {
   const start = useMutation(api.scans.start);
 
   return useCallback(
-    async (image, deviceId) => {
+    async (image, deviceId, location) => {
       const uploadUrl = await generateUploadUrl();
       const file = await fetch(image.uri);
       const blob = await file.blob();
       const res = await fetch(uploadUrl, { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
       if (!res.ok) throw new Error(`Upload failed (${res.status})`);
       const { storageId } = (await res.json()) as { storageId: Id<'_storage'> };
-      // PLAN 7.1: scans.start({ deviceId, imageId }). The photo stays on the device for the overlay.
-      const scanId = await start({ deviceId, imageId: storageId });
+      // PLAN 7.1: scans.start({ deviceId, imageId, location? }). The photo stays on the device for the overlay.
+      const scanId = await start({ deviceId, imageId: storageId, ...(location ? { location } : {}) });
       rememberPhoto(scanId, image);
       return scanId;
     },

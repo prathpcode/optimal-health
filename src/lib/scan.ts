@@ -9,6 +9,7 @@ import type { Box, HardCheck, Item, RankedItem, Rule, ScanQuestion, ScanStatus, 
 import profileJson from '../../fixtures/profile.json';
 import scanJson from '../../fixtures/scan.done.json';
 import { HAS_BACKEND, useDeviceId } from './backend';
+import type { Where } from './location';
 
 // The app talks to the backend only through the public Convex functions. This file adapts them to what the
 // screens draw.
@@ -32,6 +33,8 @@ export type ScanView = {
   rules: Rule[];
   summary?: string;
   restaurant?: string;
+  /** Set once the backend knows which restaurant this is (a name plus a location); answers are remembered against it. */
+  restaurantId?: string;
   /** Fast first-pass verdicts, still being checked (PLAN 7.1). Shown as "checking", no questions yet. */
   provisional: boolean;
   notice?: string;
@@ -213,6 +216,7 @@ function useLiveScan(id: string | null) {
       rules,
       summary: record.summary,
       restaurant: record.restaurantName,
+      restaurantId: record.restaurantId,
       provisional: record.provisional === true,
       notice: record.notice,
       generic: record.generic,
@@ -255,6 +259,62 @@ export function useScan(id: string) {
   }, [view, pending]);
 
   return { view: merged, answer };
+}
+
+// ---- Which restaurant a scan is from (scans.setRestaurant)
+
+/**
+ * Confirm or correct the restaurant's name. Resolves to the restaurant's id, or null when there is no location to
+ * tell it from another place of the same name (answers then apply to that scan only).
+ */
+export type SetRestaurant = (scanId: string, name: string, location: Where | null) => Promise<string | null>;
+
+function useSetRestaurantLive(): SetRestaurant {
+  const send = useMutation(api.scans.setRestaurant);
+  return useCallback((scanId, name, location) => send({ scanId: scanId as Id<'scans'>, name, ...(location ? { location } : {}) }), [send]);
+}
+
+/** Null without a backend (the bundled sample has no restaurant to remember). */
+export const useSetRestaurant: () => SetRestaurant | null = HAS_BACKEND ? useSetRestaurantLive : () => null;
+
+// The person confirms a restaurant's name once (PLAN 6.5). Which ones they have confirmed is kept on the device.
+const CONFIRMED_KEY = 'fit.restaurantsConfirmed';
+let confirmed: string[] = [];
+let confirmedLoaded = false;
+const confirmedListeners = new Set<() => void>();
+
+function loadConfirmed() {
+  if (confirmedLoaded) return;
+  confirmedLoaded = true;
+  SecureStore.getItemAsync(CONFIRMED_KEY)
+    .then((raw) => {
+      if (!raw) return;
+      confirmed = [...new Set([...(JSON.parse(raw) as string[]), ...confirmed])];
+      confirmedListeners.forEach((l) => l());
+    })
+    .catch(() => {});
+}
+
+export function confirmRestaurant(restaurantId: string) {
+  if (confirmed.includes(restaurantId)) return;
+  // Keep the newest 60 so the stored value stays small.
+  confirmed = [...confirmed, restaurantId].slice(-60);
+  confirmedListeners.forEach((l) => l());
+  SecureStore.setItemAsync(CONFIRMED_KEY, JSON.stringify(confirmed)).catch(() => {});
+}
+
+function subscribeConfirmed(l: () => void) {
+  confirmedListeners.add(l);
+  return () => {
+    confirmedListeners.delete(l);
+  };
+}
+
+/** Whether this person has already confirmed this restaurant's name on this device. */
+export function useRestaurantConfirmed(restaurantId: string | undefined): boolean {
+  loadConfirmed();
+  const all = useSyncExternalStore(subscribeConfirmed, () => confirmed);
+  return !!restaurantId && all.includes(restaurantId);
 }
 
 // ---- Recent scans (scans.list)
