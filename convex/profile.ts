@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { compileRules } from "../engine/compileRules";
 import { profile as profileValidator } from "./validators";
+import { syncRoomsForDevice } from "./together";
 import type { MedicationStatus, Profile } from "../engine/types";
 
 const EMPTY: Profile = { medications: [], conditions: [], allergies: [], diets: [] };
@@ -30,6 +31,8 @@ export const save = mutation({
     if (existing) await ctx.db.patch("profiles", existing._id, { profile });
     else await ctx.db.insert("profiles", { deviceId, profile });
     await recompileRules(ctx, deviceId, profile);
+    // Rooms follow conditions: placed in a new condition's room, out of a removed one's (if the person opted in).
+    await syncRoomsForDevice(ctx, deviceId);
     return null;
   },
 });

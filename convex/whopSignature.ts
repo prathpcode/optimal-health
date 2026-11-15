@@ -6,7 +6,7 @@
 
 const TOLERANCE_S = 5 * 60;
 
-function base64ToBytes(b64: string): Uint8Array {
+function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
@@ -20,7 +20,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 /** The signing key. Whop secrets start `ws_`; Standard Webhooks secrets `whsec_` carry base64 key bytes. */
-function secretKey(secret: string): Uint8Array {
+function secretKey(secret: string): Uint8Array<ArrayBuffer> {
   if (secret.startsWith("whsec_")) return base64ToBytes(secret.slice(6));
   return new TextEncoder().encode(secret);
 }

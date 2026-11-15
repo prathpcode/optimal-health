@@ -15,11 +15,14 @@ import type * as followups from "../followups.js";
 import type * as judge from "../judge.js";
 import type * as lookup from "../lookup.js";
 import type * as medications from "../medications.js";
+import type * as members from "../members.js";
 import type * as pipeline from "../pipeline.js";
 import type * as profile from "../profile.js";
 import type * as rules from "../rules.js";
 import type * as scans from "../scans.js";
+import type * as together from "../together.js";
 import type * as validators from "../validators.js";
+import type * as whopSignature from "../whopSignature.js";
 
 import type {
   ApiFromModules,
@@ -35,11 +38,14 @@ declare const fullApi: ApiFromModules<{
   judge: typeof judge;
   lookup: typeof lookup;
   medications: typeof medications;
+  members: typeof members;
   pipeline: typeof pipeline;
   profile: typeof profile;
   rules: typeof rules;
   scans: typeof scans;
+  together: typeof together;
   validators: typeof validators;
+  whopSignature: typeof whopSignature;
 }>;
 
 /**

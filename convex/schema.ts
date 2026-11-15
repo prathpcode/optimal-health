@@ -60,6 +60,79 @@ export default defineSchema({
   // What the food database returned for a barcode (ProductFacts as JSON).
   productCache: defineTable({ barcode: v.string(), facts: v.string(), at: v.number() }).index("by_barcode", ["barcode"]),
 
+  // ── Together: communities and group challenges. Identity is a Whop account, verified with Whop on sign-in. ──
+
+  // A person signed in with Whop, linked to the device whose profile places them in rooms.
+  members: defineTable({
+    whopUserId: v.string(),
+    username: v.string(),
+    name: v.string(),
+    avatarUrl: v.optional(v.string()),
+    deviceId: v.string(),
+    // null/absent until they answer the placement question; true places them in their condition rooms.
+    autoPlace: v.optional(v.boolean()),
+    createdAt: v.number(),
+  })
+    .index("by_whopUserId", ["whopUserId"])
+    .index("by_deviceId", ["deviceId"]),
+
+  // A sign-in session. Only a SHA-256 of the token the phone holds is stored.
+  sessions: defineTable({ tokenHash: v.string(), memberId: v.id("members") }).index("by_tokenHash", ["tokenHash"]),
+
+  // Member count per room (rooms themselves are data/communities.json).
+  rooms: defineTable({ slug: v.string(), memberCount: v.number() }).index("by_slug", ["slug"]),
+
+  roomMembers: defineTable({
+    room: v.string(),
+    memberId: v.id("members"),
+    source: v.union(v.literal("auto"), v.literal("manual")),
+    joinedAt: v.number(),
+  })
+    .index("by_memberId", ["memberId"])
+    .index("by_room_and_memberId", ["room", "memberId"]),
+
+  // A room someone left; automatic placement never re-adds it.
+  roomOptOuts: defineTable({ memberId: v.id("members"), room: v.string() }).index("by_memberId_and_room", ["memberId", "room"]),
+
+  messages: defineTable({
+    room: v.string(),
+    memberId: v.id("members"),
+    name: v.string(),
+    avatarUrl: v.optional(v.string()),
+    text: v.string(),
+    at: v.number(),
+    // A dish shared from a scan: the dish, where, and how it went. Never a verdict or the person's rules.
+    dish: v.optional(
+      v.object({
+        name: v.string(),
+        place: v.optional(v.string()),
+        reaction: v.union(v.literal("loved"), v.literal("okay"), v.literal("nope")),
+      }),
+    ),
+  }).index("by_room_and_at", ["room", "at"]),
+
+  challenges: defineTable({
+    room: v.string(),
+    template: v.string(),
+    days: v.number(),
+    entryCents: v.number(),
+    startsAt: v.number(),
+    tzOffsetMinutes: v.number(),
+    createdBy: v.id("members"),
+    playerCount: v.number(),
+  }).index("by_room_and_startsAt", ["room", "startsAt"]),
+
+  entries: defineTable({ challengeId: v.id("challenges"), memberId: v.id("members"), joinedAt: v.number() })
+    .index("by_challengeId_and_memberId", ["challengeId", "memberId"])
+    .index("by_memberId", ["memberId"]),
+
+  checkins: defineTable({
+    challengeId: v.id("challenges"),
+    memberId: v.id("members"),
+    day: v.string(),
+    value: v.union(v.literal("yes"), v.literal("no")),
+  }).index("by_challengeId_and_memberId_and_day", ["challengeId", "memberId", "day"]),
+
   // The compiled and custom rules for a device.
   rules: defineTable({ deviceId: v.string(), custom: v.boolean(), ...ruleFields })
     .index("by_deviceId", ["deviceId"])
