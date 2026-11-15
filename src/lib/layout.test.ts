@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boxToRect, containRect, estimateChipWidth, placeChips, tiltedRect, unionBox, zoomRect, type ChipInput } from './layout';
+import { boxToRect, containRect, coverRect, packageRects, estimateChipWidth, placeChips, tiltedRect, unionBox, zoomRect, type ChipInput } from './layout';
 
 describe('containRect', () => {
   it('letterboxes a tall photo in a wide box', () => {
@@ -10,6 +10,38 @@ describe('containRect', () => {
   });
   it('is empty before layout', () => {
     expect(containRect({ width: 0, height: 0 }, { width: 10, height: 10 }).width).toBe(0);
+  });
+});
+
+describe('coverRect', () => {
+  it('fills a tall screen with a 3:4 still, cropping its sides evenly', () => {
+    const r = coverRect({ width: 390, height: 844 }, { width: 900, height: 1200 });
+    expect(r.height).toBeCloseTo(844);
+    expect(r.width).toBeCloseTo(633);
+    expect(r.x).toBeCloseTo(-121.5);
+    expect(r.y).toBeCloseTo(0);
+  });
+  it('is empty before layout', () => {
+    expect(coverRect({ width: 0, height: 0 }, { width: 10, height: 10 }).width).toBe(0);
+  });
+});
+
+describe('packageRects', () => {
+  it('grows a lone block toward its package: wider, a little taller above, much taller below', () => {
+    const [r] = packageRects([{ x: 100, y: 100, width: 100, height: 50 }]);
+    expect(r.x).toBeCloseTo(68);
+    expect(r.width).toBeCloseTo(164);
+    expect(r.y).toBeCloseTo(80);
+    expect(r.height).toBeCloseTo(117.5);
+  });
+  it('stops halfway to a neighbour, so packages side by side keep separate boxes', () => {
+    const [a, b] = packageRects([{ x: 100, y: 100, width: 100, height: 50 }, { x: 220, y: 105, width: 100, height: 50 }]);
+    expect(a.x + a.width).toBeCloseTo(210);
+    expect(b.x).toBeCloseTo(210);
+  });
+  it('stops halfway to the shelf below as well', () => {
+    const [a] = packageRects([{ x: 100, y: 100, width: 100, height: 50 }, { x: 110, y: 170, width: 100, height: 50 }]);
+    expect(a.y + a.height).toBeCloseTo(160);
   });
 });
 

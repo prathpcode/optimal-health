@@ -22,6 +22,8 @@ import type * as profile from "../profile.js";
 import type * as rules from "../rules.js";
 import type * as scans from "../scans.js";
 import type * as together from "../together.js";
+import type * as shelf from "../shelf.js";
+import type * as shelfData from "../shelfData.js";
 import type * as validators from "../validators.js";
 import type * as whopSignature from "../whopSignature.js";
 
@@ -46,6 +48,8 @@ declare const fullApi: ApiFromModules<{
   rules: typeof rules;
   scans: typeof scans;
   together: typeof together;
+  shelf: typeof shelf;
+  shelfData: typeof shelfData;
   validators: typeof validators;
   whopSignature: typeof whopSignature;
 }>;

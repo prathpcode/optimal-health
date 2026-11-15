@@ -45,6 +45,7 @@ export default function RootLayout() {
             {/* Plain stack screens with a fade, not modals: replacing scan with result then cross-fades inside one
                 navigation controller instead of dismissing one modal and presenting another (which flashes Home). */}
             <Stack.Screen name="scan" options={{ animation: 'fade', gestureEnabled: false, contentStyle: { backgroundColor: onPhoto.black } }} />
+            <Stack.Screen name="shelf" options={{ animation: 'fade', gestureEnabled: false, contentStyle: { backgroundColor: onPhoto.black } }} />
             <Stack.Screen
               name="result/[id]"
               options={{ animation: 'fade', animationDuration: 260, gestureEnabled: false, contentStyle: { backgroundColor: onPhoto.black } }}

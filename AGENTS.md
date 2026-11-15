@@ -8,6 +8,19 @@ or grocery item fits them. Expo (React Native) app + Convex backend + a pure Typ
 Teammates and their agents push to `main` all the time. Run `git fetch` and `git pull` before you start implementing
 any change, and again before each further change in a long session, so you never build on a stale checkout.
 
+## A new worktree
+
+`.env.local` is git-ignored, so a fresh worktree has no Convex address and the app silently falls back to the
+bundled sample (`HAS_BACKEND` false). Whenever you create a worktree, copy the env file over from the main checkout
+before you run or test anything:
+
+```sh
+cp <main checkout>/.env.local .env.local    # e.g. cp ~/code/optimal-health/.env.local .env.local
+```
+
+If the main checkout has no `.env.local`, say so and ask for the shared development address; never commit the file
+and never paste its contents into a message.
+
 ## Layout and ownership
 
 | Side | Folders |
@@ -53,6 +66,8 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
 
 ## Not built yet
 
+- Shelf view: tuning on real shelves (how boxes line up with the live picture, how fast it feels), and on-device
+  text recognition, which is what would make it smooth rather than once a second.
 - App: second menu page (`scans.addPage`), on-device text recognition (`lines`; boxes currently come from the
   backend, see below), product Compare,
   condition search and option chips from `lookup`, `rules.notes`, a daily amount on a custom Limit rule. Restaurant
@@ -77,6 +92,14 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
   (`engine/memory.ts`), and its box takes the verdict's colour as verdicts land. The service only locates text; it
   decides nothing. With no key, or if the call fails, the app falls back to chips in a row. A phone that sends
   `lines` itself (on-device recognition, needs a development build) skips the service.
+- Shelf view (`src/app/shelf.tsx`, `convex/shelf.ts`, `engine/shelf.ts`): the camera sends a still about once a second
+  to `shelf.look`, which returns a box per package. Packages are found by grouping the recognised text into one
+  block per package front, and named by matching those words against products already known by barcode
+  (`productCache`); the matcher refuses when two products fit equally or the brand differs. Each still stands alone,
+  so nothing is tracked between frames. A recognised product is shown as a good fit only after the careful
+  reading of its ingredients is in (the same verdict a barcode scan gives, with the same "confirm" note when a Never
+  rule is in play); until then it is "unflagged". Unknown packages get a faint outline and one database lookup in the background. Needs
+  `GOOGLE_VISION_API_KEY`. Built and checked against a shelf photo; not yet run on a phone in a store.
 - A custom rule replaces every rule on its tag. The app will not swap a switched-on profile rule for a weaker custom
   one (`engine/customRules.ts`).
 - Cache (`convex/cache.ts`): the answer to one exact tagging or second-pass request is reused for 30 days, a barcode's
@@ -122,7 +145,7 @@ Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
 
 ```bash
 npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
-npx expo start              # start the dev server
+npx expo start --tunnel     # start the dev server — ALWAYS pass --tunnel (see below)
 npx expo lint               # lint
 npx tsc --noEmit            # typecheck
 npx expo-doctor             # diagnose dependency and config issues
@@ -144,6 +167,9 @@ Docs: https://docs.expo.dev/eas/index.md
 
 ## Rules
 
+- Always start Expo with `--tunnel` (`npm start`, or `npx expo start --tunnel`). A worktree's dev server is often not
+  on the same network as the phone, and the LAN URL then never connects; the tunnel always does. The same goes for
+  the platform shortcuts: `npx expo start --tunnel --ios`, `--android`.
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
