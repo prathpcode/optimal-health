@@ -39,8 +39,8 @@ function colour(state: ShelfState): string {
 }
 
 /**
- * Point the camera along a shelf: a still goes to the backend about once a second (shelf.look) and each package it
- * can read gets a box. Red and grey mark the ones that break or may break a rule; a white box is a product it
+ * Point the camera along a shelf: stills go to the backend one after another (shelf.look) and each package it can
+ * read gets a box. Red and grey mark the ones that break or may break a rule; a white box is a product it
  * recognises with nothing against it so far; a faint dashed one is a package it does not know yet. Tapping a box
  * holds the picture and says what it is, with a way through to the full product result.
  */
@@ -239,7 +239,7 @@ export default function ShelfScreen() {
           <>
             <GlassSurface style={styles.hintPill}>
               <T variant="caption" color={onPhoto.textSecondary} style={{ textAlign: 'center' }}>
-                {seen ? 'Tap a box for the product. Move slowly: it looks about once a second.' : 'Stand an arm’s length from the shelf and hold steady.'}
+                {seen ? 'Tap a box for the product.' : 'Stand an arm’s length from the shelf and hold steady.'}
               </T>
             </GlassSurface>
             <GlassButton icon="camera" label="Scan one item instead" onPress={() => router.replace('/scan')} size={50} />
@@ -250,15 +250,11 @@ export default function ShelfScreen() {
   );
 }
 
-/** The few words under a flagged package: what it is flagged for ("Gluten"), without the rest of the sentence. */
-const shortReason = (reason?: string) => reason?.split(' (')[0].replace(/\.$/, '').trim() ?? '';
-
 function Mark({ box, rect, reduced, picked, dimmed, onPress }: { box: ShelfBox; rect: Rect | undefined; reduced: boolean; picked: boolean; dimmed: boolean; onPress: () => void }) {
   if (!rect) return null;
   const col = colour(box.state);
   const flagged = box.state === 'not_fit' || box.state === 'cant_tell';
   const unknown = box.state === 'unknown';
-  const label = flagged && rect.width >= 64 ? shortReason(box.reason) : '';
   return (
     <Animated.View entering={reduced ? undefined : FadeIn.duration(duration.fast)} style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height, opacity: dimmed ? 0.3 : 1 }}>
       <Tap accessibilityRole="button" accessibilityLabel={`${box.name ?? 'Unrecognised product'}, ${STATE_TEXT[box.state]}`} feedback="select" hitSlop={4} scaleTo={0.97} onPress={onPress} style={StyleSheet.absoluteFill}>
@@ -280,13 +276,6 @@ function Mark({ box, rect, reduced, picked, dimmed, onPress }: { box: ShelfBox; 
             <Icon name={box.state === 'not_fit' ? 'block' : 'question'} size={13} color={onPhoto.text} weight="bold" />
           </View>
         ) : null}
-        {label ? (
-          <View style={[styles.tag, { backgroundColor: col }]}>
-            <T variant="caption" color={onPhoto.text} numberOfLines={1} style={{ fontWeight: '700' }}>
-              {label}
-            </T>
-          </View>
-        ) : null}
       </Tap>
     </Animated.View>
   );
@@ -304,6 +293,6 @@ const styles = StyleSheet.create({
   dot: { width: 9, height: 9, borderRadius: 5 },
   halo: { flex: 1, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.55)' },
   badge: { position: 'absolute', top: -9, left: -9, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: onPhoto.text },
-  tag: { position: 'absolute', left: 6, right: 6, bottom: 6, borderRadius: 7, paddingHorizontal: 6, paddingVertical: 2, alignItems: 'center' },
+
   action: { flex: 1, height: 48, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center' },
 });
