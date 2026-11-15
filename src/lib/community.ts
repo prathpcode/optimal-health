@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from 'convex/react';
 import * as SecureStore from 'expo-secure-store';
+import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { api } from '@convex/_generated/api';
@@ -22,8 +23,8 @@ import { commentOn, postToRoom, type SharedDish } from './whopForum';
  */
 export const PREVIEW = !TOGETHER_LIVE;
 
-/** Paid entry needs Whop checkout and payouts, which are not switched on yet. */
-export const MONEY_LIVE = false;
+/** Where Whop's checkout hands back to the app (convex/http.ts, /whop/paid). */
+const PAID_RETURN = 'secondlook://paid';
 
 const DAY = 86_400_000;
 const tz = () => -new Date().getTimezoneOffset();
@@ -111,6 +112,17 @@ export type ChallengeView = {
   /** Challenge day number today, 1-based, clamped to the challenge. */
   dayNumber: number;
   joined: boolean;
+  /** What each player pays to enter, in cents. 0 is a free race. */
+  entryCents: number;
+  /** Money races: what has reached the pool (after Whop's fee), and what the winner takes from it. */
+  potCents: number;
+  prizeCents: number;
+  /** You started paying your entry and it has not been confirmed (or you never finished). */
+  pending: boolean;
+  /** Money owed to you from this race: a prize, or your entry coming back. */
+  payout?: { kind: 'prize' | 'refund'; cents: number; status: 'pending' | 'sent' | 'failed' };
+  /** Set once the pool has been settled. `refundAll`: there was no race, so everyone got their entry back. */
+  settlement?: { refundAll: boolean; potCents: number; feeCents: number; prizeCents: number };
   /** Everyone, best first. */
   standings: Standing[];
   me?: Standing;
@@ -118,9 +130,12 @@ export type ChallengeView = {
 
 type PlayerIn = MealScore & { id: string; name: string; avatarUrl?: string; me: boolean; joinedAt: number };
 
-function buildChallenge(c: { id: string; days: number; startsAt: number; tzOffsetMinutes: number }, players: PlayerIn[], now: number): ChallengeView {
+type Stakes = Pick<ChallengeView, 'entryCents' | 'potCents' | 'prizeCents' | 'pending' | 'payout' | 'settlement'>;
+const FREE: Stakes = { entryCents: 0, potCents: 0, prizeCents: 0, pending: false };
+
+function buildChallenge(c: { id: string; days: number; startsAt: number; tzOffsetMinutes: number }, players: PlayerIn[], now: number, stakes: Stakes = FREE): ChallengeView {
   const endsAt = c.startsAt + c.days * DAY;
-  const ranks = rankPlayers(players.map((p) => ({ id: p.id, points: p.points, good: p.good, joinedAt: p.joinedAt })));
+  const ranks = rankPlayers(players.map((p) => ({ id: p.id, points: p.points, meals: p.meals, joinedAt: p.joinedAt })));
   const standings = players.map((p) => ({ ...p, rank: ranks[p.id] })).sort((a, b) => a.rank - b.rank || Number(b.me) - Number(a.me));
   const me = standings.find((p) => p.me);
   return {
@@ -133,6 +148,7 @@ function buildChallenge(c: { id: string; days: number; startsAt: number; tzOffse
     status: now < c.startsAt ? 'upcoming' : now >= endsAt ? 'ended' : 'live',
     dayNumber: Math.max(0, Math.min(c.days, Math.floor((now - c.startsAt) / DAY) + 1)),
     joined: Boolean(me),
+    ...stakes,
     standings,
     me,
   };
@@ -197,6 +213,24 @@ function useHomeLive() {
 }
 
 type LivePlayer = MealScore & { memberId: string; name: string; avatarUrl: string | null; joinedAt: number };
+type LiveChallenge = {
+  id: string;
+  days: number;
+  startsAt: number;
+  tzOffsetMinutes: number;
+  entryCents: number;
+  potCents: number;
+  prizeCents: number;
+  pending: boolean;
+  payout: ChallengeView['payout'] | null;
+  settlement: ChallengeView['settlement'] | null;
+  players: LivePlayer[];
+};
+
+function liveChallenge(c: LiveChallenge, meId: string | undefined, now: number): ChallengeView {
+  const stakes: Stakes = { entryCents: c.entryCents, potCents: c.potCents, prizeCents: c.prizeCents, pending: c.pending, payout: c.payout ?? undefined, settlement: c.settlement ?? undefined };
+  return buildChallenge(c, livePlayers(c.players, meId), now, stakes);
+}
 
 function livePlayers(players: LivePlayer[], meId: string | undefined): PlayerIn[] {
   return players.map((p) => ({ ...p, id: p.memberId, avatarUrl: p.avatarUrl ?? undefined, me: p.memberId === meId }));
@@ -216,7 +250,7 @@ function useTogetherLive() {
     }
     const rooms = roomViews(profile, joined, counts, online);
     const meId = data?.me.id;
-    const challenges = (data?.challenges ?? []).map((c) => buildChallenge(c, livePlayers(c.players, meId), now)).sort((a, b) => a.startsAt - b.startsAt);
+    const challenges = (data?.challenges ?? []).map((c) => liveChallenge(c, meId, now)).sort((a, b) => a.startsAt - b.startsAt);
     return { ...rooms, challenges, loading: data === undefined };
   }, [profile, data, now]);
 }
@@ -230,7 +264,7 @@ function useChallengeLive(id: string) {
   const { data: home, session, now } = useHomeLive();
   const data = useQuery(api.together.challenge, session ? { session, id: id as Id<'challenges'> } : 'skip');
   const meId = home?.me.id;
-  return useMemo(() => (data ? buildChallenge(data, livePlayers(data.players, meId), now) : undefined), [data, meId, now]);
+  return useMemo(() => (data ? liveChallenge(data, meId, now) : undefined), [data, meId, now]);
 }
 
 // ── What screens use ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -241,6 +275,13 @@ export const useTogether: () => TogetherState = TOGETHER_LIVE ? useTogetherLive 
 /** A room's details. Its posts come from Whop: see useRoomFeed in ./whopForum. */
 export const useRoom: (slug: string) => { room: RoomView | undefined } = TOGETHER_LIVE ? useRoomLive : useRoomLocal;
 export const useChallenge: (id: string) => ChallengeView | undefined = TOGETHER_LIVE ? useChallengeLive : useChallengeLocal;
+
+function useMoneyLiveLive(): boolean {
+  return useHomeLive().data?.moneyLive ?? false;
+}
+
+/** Whether money races can be started: the backend has Whop checkout and payouts switched on. Never in preview. */
+export const useMoneyLive: () => boolean = TOGETHER_LIVE ? useMoneyLiveLive : () => false;
 
 /** The rooms you can share to (rooms you're in), best match first. */
 export function useMyRooms(): RoomView[] {
@@ -293,12 +334,26 @@ export async function shareDish(room: string, dish: SharedDish, note: string, ph
   await postToRoom(room, { dish, text: note, photoUri }, me());
 }
 
-/** Start a challenge. It begins at `startsAt` (the start of a day). Returns its id, for the invite link. */
-export async function createChallenge(days: number, startsAt: number): Promise<string> {
-  if (TOGETHER_LIVE) return await call((session) => convex!.mutation(api.together.createChallenge, { session, days, startsAt, tzOffsetMinutes: tz() }));
+/**
+ * Start a challenge. It begins at `startsAt` (the start of a day). `entryCents` above 0 makes it a money race:
+ * nobody is in, you included, until they have paid (payEntry). Returns its id, for the invite link.
+ */
+export async function createChallenge(days: number, startsAt: number, entryCents = 0): Promise<string> {
+  if (TOGETHER_LIVE) return await call((session) => convex!.mutation(api.together.createChallenge, { session, days, startsAt, tzOffsetMinutes: tz(), entryCents }));
+  if (entryCents > 0) throw new Error('Money races open when Together goes live.');
   const id = `c_${Date.now()}`;
   update((s) => ({ ...s, challenges: [...s.challenges, { id, days, startsAt, tzOffsetMinutes: tz(), joinedAt: Date.now() }] }));
   return id;
+}
+
+/**
+ * Pay your entry to a money race in Whop's checkout, in an in-app browser. Resolves when the browser closes, paid or
+ * not: the race screen shows you as in once Whop has confirmed the payment to the backend, which can take a moment.
+ */
+export async function payEntry(id: string): Promise<void> {
+  if (!TOGETHER_LIVE) throw new Error('Money races open when Together goes live.');
+  const { url } = await call((session) => convex!.action(api.pay.checkout, { session, id: id as Id<'challenges'> }));
+  await WebBrowser.openAuthSessionAsync(url, PAID_RETURN);
 }
 
 export function joinChallenge(id: string): Promise<unknown> {

@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay
 
 import type { Standing } from '@/lib/community';
 import { space, spring } from '@/theme';
+import { avg } from './challenge';
 import { Avatar } from './community';
 import { Icon } from './Icon';
 import { T } from './T';
@@ -52,7 +53,7 @@ function Slot({ player, place, height, colors, delay }: { player: Standing; plac
           {player.me ? 'You' : player.name.split(' ')[0]}
         </T>
         <T variant="caption" tone="secondary" style={styles.num}>
-          {player.points} {player.points === 1 ? 'pt' : 'pts'}
+          {avg(player)}
         </T>
       </Animated.View>
       <Animated.View style={[styles.step, step]}>
@@ -69,7 +70,7 @@ function Slot({ player, place, height, colors, delay }: { player: Standing; plac
 /** The top three of a challenge standing on a podium. Only places someone holds are drawn. */
 export function Podium({ standings }: { standings: Standing[] }) {
   const top = standings.slice(0, 3);
-  const label = top.map((p) => `${p.rank}: ${p.me ? 'you' : p.name}, ${p.points} points`).join('; ');
+  const label = top.map((p) => `${p.rank}: ${p.me ? 'you' : p.name}, average ${avg(p)}`).join('; ');
   return (
     <View style={styles.wrap} accessible accessibilityLabel={`Podium. ${label}`}>
       {SLOTS.map((s) => {

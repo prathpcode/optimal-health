@@ -104,14 +104,49 @@ export default defineSchema({
     startsAt: v.number(),
     tzOffsetMinutes: v.number(),
     createdBy: v.id("members"),
+    // Players who are in: everyone in a free race, only those whose payment arrived in a money race.
     playerCount: v.number(),
-    // Paid entry comes later with Whop checkout; 0 until then.
+    // What each player pays to enter, in cents; 0 is a free race. The winner takes the pool (convex/pay.ts).
     entryCents: v.number(),
+    // Money races only: when the pool was settled, and how. Written once; the standings it was settled on are
+    // whatever the scans showed at that moment.
+    settledAt: v.optional(v.number()),
+    settlement: v.optional(v.object({ refundAll: v.boolean(), potCents: v.number(), feeCents: v.number(), prizeCents: v.number() })),
   }),
 
-  entries: defineTable({ challengeId: v.id("challenges"), memberId: v.id("members"), joinedAt: v.number() })
+  // One player in one challenge. In a money race an entry is "pending" from checkout until Whop confirms the
+  // payment; only "paid" entries race. Free entries have no status.
+  entries: defineTable({
+    challengeId: v.id("challenges"),
+    memberId: v.id("members"),
+    joinedAt: v.number(),
+    status: v.optional(v.union(v.literal("pending"), v.literal("paid"))),
+    // The Whop payment for this entry, what the player paid and what reached us after Whop's fee, in cents.
+    paymentId: v.optional(v.string()),
+    grossCents: v.optional(v.number()),
+    netCents: v.optional(v.number()),
+  })
     .index("by_challengeId_and_memberId", ["challengeId", "memberId"])
     .index("by_memberId", ["memberId"]),
+
+  // Money owed to a player: a prize (a Whop transfer to their account) or a refund of their entry payment.
+  // `key` makes each one unique ("prize:<challenge>:<member>", "refund:<payment>"), so nothing is paid twice.
+  payouts: defineTable({
+    key: v.string(),
+    challengeId: v.id("challenges"),
+    memberId: v.id("members"),
+    kind: v.union(v.literal("prize"), v.literal("refund")),
+    cents: v.number(),
+    paymentId: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("sent"), v.literal("failed")),
+    attempts: v.number(),
+    // Whop's id for the transfer or refunded payment, and its last error if sending failed.
+    whopId: v.optional(v.string()),
+    error: v.optional(v.string()),
+    at: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_challengeId_and_memberId", ["challengeId", "memberId"]),
 
   // "I ordered this": the dish a person picked from one of their scans. Its fit is read from the scan when scoring,
   // never stored here, so it always matches what the scan shows.

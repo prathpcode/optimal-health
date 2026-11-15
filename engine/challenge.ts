@@ -3,8 +3,10 @@ import type { Fit } from "./types";
 /**
  * The points race: a challenge between friends.
  * After a scan, a player taps the dish they ordered. Each dish earns points by how well it fits that player's own
- * needs (the same verdict the app shows them): Good fit 3, Okay with notes 1, Not a fit 0. At most MEALS_PER_DAY
- * dishes count a day, so a day of snacks cannot swamp a week. Most points when the race ends wins.
+ * needs (the same verdict the app shows them): Good fit 3, Okay with notes 1, Not a fit 0. Every dish logged in the
+ * race counts, and a player's score is the average: their points over the number of dishes. So how well the dishes
+ * fit decides the race, not how many are logged. Best average when the race ends wins. A race can be free, or every
+ * player pays the same entry and the winner takes the pool (settlePot).
  * Pure: amounts are integer cents, every rounding rule is written here.
  */
 
@@ -15,12 +17,9 @@ export const DURATION_OPTIONS_DAYS = [3, 7, 14] as const;
 /** Points per dish. "Can't tell" dishes score nothing and do not use up one of the day's meals. */
 export const MEAL_POINTS: Record<Fit, number> = { good: 3, okay: 1, not_fit: 0, cant_tell: 0 };
 
-/** At most this many dishes count per day. */
-export const MEALS_PER_DAY = 3;
-
-/** The most points one player can score in a race. */
-export function maxPoints(days: number): number {
-  return days * MEALS_PER_DAY * MEAL_POINTS.good;
+/** The score that wins a race: points per dish that counted, from 0 to 3. No dishes yet is 0. */
+export function averageScore(points: number, meals: number): number {
+  return meals > 0 ? points / meals : 0;
 }
 
 const DAY_MS = 86_400_000;
@@ -48,14 +47,14 @@ export type Play = {
   dish: string;
   fit: Fit;
   points: number;
-  /** Why it scored nothing although it might have: a fourth dish that day, or a verdict we couldn't give. */
-  skipped?: "daily_limit" | "cant_tell";
+  /** Why it did not count: a verdict we couldn't give. */
+  skipped?: "cant_tell";
 };
 
 export type MealScore = {
-  /** Total points. */
+  /** Total points of the dishes that counted. The score shown and ranked on is averageScore(points, meals). */
   points: number;
-  /** Dishes that counted (inside the race, at most MEALS_PER_DAY a day, "can't tell" left out). */
+  /** Dishes that counted (inside the race, "can't tell" left out). */
   meals: number;
   good: number;
   okay: number;
@@ -69,7 +68,6 @@ export type MealScore = {
 export function scoreMeals(meals: Meal[], window: { startsAt: number; days: number; tzOffsetMinutes: number }): MealScore {
   const days = challengeDays(window.startsAt, window.days, window.tzOffsetMinutes);
   const perDay: Record<string, number> = Object.fromEntries(days.map((d) => [d, 0]));
-  const used: Record<string, number> = {};
   const plays: Play[] = [];
   for (const m of [...meals].sort((a, b) => a.at - b.at)) {
     const day = dayKey(m.at, window.tzOffsetMinutes);
@@ -77,10 +75,7 @@ export function scoreMeals(meals: Meal[], window: { startsAt: number; days: numb
     const base = { at: m.at, day, dish: m.dish ?? "A dish", fit: m.fit };
     if (m.fit === "cant_tell") {
       plays.push({ ...base, points: 0, skipped: "cant_tell" });
-    } else if ((used[day] ?? 0) >= MEALS_PER_DAY) {
-      plays.push({ ...base, points: 0, skipped: "daily_limit" });
     } else {
-      used[day] = (used[day] ?? 0) + 1;
       perDay[day] += MEAL_POINTS[m.fit];
       plays.push({ ...base, points: MEAL_POINTS[m.fit] });
     }
@@ -97,91 +92,90 @@ export function scoreMeals(meals: Meal[], window: { startsAt: number; days: numb
   };
 }
 
-export type RankInput = { id: string; points: number; good: number; joinedAt: number };
+export type RankInput = { id: string; points: number; meals: number; joinedAt: number };
 
 /**
- * Leaderboard order: most points, then more Good fits. Players level on both share a rank (1, 1, 3); within a shared
- * rank whoever joined first is listed first.
+ * Leaderboard order: best average (points per dish), then more dishes. Averages are compared by cross-multiplying,
+ * so no rounding decides a place; a player with no dishes has an average of 0. Players level on both share a rank
+ * (1, 1, 3); within a shared rank whoever joined first is listed first.
  */
 export function rankPlayers(players: RankInput[]): Record<string, number> {
-  const sorted = [...players].sort((a, b) => b.points - a.points || b.good - a.good || a.joinedAt - b.joinedAt);
+  // a's average minus b's, as a whole number with the same sign: pa/ma - pb/mb, times ma*mb.
+  const byAverage = (a: RankInput, b: RankInput) => a.points * Math.max(b.meals, 1) - b.points * Math.max(a.meals, 1);
+  const sorted = [...players].sort((a, b) => byAverage(b, a) || b.meals - a.meals || a.joinedAt - b.joinedAt);
   const ranks: Record<string, number> = {};
   sorted.forEach((p, i) => {
     const prev = sorted[i - 1];
-    const same = prev && prev.points === p.points && prev.good === p.good;
+    const same = prev && byAverage(prev, p) === 0 && prev.meals === p.meals;
     ranks[p.id] = same ? ranks[prev.id] : i + 1;
   });
   return ranks;
 }
 
-/** How the prize is split between places, in percent. */
-export function defaultShares(players: number): number[] {
-  if (players >= 10) return [60, 30, 10];
-  if (players >= 5) return [70, 30];
-  return [100];
+// ── Money races ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Entry prices the slider stops at when starting a race, in cents: fine steps at the low end, coarse at the top. */
+export const ENTRY_OPTIONS_CENTS = [100, 200, 300, 500, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10_000] as const;
+/** What the backend accepts for an entry: whole dollars, $1 to $100. */
+export const ENTRY_MIN_CENTS = 100;
+export const ENTRY_MAX_CENTS = 10_000;
+
+export function validEntryCents(cents: number): boolean {
+  return Number.isInteger(cents) && cents >= ENTRY_MIN_CENTS && cents <= ENTRY_MAX_CENTS && cents % 100 === 0;
 }
 
-export type SettleEntry = { id: string; netCents: number; score: number; joinedAt: number };
+/**
+ * A payment provider's amount in major units ("10.00", "9.4", 10) as integer cents, without going through a float
+ * for the fraction. Anything that is not a plain non-negative amount is null.
+ */
+export function centsFromAmount(amount: unknown): number | null {
+  const text = typeof amount === "number" ? String(amount) : typeof amount === "string" ? amount.trim() : "";
+  const m = /^(\d+)(?:\.(\d{1,2}))?$/.exec(text);
+  if (!m) return null;
+  return Number(m[1]) * 100 + Number((m[2] ?? "").padEnd(2, "0"));
+}
+
+export type PotEntry = { id: string; netCents: number; points: number; meals: number; joinedAt: number };
 
 export type Settlement = {
-  /** True when nobody reached the minimum: every player gets their own entry back instead of prizes. */
+  /** True when there is no winner to pay: every player gets their own entry back instead. */
   refundAll: boolean;
   potCents: number;
   feeCents: number;
   prizeCents: number;
-  /** Rank by score, 1 = best; players with the same score share a rank (1, 1, 3). */
+  /** Final places, as on the leaderboard (rankPlayers). */
   ranks: Record<string, number>;
+  /** Prize cents per player; 0 for everyone when `refundAll`. */
   payouts: Record<string, number>;
 };
 
-/** Split `total` cents by weights; leftover cents go to the earliest weights, so the parts always add up to `total`. */
-function splitCents(total: number, weights: number[]): number[] {
-  const sum = weights.reduce((a, b) => a + b, 0);
-  if (!sum) return weights.map(() => 0);
-  const parts = weights.map((w) => Math.floor((total * w) / sum));
-  let left = total - parts.reduce((a, b) => a + b, 0);
-  for (let i = 0; left > 0; i = (i + 1) % parts.length, left--) parts[i] += 1;
-  return parts;
+/** Split `total` cents into `n` equal parts; leftover cents go to the earliest parts, so they always add up. */
+function splitEqually(total: number, n: number): number[] {
+  const each = Math.floor(total / n);
+  return Array.from({ length: n }, (_, i) => each + (i < total - each * n ? 1 : 0));
 }
 
 /**
- * Who gets what when a challenge ends.
- * - The pot is what Whop actually paid us (net of its fee), so payouts can never exceed what came in.
- * - Only players at or above `minToPlace` can place. If fewer placed players than prize places, the unclaimed shares
- *   go to the placed players in proportion to their shares.
- * - Players tied on score pool the prizes for the places they cover and split them equally; leftover cents go to
- *   whoever joined first.
- * - If nobody reaches `minToPlace`, everyone gets their own net entry back.
+ * Who gets what when a money race ends: the winner takes the pool.
+ * - The pool is what the payment provider actually paid us for each entry (net of its fee), so the prize can never
+ *   exceed what came in. `feeBps` is our own cut of the pool, in hundredths of a percent.
+ * - The winner is first place on the leaderboard (rankPlayers) and must have logged at least one dish that counted.
+ * - Players level for first split the prize equally; leftover cents go to whoever joined first.
+ * - With fewer than two paid players, or when nobody logged a dish, there is no race: everyone is refunded and no
+ *   fee is taken.
  */
-export function settle(input: { entries: SettleEntry[]; shares: number[]; feeBps: number; minToPlace: number }): Settlement {
-  const { entries, feeBps } = input;
+export function settlePot(input: { entries: PotEntry[]; feeBps: number }): Settlement {
+  const { entries } = input;
   const potCents = entries.reduce((a, e) => a + e.netCents, 0);
-  const sorted = [...entries].sort((a, b) => b.score - a.score || a.joinedAt - b.joinedAt);
-  const ranks: Record<string, number> = {};
-  sorted.forEach((e, i) => {
-    ranks[e.id] = i > 0 && sorted[i - 1].score === e.score ? ranks[sorted[i - 1].id] : i + 1;
-  });
+  const ranks = rankPlayers(entries);
   const payouts: Record<string, number> = Object.fromEntries(entries.map((e) => [e.id, 0]));
-  const placed = sorted.filter((e) => e.score >= input.minToPlace);
+  const winners = entries.filter((e) => ranks[e.id] === 1 && e.meals > 0).sort((a, b) => a.joinedAt - b.joinedAt);
 
-  if (!placed.length) {
-    for (const e of entries) payouts[e.id] = e.netCents;
-    return { refundAll: true, potCents, feeCents: 0, prizeCents: 0, ranks, payouts };
-  }
+  if (entries.length < 2 || !winners.length) return { refundAll: true, potCents, feeCents: 0, prizeCents: 0, ranks, payouts };
 
-  const feeCents = Math.floor((potCents * Math.max(0, feeBps)) / 10_000);
+  const bps = Math.min(10_000, Math.max(0, Math.floor(input.feeBps) || 0));
+  const feeCents = Math.floor((potCents * bps) / 10_000);
   const prizeCents = potCents - feeCents;
-  const places = splitCents(prizeCents, input.shares.slice(0, Math.min(input.shares.length, placed.length)));
-
-  // Walk the placed players in tie groups; each group takes the place amounts for the positions it covers.
-  let pos = 0;
-  while (pos < placed.length && pos < places.length) {
-    let end = pos;
-    while (end + 1 < placed.length && placed[end + 1].score === placed[pos].score) end++;
-    const group = placed.slice(pos, end + 1); // already in join order within a score
-    const pool = places.slice(pos, end + 1).reduce((a, b) => a + b, 0);
-    splitCents(pool, group.map(() => 1)).forEach((c, i) => (payouts[group[i].id] = c));
-    pos = end + 1;
-  }
+  splitEqually(prizeCents, winners.length).forEach((c, i) => (payouts[winners[i].id] = c));
   return { refundAll: false, potCents, feeCents, prizeCents, ranks, payouts };
 }

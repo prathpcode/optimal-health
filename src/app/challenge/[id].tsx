@@ -4,7 +4,7 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { confirmLeave, inviteToChallenge, Leaderboard, PlayFeed, raceLine } from '@/components/challenge';
+import { avg, confirmLeave, inviteToChallenge, Leaderboard, PlayFeed, raceLine, StakesCard, usd } from '@/components/challenge';
 import { GlassButton } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
 import { Podium } from '@/components/Podium';
@@ -12,12 +12,14 @@ import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { attempt, GlassAction, SectionTitle } from '@/components/together';
 import { celebrate } from '@/lib/celebrate';
-import { countdown, joinChallenge, PREVIEW, useChallenge } from '@/lib/community';
+import { countdown, joinChallenge, payEntry, PREVIEW, useChallenge } from '@/lib/community';
 import { goBack } from '@/lib/nav';
 import { enterAt, gutter, radius, space, useTheme } from '@/theme';
 
 /** Challenges whose "you won" moment has already been shown in this session. */
 const cheered = new Set<string>();
+/** Money races whose "you're in" moment (payment confirmed after checkout) has already been shown in this session. */
+const welcomed = new Set<string>();
 
 export default function ChallengeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,14 +28,24 @@ export default function ChallengeScreen() {
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const [busy, setBusy] = useState(false);
+  // Back from Whop's checkout: the entry shows as paid once Whop has told the backend, which can take a moment.
+  const [returned, setReturned] = useState(false);
 
   const won = ch?.status === 'ended' && ch.me?.rank === 1 && (ch.me.points ?? 0) > 0 && ch.standings.length > 1;
-  const wonPoints = ch?.me?.points;
+  const wonAverage = ch?.me ? avg(ch.me) : '';
+  const prize = ch?.payout?.kind === 'prize' ? ch.payout.cents : 0;
   useEffect(() => {
     if (!won || cheered.has(id)) return;
     cheered.add(id);
-    celebrate({ title: 'You won', subtitle: `${wonPoints} points`, tone: 'great', icon: 'trophy' });
-  }, [won, id, wonPoints]);
+    celebrate({ title: 'You won', subtitle: prize ? `${usd(prize)} · average ${wonAverage}` : `Average ${wonAverage}`, tone: 'great', icon: 'trophy' });
+  }, [won, id, wonAverage, prize]);
+
+  const paidIn = Boolean(ch && ch.entryCents > 0 && ch.joined);
+  useEffect(() => {
+    if (!paidIn || !returned || welcomed.has(id)) return;
+    welcomed.add(id);
+    celebrate({ title: 'You’re in', subtitle: 'Your entry is in the pool', tone: 'great' });
+  }, [paidIn, returned, id]);
 
   if (!ch) {
     return (
@@ -48,9 +60,17 @@ export default function ChallengeScreen() {
     setBusy(true);
     const ok = await attempt(joinChallenge(ch.id));
     setBusy(false);
-    if (ok) celebrate({ title: 'You’re in', subtitle: 'Every dish that fits scores', tone: 'great' });
+    if (ok) celebrate({ title: 'You’re in', subtitle: 'Every meal counts toward your average', tone: 'great' });
   };
-  const canLeave = ch.joined && ch.status !== 'ended';
+  const money = ch.entryCents > 0;
+  const pay = async () => {
+    setBusy(true);
+    const ok = await attempt(payEntry(ch.id));
+    setBusy(false);
+    if (ok) setReturned(true);
+  };
+  // A money race is locked once it starts; an entry you never paid can always be dropped.
+  const canLeave = ch.status !== 'ended' && (ch.pending || (ch.joined && (!money || ch.status === 'upcoming')));
   const options = () =>
     Alert.alert(`${ch.days}-day ${ch.title.toLowerCase()}`, undefined, [
       { text: 'Cancel', style: 'cancel' },
@@ -88,6 +108,7 @@ export default function ChallengeScreen() {
 
         <Animated.View entering={enterAt(0, reduced)}>
           <View style={{ gap: space.md }}>
+            <StakesCard ch={ch} />
             {line ? (
               <T variant="bodyStrong" tone="secondary">
                 {line}
@@ -121,8 +142,21 @@ export default function ChallengeScreen() {
         <View style={[styles.cta, { bottom: insets.bottom + space.md }]}>
           {ch.joined ? (
             <GlassAction label="Scan a menu" icon="camera" onPress={() => router.push('/scan')} />
-          ) : (
+          ) : !money ? (
             <GlassAction label="Join the race" icon="trophy" onPress={join} loading={busy} />
+          ) : ch.status === 'upcoming' ? (
+            <View style={{ gap: space.sm }}>
+              {returned ? (
+                <T variant="caption" tone="secondary" style={styles.centre}>
+                  Waiting for Whop to confirm your payment. If you didn’t finish paying, you can try again.
+                </T>
+              ) : null}
+              <GlassAction label={`Pay ${usd(ch.entryCents)} to join`} icon="lock" onPress={pay} loading={busy} />
+            </View>
+          ) : (
+            <T variant="caption" tone="secondary" style={styles.centre}>
+              Entries closed when this race started.
+            </T>
           )}
         </View>
       ) : null}
@@ -131,6 +165,7 @@ export default function ChallengeScreen() {
 }
 
 const styles = StyleSheet.create({
+  centre: { textAlign: 'center' },
   topActions: { flexDirection: 'row', gap: space.sm },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   invite: { flexDirection: 'row', gap: space.sm, height: 56, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },

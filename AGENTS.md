@@ -103,6 +103,13 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
   word match and the judge (Jev: "same product, same variety?") both agree. Nothing is inferred about a product
   that is not in the database. Needs
   `GOOGLE_VISION_API_KEY`. Built and checked against a shelf photo; not yet run on a phone in a store.
+- Money races (`convex/pay.ts`, `engine/challenge.ts` `settlePot`): a race can have an entry price; every player pays
+  it through a Whop checkout and the winner takes the pool. An entry is "pending" until Whop's webhook
+  (`/whop/webhook`) reports the payment and we read it back from Whop's API; only then is the player in. Entries
+  close at the start, and leaving before then refunds. An hour after the end the pool (what reached us after Whop's
+  fee, in integer cents) goes to first place by Whop transfer; a tie splits it; with fewer than two paid players or
+  no dish logged, every payment is refunded. Off unless `MONEY_CHALLENGES=on` (see `.env.example`). Built and
+  unit-tested; not yet run against Whop, not even its sandbox.
 - A custom rule replaces every rule on its tag. The app will not swap a switched-on profile rule for a weaker custom
   one (`engine/customRules.ts`).
 - Cache (`convex/cache.ts`): the answer to one exact tagging or second-pass request is reused for 30 days, a barcode's

@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Alert, Share, StyleSheet, View } from 'react-native';
 
-import { MEAL_POINTS, MEALS_PER_DAY, type Play } from '@engine/challenge';
+import { averageScore, MEAL_POINTS, type Play } from '@engine/challenge';
 import type { Fit } from '@engine/types';
 import { countdown, daysOf, leaveChallenge, todayKey, type ChallengeView, type Standing } from '@/lib/community';
 import { haptic } from '@/lib/haptics';
@@ -19,9 +19,9 @@ import { Tap } from './Tap';
  * names; here people only need to know what earns points.)
  */
 export const PLAIN_FIT: Record<'good' | 'okay' | 'not_fit', string> = {
-  good: 'Fits your diet',
-  okay: 'Mostly fits',
-  not_fit: 'Doesn’t fit',
+  good: 'Good for you',
+  okay: 'Okay for you',
+  not_fit: 'Other food',
 };
 
 const TIERS: { fit: Fit; label: string }[] = [
@@ -30,7 +30,15 @@ const TIERS: { fit: Fit; label: string }[] = [
   { fit: 'not_fit', label: PLAIN_FIT.not_fit },
 ];
 
-const pts = (n: number) => `${n} ${n === 1 ? 'pt' : 'pts'}`;
+type Scored = { points: number; meals: number };
+
+/** A score as shown everywhere, to two decimals ("2.40"). */
+const fmt = (n: number) => n.toFixed(2);
+/** A player's score: their average points per meal. */
+export const avg = (p: Scored) => fmt(averageScore(p.points, p.meals));
+/** How far `a`'s average is ahead of `b`'s. */
+const lead = (a: Scored, b: Scored) => fmt(averageScore(a.points, a.meals) - averageScore(b.points, b.meals));
+const mealsLabel = (n: number) => `${n} ${n === 1 ? 'meal' : 'meals'}`;
 
 /** A dish's points as a pill in its verdict colour: "+3", "+1", "0". */
 export function PointsPill({ fit, points, muted }: { fit: Fit; points: number; muted?: boolean }) {
@@ -45,10 +53,10 @@ export function PointsPill({ fit, points, muted }: { fit: Fit; points: number; m
   );
 }
 
-/** What each verdict is worth, before anyone has played: on the Together tab and when starting a race. */
+/** The whole of the scoring as a table: what each verdict is worth. On the Together tab and the how-it-works sheet. */
 export function PointsKey() {
   return (
-    <View style={{ gap: space.sm }} accessibilityLabel={`Fits your diet ${MEAL_POINTS.good} points, mostly fits ${MEAL_POINTS.okay}, doesn’t fit 0`}>
+    <View style={{ gap: space.sm }} accessibilityLabel={`Good for you ${MEAL_POINTS.good} points, okay for you ${MEAL_POINTS.okay}, other food 0`}>
       {TIERS.map((t) => (
         <View key={t.fit} style={styles.keyRow}>
           <PointsPill fit={t.fit} points={MEAL_POINTS[t.fit]} />
@@ -59,47 +67,74 @@ export function PointsKey() {
   );
 }
 
-/**
- * "How to win", worked through with your own dishes: each verdict, what it is worth, how many of your dishes landed
- * there and what they added. Before you've logged anything it is just the key.
- */
-export function HowToWin({ ch }: { ch: ChallengeView }) {
+/** An amount of money, in dollars: "$10", "$9.41". (`money` in lib/community says "Free" for 0; this never does.) */
+export const usd = (cents: number) => (cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`);
+
+/** How a money race works, said once and shown wherever someone is about to pay: creating, joining, and the how-it-works sheet. */
+export const MONEY_RULES = [
+  'Everyone pays the same entry. Entries close when the race starts.',
+  'The best average takes the whole pool. A tie for first splits it equally.',
+  'Leave before the start and your entry is refunded. After that the pool is locked.',
+  'If fewer than two people pay in, or nobody logs a meal, everyone is refunded.',
+  'The pool is what arrives after payment fees. The prize goes to the winner’s Whop balance.',
+] as const;
+
+export function MoneyRules() {
   const { c } = useTheme();
-  const plays = (ch.me?.plays ?? []).filter((p) => !p.skipped);
   return (
-    <GlassSurface tone="theme" style={styles.card}>
-      {TIERS.map((t, i) => {
-        const mine = plays.filter((p) => p.fit === t.fit);
-        const subtotal = mine.length * MEAL_POINTS[t.fit];
-        return (
-          <View key={t.fit} style={[styles.tier, i > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.hairline } : null]}>
-            <PointsPill fit={t.fit} points={MEAL_POINTS[t.fit]} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <T variant="headline">{t.label}</T>
-              {mine.length ? (
-                <T variant="caption" tone="secondary" numberOfLines={2}>
-                  {mine.map((p) => `${dishEmoji(p.dish)} ${p.dish}`).join('  ·  ')}
-                </T>
-              ) : null}
-            </View>
-            {ch.me ? (
-              <View style={{ alignItems: 'flex-end' }}>
-                <T variant="headline" style={styles.num} color={mine.length ? c.text : c.textTertiary}>
-                  {subtotal}
-                </T>
-                <T variant="caption" tone="tertiary" style={styles.num}>
-                  {mine.length} × {MEAL_POINTS[t.fit]}
-                </T>
-              </View>
-            ) : null}
-          </View>
-        );
-      })}
+    <View style={{ gap: space.sm }}>
+      {MONEY_RULES.map((rule) => (
+        <View key={rule} style={styles.rule}>
+          <View style={[styles.bullet, { backgroundColor: c.textTertiary }]} />
+          <T variant="caption" tone="secondary" style={{ flex: 1 }}>
+            {rule}
+          </T>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** What has happened with your own money in a race, in one line. Empty when there is nothing to say. */
+function payoutLine(ch: ChallengeView): string {
+  const p = ch.payout;
+  if (!p) return '';
+  const where = p.kind === 'prize' ? 'to your Whop balance' : 'to how you paid';
+  const what = p.kind === 'prize' ? `You won ${usd(p.cents)}` : `Your ${usd(p.cents)} entry is refunded`;
+  if (p.status === 'sent') return `${what}, sent ${where}.`;
+  if (p.status === 'failed') return `${what}. Sending it ${where} has not gone through yet; we keep trying.`;
+  return `${what}. It is on its way ${where}.`;
+}
+
+/** The money in a race: the pool, what an entry costs, and what became of it once the race is settled. Nothing for a free race. */
+export function StakesCard({ ch }: { ch: ChallengeView }) {
+  if (ch.entryCents <= 0) return null;
+  const paidIn = ch.standings.length;
+  const mine = payoutLine(ch);
+  const state = ch.settlement
+    ? ch.settlement.refundAll
+      ? 'No race this time, so every entry was refunded.'
+      : `Settled: the winner took ${usd(ch.settlement.prizeCents)}.`
+    : ch.status === 'ended'
+      ? 'The pool is settled about an hour after the end.'
+      : `${usd(ch.entryCents)} entry · ${paidIn} paid in · winner takes the pool`;
+  return (
+    <GlassSurface tone="theme" style={[styles.card, styles.stakes]}>
+      <View accessible accessibilityLabel={`Pool ${usd(ch.prizeCents)}. ${state} ${mine}`} style={{ gap: space.xs }}>
+        <T variant="micro" tone="tertiary">
+          POOL
+        </T>
+        <T variant="display">{usd(ch.settlement?.refundAll ? 0 : ch.prizeCents)}</T>
+        <T variant="caption" tone="secondary">
+          {state}
+        </T>
+        {mine ? <T variant="bodyStrong">{mine}</T> : null}
+      </View>
     </GlassSurface>
   );
 }
 
-/** The standings as a leaderboard: place, who, what they logged, points. `from` skips the places a podium already shows. */
+/** The standings as a leaderboard: place, who, how many meals they have logged, average. `from` skips the places a podium already shows. */
 export function Leaderboard({ ch, from = 0 }: { ch: ChallengeView; from?: number }) {
   const { c } = useTheme();
   const rows = ch.standings.slice(from);
@@ -107,12 +142,11 @@ export function Leaderboard({ ch, from = 0 }: { ch: ChallengeView; from?: number
   return (
     <GlassSurface tone="theme" style={styles.card}>
       {rows.map((p, i) => {
-        const counts = [p.good && `${p.good} fit`, p.okay && `${p.okay} mostly`, p.notFit && `${p.notFit} didn’t`].filter(Boolean).join(' · ');
         const winner = ch.status === 'ended' && p.rank === 1 && p.points > 0;
         return (
           <View
             key={p.id}
-            accessibilityLabel={`${p.me ? 'You' : p.name}, place ${p.rank}, ${pts(p.points)}`}
+            accessibilityLabel={`${p.me ? 'You' : p.name}, place ${p.rank}, average ${avg(p)}, ${mealsLabel(p.meals)}`}
             style={[styles.leader, p.me ? { backgroundColor: c.cardMuted } : null, i > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.hairline } : null]}>
             <Rank rank={p.rank} />
             <Avatar name={p.name} url={p.avatarUrl} size={36} />
@@ -121,11 +155,11 @@ export function Leaderboard({ ch, from = 0 }: { ch: ChallengeView; from?: number
                 {p.me ? 'You' : p.name} {winner ? '🏆' : ''}
               </T>
               <T variant="caption" tone="tertiary" numberOfLines={1}>
-                {counts || 'No dishes yet'}
+                {p.meals ? mealsLabel(p.meals) : 'No meals yet'}
               </T>
             </View>
             <T variant="title" style={styles.num} color={p.points ? c.text : c.textTertiary}>
-              {p.points}
+              {avg(p)}
             </T>
           </View>
         );
@@ -144,20 +178,18 @@ export function raceLine(ch: ChallengeView): string {
   if (ch.status === 'ended') {
     if (!first.points) return 'Nobody scored this time.';
     const tied = ch.standings.filter((p) => p.rank === 1);
-    return tied.length > 1 ? `Tie for first on ${pts(first.points)}` : `${name(first)} won with ${pts(first.points)}`;
+    return tied.length > 1 ? `Tie for first on ${avg(first)}` : `${name(first)} won with an average of ${avg(first)}`;
   }
   if (!first.points) return 'Nobody has scored yet, so scan a menu to start the board.';
-  if (first.points === second.points) {
+  if (first.rank === second.rank) {
     const pair = second.me ? `${first.name} and you` : `${name(first)} and ${second.name}`;
-    return `${pair} are level on ${pts(first.points)}`;
+    return `${pair} are level on ${avg(first)}`;
   }
-  if (me && me.rank === 1) return `You lead by ${pts(first.points - second.points)}`;
+  if (me && me.rank === 1) return `You lead by ${lead(first, second)}`;
   if (me) {
-    const gap = first.points - me.points;
-    const goods = Math.ceil((gap + 1) / MEAL_POINTS.good);
-    return `${gap} behind ${first.name}. ${goods} Good-fit ${goods === 1 ? 'dish takes' : 'dishes take'} the lead.`;
+    return `${lead(first, me)} behind ${first.name}`;
   }
-  return `${first.name} leads by ${pts(first.points - second.points)}`;
+  return `${first.name} leads by ${lead(first, second)}`;
 }
 
 type FeedPlay = Play & { who: string; me: boolean; avatarUrl?: string };
@@ -217,7 +249,6 @@ export function PlayFeed({ ch }: { ch: ChallengeView }) {
 }
 
 function playNote(p: Play): string {
-  if (p.skipped === 'daily_limit') return `over ${MEALS_PER_DAY} today, didn’t count`;
   if (p.skipped === 'cant_tell') return 'couldn’t tell, didn’t count';
   return TIERS.find((t) => t.fit === p.fit)?.label ?? '';
 }
@@ -245,8 +276,10 @@ export function Rank({ rank, size = 26 }: { rank: number; size?: number }) {
 
 /** A challenge as a glass row on the Together tab: your points, place and time left. */
 /** Ask once, then leave the race. `after` runs once you've left (e.g. go back). */
-export function confirmLeave(ch: Pick<ChallengeView, 'id'>, after?: () => void) {
-  Alert.alert('Leave this race?', 'Your points leave with you.', [
+export function confirmLeave(ch: Pick<ChallengeView, 'id'> & Partial<Pick<ChallengeView, 'entryCents' | 'joined'>>, after?: () => void) {
+  const paid = (ch.entryCents ?? 0) > 0;
+  const note = !paid ? 'Your points leave with you.' : ch.joined ? `Your ${usd(ch.entryCents ?? 0)} entry will be refunded.` : 'You have not paid, so there is nothing to refund.';
+  Alert.alert('Leave this race?', note, [
     { text: 'Cancel', style: 'cancel' },
     {
       text: 'Leave',
@@ -264,14 +297,17 @@ export function ChallengeRow({ ch }: { ch: ChallengeView }) {
   const me = ch.me;
   const ranked = me && ch.status !== 'upcoming' ? me : null;
   const leading = Boolean(ranked && ranked.rank === 1 && ranked.points > 0);
+  const stake = ch.entryCents > 0 ? (ch.pending && ch.status === 'upcoming' ? ` · pay ${usd(ch.entryCents)} to enter` : ` · ${usd(ch.entryCents)} entry`) : '';
+  // A money race is locked once it starts; an entry you never paid can always be dropped.
+  const canLeave = ch.status !== 'ended' && (ch.pending || (ch.joined && (ch.entryCents === 0 || ch.status === 'upcoming')));
   return (
     <Tap
       accessibilityRole="button"
-      accessibilityLabel={`${ch.title}, ${ranked ? `place ${ranked.rank}, ` : ''}${pts(me?.points ?? 0)}, ${countdown(ch)}`}
-      accessibilityHint={ch.joined && ch.status !== 'ended' ? 'Long-press to leave' : undefined}
+      accessibilityLabel={`${ch.title}, ${ranked ? `place ${ranked.rank}, ` : ''}average ${avg(me ?? { points: 0, meals: 0 })}, ${countdown(ch)}${stake}`}
+      accessibilityHint={canLeave ? 'Long-press to leave' : undefined}
       onPress={() => router.push({ pathname: '/challenge/[id]', params: { id: ch.id } })}
       onLongPress={
-        ch.joined && ch.status !== 'ended'
+        canLeave
           ? () => {
               haptic.select();
               confirmLeave(ch);
@@ -295,6 +331,7 @@ export function ChallengeRow({ ch }: { ch: ChallengeView }) {
           </T>
           <T variant="caption" tone="secondary" numberOfLines={1}>
             {countdown(ch)}
+            {stake}
           </T>
         </View>
         <Icon name="chevron" size={14} color={c.textTertiary} />
@@ -304,8 +341,9 @@ export function ChallengeRow({ ch }: { ch: ChallengeView }) {
 }
 
 /** Open the share sheet with a challenge's invite link. */
-export function inviteToChallenge(ch: Pick<ChallengeView, 'id' | 'days'>) {
-  return Share.share({ message: `Join my ${ch.days}-day menu challenge on Second Look. Scan what you order and tap it in. secondlook://challenge/${ch.id}` });
+export function inviteToChallenge(ch: Pick<ChallengeView, 'id' | 'days'> & Partial<Pick<ChallengeView, 'entryCents'>>) {
+  const stake = ch.entryCents ? ` ${usd(ch.entryCents)} to enter, winner takes the pool.` : '';
+  return Share.share({ message: `Join my ${ch.days}-day menu challenge on Second Look. Scan what you order and tap it in.${stake} secondlook://challenge/${ch.id}` });
 }
 
 export function ordinalShort(n: number) {
@@ -319,7 +357,9 @@ const styles = StyleSheet.create({
   pill: { minWidth: 44, height: 30, paddingHorizontal: space.sm, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center' },
   keyRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   card: { borderRadius: radius.card, overflow: 'hidden' },
-  tier: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
+  stakes: { padding: space.xl },
+  rule: { flexDirection: 'row', gap: space.sm },
+  bullet: { width: 4, height: 4, borderRadius: 2, marginTop: 7 },
   leader: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
   play: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
   emoji: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },

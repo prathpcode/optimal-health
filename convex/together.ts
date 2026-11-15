@@ -1,7 +1,8 @@
 import { v } from "convex/values";
-import { DURATION_OPTIONS_DAYS, scoreMeals, type Meal, type MealScore } from "../engine/challenge";
+import { DURATION_OPTIONS_DAYS, scoreMeals, validEntryCents, type Meal, type MealScore } from "../engine/challenge";
 import { COMMUNITY_GROUPS, communitiesFor, diffMemberships, matchCommunities } from "../engine/communityMatch";
 import type { Fit, Profile } from "../engine/types";
+import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { memberFor, requireMember } from "./members";
@@ -11,14 +12,19 @@ import { memberFor, requireMember } from "./members";
  * - Rooms are data/communities.json. People are placed in condition rooms from their profile (engine/communityMatch)
  *   once they agree; they can join optional rooms and leave any room (leaving sticks).
  * - Challenge points (the points race) are computed here from each player's own scans and check-ins (engine/challenge), never stored.
- * - Paid entry needs Whop checkout; until MONEY_CHALLENGES=on, only free challenges can be created.
+ * - A race can be free, or every player pays the same entry and the winner takes the pool. The money is in
+ *   convex/pay.ts; until MONEY_CHALLENGES=on, only free races can be created.
  */
 
-const DAY = 86_400_000;
+export const DAY = 86_400_000;
+/** A money race is settled this long after it ends, so a scan still finishing its verdicts counts as it ends up. */
+const SETTLE_GRACE_MS = 60 * 60_000;
 /** Seen within this long counts as online now. The app sends a heartbeat every 45 s while open. */
 const ONLINE_MS = 2 * 60_000;
 const EMPTY: Profile = { medications: [], conditions: [], allergies: [], diets: [] };
-const moneyLive = () => process.env.MONEY_CHALLENGES === "on";
+export const moneyLive = () => process.env.MONEY_CHALLENGES === "on";
+/** Our own cut of a money race's pool, in hundredths of a percent (CHALLENGE_FEE_BPS, 0 unless set). */
+export const feeBps = () => Math.min(10_000, Math.max(0, Math.floor(Number(process.env.CHALLENGE_FEE_BPS ?? 0)) || 0));
 const isRoom = (slug: string) => COMMUNITY_GROUPS.some((g) => g.slug === slug);
 
 async function profileOf(ctx: QueryCtx | MutationCtx, deviceId: string): Promise<Profile> {
@@ -94,12 +100,19 @@ async function mealsOf(ctx: QueryCtx, deviceId: string, from: number, to: number
   return out;
 }
 
-async function scorePlayers(ctx: QueryCtx, ch: Doc<"challenges">): Promise<PlayerScore[]> {
+/** A challenge's entries, oldest first. Bounded: a race holds 50 players, plus people part-way through paying. */
+export async function entriesOf(ctx: QueryCtx | MutationCtx, ch: Doc<"challenges">): Promise<Doc<"entries">[]> {
+  return await ctx.db.query("entries").withIndex("by_challengeId_and_memberId", (q) => q.eq("challengeId", ch._id)).take(200);
+}
+
+/** Who is racing: everyone in a free race, only those whose payment arrived in a money race. */
+const racing = (ch: Doc<"challenges">, entries: Doc<"entries">[]) => (ch.entryCents > 0 ? entries.filter((e) => e.status === "paid") : entries);
+
+export async function scorePlayers(ctx: QueryCtx | MutationCtx, ch: Doc<"challenges">, entries: Doc<"entries">[]): Promise<PlayerScore[]> {
   const window = { startsAt: ch.startsAt, days: ch.days, tzOffsetMinutes: ch.tzOffsetMinutes };
   const end = ch.startsAt + ch.days * DAY;
-  const entries = await ctx.db.query("entries").withIndex("by_challengeId_and_memberId", (q) => q.eq("challengeId", ch._id)).take(50);
   const out: PlayerScore[] = [];
-  for (const e of entries) {
+  for (const e of racing(ch, entries)) {
     const m = await ctx.db.get("members", e.memberId);
     if (!m) continue;
     const s = scoreMeals(await mealsOf(ctx, m.deviceId, ch.startsAt, end), window);
@@ -108,8 +121,32 @@ async function scorePlayers(ctx: QueryCtx, ch: Doc<"challenges">): Promise<Playe
   return out;
 }
 
-function challengeSummary(ch: Doc<"challenges">) {
-  return { id: ch._id, days: ch.days, startsAt: ch.startsAt, tzOffsetMinutes: ch.tzOffsetMinutes, playerCount: ch.playerCount };
+/** A challenge as one member sees it: the race, the money in it, and where they stand with their own entry. */
+async function challengeFor(ctx: QueryCtx, ch: Doc<"challenges">, meId: Id<"members">) {
+  const entries = await entriesOf(ctx, ch);
+  const mine = entries.find((e) => e.memberId === meId);
+  const paid = ch.entryCents > 0;
+  // Latest money owed to me in this race: a prize, or my entry coming back.
+  const owed = paid ? await ctx.db.query("payouts").withIndex("by_challengeId_and_memberId", (q) => q.eq("challengeId", ch._id).eq("memberId", meId)).order("desc").first() : null;
+  const pot = ch.settlement?.potCents ?? racing(ch, entries).reduce((a, e) => a + (e.netCents ?? 0), 0);
+  return {
+    id: ch._id,
+    days: ch.days,
+    startsAt: ch.startsAt,
+    tzOffsetMinutes: ch.tzOffsetMinutes,
+    playerCount: ch.playerCount,
+    entryCents: ch.entryCents,
+    // What has reached the pool so far, after Whop's fee; once settled, the pool it was settled on.
+    potCents: pot,
+    // What the winner would take from that pool: after our own cut, if any.
+    prizeCents: ch.settlement?.prizeCents ?? pot - Math.floor((pot * feeBps()) / 10_000),
+    settlement: ch.settlement ?? null,
+    joined: Boolean(mine) && !(paid && mine?.status !== "paid"),
+    // I started paying and Whop has not confirmed it (or I never finished).
+    pending: paid && mine?.status === "pending",
+    payout: owed ? { kind: owed.kind, cents: owed.cents, status: owed.status } : null,
+    players: await scorePlayers(ctx, ch, entries),
+  };
 }
 
 /** How many of a room's members had the app open within ONLINE_MS of `now`. */
@@ -150,7 +187,7 @@ export const home = query({
     for (const e of await ctx.db.query("entries").withIndex("by_memberId", (q) => q.eq("memberId", me._id)).order("desc").take(20)) {
       const ch = await ctx.db.get("challenges", e.challengeId);
       if (!ch || ch.startsAt + ch.days * DAY + 3 * DAY <= now) continue;
-      challenges.push({ ...challengeSummary(ch), joined: true, players: await scorePlayers(ctx, ch) });
+      challenges.push(await challengeFor(ctx, ch, me._id));
     }
     return {
       me: { id: me._id, name: me.name, username: me.username, avatarUrl: me.avatarUrl ?? null, autoPlace: me.autoPlace ?? null },
@@ -167,8 +204,7 @@ export const challenge = query({
     const me = await requireMember(ctx, session);
     const ch = await ctx.db.get("challenges", id);
     if (!ch) return null;
-    const players = await scorePlayers(ctx, ch);
-    return { ...challengeSummary(ch), joined: players.some((p) => p.memberId === me._id), players };
+    return await challengeFor(ctx, ch, me._id);
   },
 });
 
@@ -214,34 +250,49 @@ export const leaveRoom = mutation({
   },
 });
 
+/**
+ * Start a race. Free: the creator is in at once. Money (`entryCents` > 0): nobody is in until they have paid,
+ * the creator included; the creator gets a pending entry so the race shows on their Together tab, and the pool is
+ * scheduled to settle after the end.
+ */
 export const createChallenge = mutation({
-  args: { session: v.string(), days: v.number(), startsAt: v.number(), tzOffsetMinutes: v.number() },
+  args: { session: v.string(), days: v.number(), startsAt: v.number(), tzOffsetMinutes: v.number(), entryCents: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const me = await requireMember(ctx, args.session);
     if (!(DURATION_OPTIONS_DAYS as readonly number[]).includes(args.days)) throw new Error("Pick 3, 7 or 14 days");
     const now = Date.now();
     if (args.startsAt < now - DAY || args.startsAt > now + 14 * DAY) throw new Error("Start within the next two weeks");
     if (Math.abs(args.tzOffsetMinutes) > 14 * 60) throw new Error("Bad time zone");
+    const entryCents = args.entryCents ?? 0;
+    const paid = entryCents > 0;
+    if (paid) {
+      if (!moneyLive()) throw new Error("Money races are not switched on yet");
+      if (!validEntryCents(entryCents)) throw new Error("Pick an entry between $1 and $100, in whole dollars");
+      // Everyone has to be able to pay before the first dish counts.
+      if (args.startsAt <= now) throw new Error("A money race has to start on a later day, so everyone can pay in first");
+    } else if (entryCents !== 0) throw new Error("Bad entry");
     const id = await ctx.db.insert("challenges", {
       days: args.days,
       startsAt: args.startsAt,
       tzOffsetMinutes: args.tzOffsetMinutes,
       createdBy: me._id,
-      playerCount: 1,
-      entryCents: 0,
+      playerCount: paid ? 0 : 1,
+      entryCents,
     });
-    await ctx.db.insert("entries", { challengeId: id, memberId: me._id, joinedAt: now });
+    await ctx.db.insert("entries", { challengeId: id, memberId: me._id, joinedAt: now, ...(paid ? { status: "pending" as const } : {}) });
+    if (paid) await ctx.scheduler.runAt(args.startsAt + args.days * DAY + SETTLE_GRACE_MS, internal.pay.settle, { id });
     return id;
   },
 });
 
-/** Join from an invite link. */
+/** Join a free race from an invite link. A money race is joined by paying (pay.checkout). */
 export const joinChallenge = mutation({
   args: { session: v.string(), id: v.id("challenges") },
   handler: async (ctx, { session, id }) => {
     const me = await requireMember(ctx, session);
     const ch = await ctx.db.get("challenges", id);
     if (!ch) throw new Error("Challenge not found");
+    if (ch.entryCents > 0) throw new Error("This race has an entry to pay first");
     if (Date.now() >= ch.startsAt + ch.days * DAY) throw new Error("This challenge has ended");
     if (ch.playerCount >= 50) throw new Error("This challenge is full");
     const has = await ctx.db.query("entries").withIndex("by_challengeId_and_memberId", (q) => q.eq("challengeId", id).eq("memberId", me._id)).unique();
@@ -252,6 +303,10 @@ export const joinChallenge = mutation({
   },
 });
 
+/**
+ * Leave a race. In a money race: before the start a paid entry is refunded; once it has started the pool is locked
+ * and nobody can leave. An entry that was never paid can always be dropped.
+ */
 export const leaveChallenge = mutation({
   args: { session: v.string(), id: v.id("challenges") },
   handler: async (ctx, { session, id }) => {
@@ -260,6 +315,14 @@ export const leaveChallenge = mutation({
     if (!ch) return null;
     const has = await ctx.db.query("entries").withIndex("by_challengeId_and_memberId", (q) => q.eq("challengeId", id).eq("memberId", me._id)).unique();
     if (!has) return null;
+    if (has.status === "pending") {
+      await ctx.db.delete("entries", has._id);
+      return null;
+    }
+    if (has.status === "paid") {
+      if (Date.now() >= ch.startsAt) throw new Error("A money race can't be left once it has started");
+      if (has.paymentId) await ctx.runMutation(internal.pay.refundEntry, { challengeId: id, memberId: me._id, paymentId: has.paymentId, cents: has.grossCents ?? ch.entryCents });
+    }
     await ctx.db.delete("entries", has._id);
     await ctx.db.patch("challenges", id, { playerCount: Math.max(0, ch.playerCount - 1) });
     return null;

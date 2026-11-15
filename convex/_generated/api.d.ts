@@ -17,6 +17,7 @@ import type * as judge from "../judge.js";
 import type * as lookup from "../lookup.js";
 import type * as medications from "../medications.js";
 import type * as members from "../members.js";
+import type * as pay from "../pay.js";
 import type * as pipeline from "../pipeline.js";
 import type * as profile from "../profile.js";
 import type * as rules from "../rules.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   lookup: typeof lookup;
   medications: typeof medications;
   members: typeof members;
+  pay: typeof pay;
   pipeline: typeof pipeline;
   profile: typeof profile;
   rules: typeof rules;
