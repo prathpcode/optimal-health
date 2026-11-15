@@ -276,10 +276,12 @@ function levelColor(level: Rule['level'], c: Colors) {
   return { fg: c.textSecondary, bg: c.cantTellSoft };
 }
 
+// Only a rule with nothing behind it says anything here: a sourced rule is the normal case and does not need
+// announcing, but "no evidence, no tag" means an unverified one has to stay visibly unverified.
 const STATUS_TEXT: Record<Rule['status'], string> = {
   library: '',
-  sourced: 'sourced',
-  from_label: 'FDA label',
+  sourced: '',
+  from_label: '',
   unverified: 'unverified',
 };
 
@@ -436,7 +438,7 @@ function RuleRow({ rule, onToggle, onRemove }: { rule: Rule; onToggle: (on: bool
   return (
     <View style={[styles.rule, !rule.enabled ? { opacity: 0.5 } : null]}>
       <View style={[styles.level, { backgroundColor: col.bg }]}>
-        <T variant="micro" color={col.fg}>
+        <T variant="caption" color={col.fg} style={{ fontWeight: '600' }}>
           {LEVEL_LABEL[rule.level]}
         </T>
       </View>
@@ -483,7 +485,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   divider: { height: StyleSheet.hairlineWidth, marginLeft: space.lg },
   rule: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md + 2 },
-  level: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, minWidth: 62, alignItems: 'center' },
+  level: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, minWidth: 70, alignItems: 'center' },
   ruleMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   med: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
   remove: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
