@@ -100,55 +100,45 @@ export default function MeScreen() {
         </Card>
       )}
       <AddRule rules={rules} onAdd={addRule} />
-      <T variant="caption" tone="tertiary" style={{ marginTop: space.md }}>
-        Fit is a reference tool. It never tells you to take, stop or change a medicine.
-      </T>
     </ScrollView>
   );
 }
 
-function Section({ index, title, action, children }: { index: number; title: string; action?: React.ReactNode; children: React.ReactNode }) {
+function Section({ index, title, children }: { index: number; title: string; children: React.ReactNode }) {
   const reduced = useReducedMotion();
   return (
     <Animated.View entering={enterAt(index, reduced)} style={{ marginBottom: space.xxxl }}>
       <View style={styles.sectionTitle}>
         <T variant="heading">{title}</T>
-        {action}
       </View>
       {children}
     </Animated.View>
   );
 }
 
-/** Shows only what is chosen. The control beside the title opens the rest of the list to add from. */
+/** Shows only what is chosen. The Add control after the last chip opens the rest of the list to add from. */
 function PickSection({ index, title, options, selected, onToggle }: { index: number; title: string; options: { key: string; label: string }[]; selected: string[]; onToggle: (key: string) => void }) {
   const { c } = useTheme();
   const [open, setOpen] = useState(false);
   const chosen = options.filter((o) => selected.includes(o.key));
   const rest = options.filter((o) => !selected.includes(o.key));
   return (
-    <Section
-      index={index}
-      title={title}
-      action={
-        <Tap accessibilityRole="button" accessibilityLabel={open ? `Hide other ${title.toLowerCase()}` : `Show all ${title.toLowerCase()}`} accessibilityState={{ expanded: open }} feedback="select" onPress={() => setOpen((o) => !o)} hitSlop={10}>
+    <Section index={index} title={title}>
+      <View style={styles.chips}>
+        {chosen.map((o) => (
+          <Chip key={o.key} label={o.label} selected onPress={() => onToggle(o.key)} />
+        ))}
+        <Tap accessibilityRole="button" accessibilityLabel={open ? `Hide other ${title.toLowerCase()}` : `Show all ${title.toLowerCase()}`} accessibilityState={{ expanded: open }} feedback="select" onPress={() => setOpen((o) => !o)}>
           <GlassSurface tone="theme" interactive style={styles.reveal}>
-            <T variant="caption">{open ? 'Done' : 'Add'}</T>
-            <View style={{ transform: [{ rotate: open ? '-90deg' : '90deg' }] }}>
-              <Icon name="chevron" size={11} color={c.textSecondary} />
+            <T variant="bodyStrong">{open ? 'Done' : 'Add'}</T>
+            <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
+              <Icon name="down" size={12} color={c.textSecondary} />
             </View>
           </GlassSurface>
         </Tap>
-      }>
-      {chosen.length > 0 ? (
-        <View style={styles.chips}>
-          {chosen.map((o) => (
-            <Chip key={o.key} label={o.label} selected onPress={() => onToggle(o.key)} />
-          ))}
-        </View>
-      ) : null}
+      </View>
       {open && rest.length > 0 ? (
-        <Animated.View entering={FadeIn.duration(duration.fast)} style={[styles.chips, chosen.length > 0 ? { marginTop: space.md } : null]}>
+        <Animated.View entering={FadeIn.duration(duration.fast)} style={[styles.chips, { marginTop: space.md }]}>
           {rest.map((o) => (
             <Chip key={o.key} label={o.label} selected={false} onPress={() => onToggle(o.key)} />
           ))}
@@ -175,7 +165,7 @@ function MedicineList({ names, meds, onRemove }: { names: string[]; meds: MedSta
       {names.map((name, i) => {
         const status = meds.find((m) => m.name.toLowerCase() === name.toLowerCase());
         const state = status?.state ?? 'pending';
-        const text = state === 'rules' ? `${status?.ruleCount ?? 0} ${status?.ruleCount === 1 ? 'rule' : 'rules'} from its label` : MED_STATE[state];
+        const text = MED_STATE[state];
         const bad = state === 'not_recognised' || state === 'no_label' || state === 'failed';
         return (
           <Animated.View key={name} entering={FadeIn.duration(duration.base)} layout={LinearTransition.springify().damping(22)}>
@@ -183,12 +173,14 @@ function MedicineList({ names, meds, onRemove }: { names: string[]; meds: MedSta
             <View style={styles.med}>
               <View style={{ flex: 1, gap: 2 }}>
                 <T variant="bodyStrong">{name}</T>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  {state === 'pending' ? <ActivityIndicator size="small" color={c.textSecondary} /> : null}
-                  <T variant="caption" color={bad ? c.okay : c.textSecondary}>
-                    {text}
-                  </T>
-                </View>
+                {text ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {state === 'pending' ? <ActivityIndicator size="small" color={c.textSecondary} /> : null}
+                    <T variant="caption" color={bad ? c.okay : c.textSecondary}>
+                      {text}
+                    </T>
+                  </View>
+                ) : null}
               </View>
               <Tap accessibilityRole="button" accessibilityLabel={`Remove ${name}`} feedback="tap" onPress={() => onRemove(name)} hitSlop={10} style={[styles.remove, { backgroundColor: c.cardMuted }]}>
                 <Icon name="close" size={11} color={c.textSecondary} weight="bold" />
@@ -381,7 +373,7 @@ function AddRule({ rules, onAdd }: { rules: ProfileRule[]; onAdd: (tag: string, 
             </View>
           ) : q.length >= 2 ? (
             <T variant="caption" tone="tertiary" style={{ marginTop: space.sm }}>
-              Nothing by that name yet. Rules can only be about foods and ingredients Fit knows how to look for.
+              Nothing by that name yet. Rules can only be about foods and ingredients Second Look knows how to look for.
             </T>
           ) : null}
         </View>
@@ -478,8 +470,8 @@ function RuleRow({ rule, onToggle, onRemove }: { rule: Rule; onToggle: (on: bool
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xxl },
   saved: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.chip },
-  sectionTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32, marginBottom: space.md },
-  reveal: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: space.md },
+  sectionTitle: { flexDirection: 'row', alignItems: 'center', marginBottom: space.md },
+  reveal: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: space.lg },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   divider: { height: StyleSheet.hairlineWidth, marginLeft: space.lg },
   rule: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md + 2 },

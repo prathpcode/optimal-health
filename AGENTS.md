@@ -1,4 +1,4 @@
-# Optimal health (Fit scanner)
+# Optimal health (Second Look)
 
 A phone app that tells people with medications, conditions, allergies or dietary restrictions how a restaurant menu
 or grocery item fits them. Expo (React Native) app + Convex backend + a pure TypeScript rules engine.

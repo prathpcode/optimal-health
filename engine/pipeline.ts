@@ -1,12 +1,12 @@
 // Pure steps of the scan pipeline: everything between "a model said this" and "the scan record says this".
 // The network calls live in convex/; the decisions live here so they can be tested.
 
-import { evaluate, withSecondOpinion, type Thresholds } from "./evaluate";
-import { applyRemembered, dishKey, type RememberedAnswer } from "./memory";
+import { DEFAULT_THRESHOLDS, evaluate, withSecondOpinion, type Thresholds } from "./evaluate";
+import { applyRemembered, dishKey, type RememberedAnswer, type TextLine } from "./memory";
 import { withLabelFindings } from "./otc";
 import { codeCheck, containsTerm, literalTags, normalise } from "./tagMatch";
 import { isKnownTag, tagInfo, tagLabel, tagSatisfies } from "./tags";
-import type { HardCheck, Item, ItemTag, RankedItem, Rule, ScanQuestion, Sureness, Verdict } from "./types";
+import type { Box, HardCheck, Item, ItemTag, RankedItem, Rule, ScanQuestion, Sureness, Verdict } from "./types";
 
 // ---- What the reader model returns for a menu ----
 
@@ -68,6 +68,36 @@ export function itemsFromReader(dishes: ReaderDish[], idPrefix = "d"): Item[] {
       tags: [...tags.values()],
       ...(Object.keys(levels).length ? { levels } : {}),
     };
+  });
+}
+
+// ---- A first signal from the recognised text, before the dishes are read ----
+
+/** Each recognised line as an item of its own, so the same checks that run on dishes can run on raw lines. */
+export function lineItems(lines: TextLine[]): Item[] {
+  return itemsFromReader(lines.map((l) => ({ name: l.text, description: "", ingredients: [], tags: [], levels: [] })), "l");
+}
+
+export type EarlyHint = { box: Box; fit: "not_fit" | "cant_tell" };
+
+/**
+ * The lines that already look like trouble for a hard rule: one that names the thing outright ("walnut ice cream"),
+ * names something it commonly hides in ("pesto"), or that the judge thinks likely. Lines with nothing against them
+ * produce no hint at all: this pass can raise a flag early, it cannot say anything is fine.
+ */
+export function earlyHints(lines: TextLine[], rules: Rule[], judge: JudgeOpinion[] = []): EarlyHint[] {
+  const items = lineItems(lines);
+  // Only a judge that thinks it likely counts here. Its in-between scores would turn a third of a menu's lines into
+  // "maybe" flags, which says nothing; on a single line of text, unsure is the normal state.
+  const levelOf = new Map(rules.map((r) => [r.id, r.level]));
+  const likely = judge.filter((j) => {
+    const level = levelOf.get(j.ruleId);
+    return (level === "never" || level === "avoid") && j.p >= DEFAULT_THRESHOLDS[level].high;
+  });
+  const verdicts = buildVerdicts(items, rules, buildChecks(items, rules, [], likely));
+  return items.flatMap((item, i) => {
+    const fit = verdicts[item.id].fit;
+    return fit === "not_fit" || fit === "cant_tell" ? [{ box: lines[i].box, fit }] : [];
   });
 }
 

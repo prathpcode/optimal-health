@@ -128,10 +128,11 @@ export function VerdictPill({ fit, large }: { fit: Fit; large?: boolean }) {
   );
 }
 
+/** A section's title, in the app's heading face (the same one Manage and Home use). */
 export function SectionLabel({ children, style }: { children: string; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={style}>
-      <T variant="micro" tone="secondary">
+      <T variant="heading" accessibilityRole="header">
         {children}
       </T>
     </View>

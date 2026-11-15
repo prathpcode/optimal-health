@@ -160,7 +160,7 @@ export default function ScanScreen() {
             <Icon name="camera" size={28} color={onPhoto.text} />
           </View>
           <T variant="title" color={onPhoto.text} style={{ textAlign: 'center' }}>
-            Fit needs the camera to read menus
+            Second Look needs the camera to read menus
           </T>
           <T color={onPhoto.textSecondary} style={{ textAlign: 'center' }}>
             Photos are only used to read the menu you point at.

@@ -8,7 +8,7 @@ import { z } from "zod";
 import { internal } from "./_generated/api";
 import { internalAction, type ActionCtx } from "./_generated/server";
 import {
-  applySecondOpinions, buildChecks, buildQuestions, buildRanking, buildVerdicts, hardRules, itemsFromReader, type ReaderDish, type ReaderOpinion,
+  applySecondOpinions, buildChecks, buildQuestions, buildRanking, buildVerdicts, earlyHints, hardRules, itemsFromReader, lineItems, type ReaderDish, type ReaderOpinion,
 } from "../engine/pipeline";
 import { applyRemembered, positionsFor, restaurantId, type RememberedAnswer, type TextLine } from "../engine/memory";
 import { fromOpenFoodFacts, hasSubstance, itemFromProduct, mergeFacts, sanitiseNutrients, type ModelTag, type ProductFacts } from "../engine/product";
@@ -356,7 +356,7 @@ async function fetchProduct(barcode: string): Promise<ProductFacts | null> {
   const code = barcode.replace(/\D/g, "");
   if (!code) return null;
   const fields = "product_name,brands,ingredients_text,ingredients_text_en,allergens_tags,traces_tags,nutriments";
-  const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`, { headers: { "User-Agent": "fit-scanner/0.1" } });
+  const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`, { headers: { "User-Agent": "second-look/0.1" } });
   if (!res.ok) return null;
   return fromOpenFoodFacts(await res.json());
 }
@@ -517,6 +517,24 @@ export const run = internalAction({
         : scan.imageUrls.length
           ? recogniseLines(scan.imageUrls[0]).then(async (found) => {
               if (found?.length) await ctx.runMutation(internal.scans.patch, { scanId, lines: found });
+              // A first signal while the photo is still being read: which lines already look like trouble. Code's
+              // own reading of the words first (instant), then the judge's. Not waited for, and never allowed to
+              // disturb the scan: the dishes' own verdicts replace it as soon as they exist.
+              const watchFor = hardRules(scan.rules);
+              if (found?.length && watchFor.length) {
+                void (async () => {
+                  try {
+                    const usable = found.filter((l) => /[a-z]{4}/i.test(l.text)).slice(0, 60);
+                    const byCode = earlyHints(usable, scan.rules);
+                    if (byCode.length) await ctx.runMutation(internal.scans.patch, { scanId, hints: byCode });
+                    if (!judgeAvailable()) return;
+                    const withJudge = earlyHints(usable, scan.rules, await judgeItems(lineItems(usable), watchFor));
+                    if (withJudge.length) await ctx.runMutation(internal.scans.patch, { scanId, hints: withJudge });
+                  } catch (e) {
+                    console.error("early hints failed", e);
+                  }
+                })();
+              }
               return found;
             }).catch(() => null)
           : Promise.resolve(null);

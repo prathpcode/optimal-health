@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compileRules, conditionKey, conditionNotes } from "./compileRules";
-import { afterAnswer, applyAnswer, applySecondOpinions, buildChecks, buildQuestions, buildRanking, buildVerdicts, itemsFromReader, type ReaderDish } from "./pipeline";
+import { afterAnswer, applyAnswer, applySecondOpinions, buildChecks, buildQuestions, buildRanking, buildVerdicts, earlyHints, itemsFromReader, type ReaderDish } from "./pipeline";
 import { duplicateFindings } from "./otc";
 import { buildVerdicts as verdictsFor } from "./pipeline";
 import { itemFromProduct } from "./product";
@@ -177,5 +177,33 @@ describe("afterAnswer on a medicine", () => {
     const next = afterAnswer({ items: [item], checks, verdicts, ranking: buildRanking([item], verdicts, [dairy]), questions }, [dairy], questions[0].id, "no", "2026-11-14T20:00:00Z")!;
     expect(next.verdicts[item.id].fit).toBe("cant_tell");
     expect(next.verdicts[item.id].findings.some((f) => f.about === "Tylenol" && f.source)).toBe(true);
+  });
+});
+
+describe("earlyHints", () => {
+  const box = (top: number) => ({ top, left: 0.1, bottom: top + 0.02, right: 0.6 });
+  const NUTS: Rule = { id: "nuts", level: "never", tag: "tree_nuts", reason: "t", source: { title: "t", url: "u" }, from: { type: "allergy", label: "tree nut allergy" }, status: "library", enabled: true };
+  const lines = [
+    { text: "DESSERTS", box: box(0.1) },
+    { text: "Walnut ice cream, yogurt mousse, honey", box: box(0.2) },
+    { text: "Basil pesto, parmesan", box: box(0.3) },
+    { text: "Grilled chicken, sumac onions", box: box(0.4) },
+  ];
+  it("flags a line that names the thing, and one that names something it hides in, and nothing else", () => {
+    expect(earlyHints(lines, [NUTS])).toEqual([
+      { box: box(0.2), fit: "not_fit" },
+      { box: box(0.3), fit: "cant_tell" },
+    ]);
+  });
+  it("adds a line the judge thinks likely", () => {
+    const hints = earlyHints(lines, [NUTS], [{ itemId: "l4", ruleId: "nuts", p: 0.9 }]);
+    expect(hints.find((h) => h.box.top === 0.4)?.fit).toBe("not_fit");
+  });
+  it("ignores a judge that is merely unsure", () => {
+    expect(earlyHints(lines, [NUTS], [{ itemId: "l4", ruleId: "nuts", p: 0.3 }, { itemId: "l1", ruleId: "nuts", p: 0.2 }])).toEqual(earlyHints(lines, [NUTS]));
+  });
+  it("says nothing when no hard rule is switched on", () => {
+    expect(earlyHints(lines, [{ ...NUTS, enabled: false }])).toEqual([]);
+    expect(earlyHints(lines, [SODIUM])).toEqual([]);
   });
 });

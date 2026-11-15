@@ -64,8 +64,12 @@ export function positionsFor(dishes: Pick<Item, "name" | "description">[], lines
   return dishes.map((d) => {
     const name = normalise(d.name);
     if (!name) return undefined;
-    // The name line: an unused line that contains the name, or is contained by it (names wrap across two lines).
-    let at = norm.findIndex((t, i) => !used.has(i) && t.length > 1 && (t.includes(name) || (name.includes(t) && t.split(" ").length >= 2)));
+    // The name line. A line that IS the name, or begins with it, is taken before one that merely mentions it: a
+    // heading such as "beverages (excludes house-made sodas)" is not the dish "Sodas" printed two lines below.
+    let at = norm.findIndex((t, i) => !used.has(i) && t === name);
+    if (at < 0) at = norm.findIndex((t, i) => !used.has(i) && t.startsWith(`${name} `));
+    // Otherwise an unused line that contains the name, or is contained by it (names wrap across two lines).
+    if (at < 0) at = norm.findIndex((t, i) => !used.has(i) && t.length > 1 && (t.includes(name) || (name.includes(t) && t.split(" ").length >= 2)));
     if (at < 0) at = norm.findIndex((t, i) => !used.has(i) && t.length > 1 && name.split(" ").filter((w) => w.length > 2 && t.split(" ").includes(w)).length >= Math.max(1, Math.ceil(name.split(" ").filter((w) => w.length > 2).length * 0.7)));
     if (at < 0) return undefined;
     const boxes = [lines[at].box];

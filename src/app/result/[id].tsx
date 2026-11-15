@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -24,7 +25,7 @@ import type { Fit, Item, RankedItem, ScanQuestion } from '@engine/types';
 import { AnswerButtons } from '@/components/AnswerButtons';
 import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
-import { MenuOverlay, ScanSweep, TextOutlines } from '@/components/MenuOverlay';
+import { EarlyHints, MenuOverlay, ScanSweep, TextOutlines } from '@/components/MenuOverlay';
 import { ProductResult } from '@/components/ProductResult';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { Sheet, type SheetHandle } from '@/components/Sheet';
@@ -49,6 +50,8 @@ const SECTIONS: RankedItem['section'][] = ['best', 'okay', 'cant_tell', 'not_fit
 function statusText(view: ScanView | undefined): string {
   const status = view?.status ?? 'reading';
   const product = view?.kind === 'product' || view?.kind === 'label';
+  // A few lines already look like trouble: say that something is being found, not just read.
+  if ((status === 'reading' || status === 'judging') && view?.earlyHints?.length && !Object.keys(view.verdicts).length) return 'Spotting things to check';
   if (status === 'reading') return view?.kind === 'product' ? 'Looking it up' : view?.kind === 'label' ? 'Reading the label' : 'Reading';
   if (status === 'judging') return view?.provisional ? (product ? 'Checking' : 'Checking each dish') : view?.items.length ? 'Checking your rules' : product ? 'Reading the label' : 'Reading the menu';
   if (status === 'ranking') return 'Confirming';
@@ -62,7 +65,6 @@ export default function ResultScreen() {
   const id = params.id;
   const { view, answer } = useScan(id);
   const setRestaurant = useSetRestaurant();
-  const { c } = useTheme();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
@@ -100,6 +102,7 @@ export default function ResultScreen() {
   useEffect(() => {
     zoom.value = closeUp ? (reduced ? withTiming(1, { duration: duration.base }) : withSpring(1, { ...spring.gentle, damping: 26 })) : 0;
   }, [closeUp, reduced, zoom]);
+  const scrimStyle = useAnimatedStyle(() => ({ opacity: interpolate(zoom.value, [0, 0.4], [0, 1], Extrapolation.CLAMP) }));
   // Where the photo ends up, for laying the boxes over it.
   const shown = closeUp ?? target;
 
@@ -199,16 +202,25 @@ export default function ResultScreen() {
         </View>
       )}
 
-      {/* Verdict chips over the dishes */}
+      {/* A close-up photo is bigger than the space it sits in: keep it from running up under the status and top bars. */}
+      {closeUp ? (
+        <Animated.View pointerEvents="none" style={[styles.topScrim, { height: area.top - 6 }, scrimStyle]}>
+          <View style={{ flex: 1, backgroundColor: onPhoto.black }} />
+          <LinearGradient colors={[onPhoto.black, 'rgba(0,0,0,0)']} style={{ height: 14, marginBottom: -14 }} />
+        </Animated.View>
+      ) : null}
+
+      {/* Verdict boxes over the dishes */}
       {view && target && shown && !failed && !isProduct ? (
         <Animated.View style={[StyleSheet.absoluteFill, overlayStyle]} pointerEvents="box-none">
           {view.items.some((i) => i.position?.length) ? (
-            <MenuOverlay photo={shown} bounds={{ width, height: area.top + area.height }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={selectDish} />
+            <MenuOverlay photo={shown} bounds={{ width, height: area.top + area.height, top: area.top - 8 }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={selectDish} />
           ) : (
             // No dish positions (text recognition is off, or found nothing to match): the text that was found, if
             // any, as faint outlines, and verdict chips in a row over the photo.
             <>
               {view.textBoxes?.length ? <TextOutlines photo={target} boxes={view.textBoxes} /> : null}
+              {view.earlyHints?.length ? <EarlyHints photo={target} hints={view.earlyHints} /> : null}
               <ChipRow view={view} bottom={height - (area.top + area.height) + space.md} selectedId={selected} onSelect={selectDish} />
             </>
           )}
@@ -285,7 +297,6 @@ export default function ResultScreen() {
               {view && !isProduct && view.questions.length > 0 ? (
                 <Animated.View entering={enterAt(2, reduced)} layout={reduced ? undefined : LinearTransition.springify().damping(22)} style={{ marginTop: space.xxl }}>
                   <View style={styles.askHeader}>
-                    <Icon name="server" size={16} color={c.textSecondary} />
                     <SectionLabel>Ask your server</SectionLabel>
                   </View>
                   <Card style={{ gap: space.xl }}>
@@ -315,6 +326,13 @@ export default function ResultScreen() {
       </Sheet>
     </View>
   );
+}
+
+/** Split a summary into its first sentence and whatever follows. */
+function lead(summary: string): [string, string] {
+  const at = summary.search(/[.!?](\s|$)/);
+  if (at < 0 || at >= summary.length - 2) return [summary.trim(), ''];
+  return [summary.slice(0, at + 1).trim(), summary.slice(at + 1).trim()];
 }
 
 function StatusPill({ view }: { view: ScanView | undefined }) {
@@ -357,10 +375,16 @@ function SheetHeader({ view, working, failed, isProduct }: { view: ScanView | un
   return (
     <View style={{ gap: space.md }}>
       {view?.summary ? (
-        <Animated.View entering={FadeIn.duration(duration.slow)}>
-          <T variant="headline" style={{ lineHeight: 23 }}>
-            {view.summary}
+        // The summary's first sentence is the headline, in the heading face; the rest reads as quieter body text.
+        <Animated.View entering={FadeIn.duration(duration.slow)} style={{ gap: space.sm }}>
+          <T variant="heading" accessibilityRole="header">
+            {lead(view.summary)[0]}
           </T>
+          {lead(view.summary)[1] ? (
+            <T variant="body" tone="secondary" style={{ lineHeight: 22 }}>
+              {lead(view.summary)[1]}
+            </T>
+          ) : null}
         </Animated.View>
       ) : (
         <View style={{ gap: space.sm, paddingVertical: 2 }}>
@@ -426,7 +450,7 @@ function Counter({ n, label, color, soft, index }: { n: number; label: string; c
   const reduced = useReducedMotion();
   return (
     <Animated.View entering={enterAt(index, reduced)} style={[styles.counter, { backgroundColor: soft }]}>
-      <T variant="headline" color={color} style={{ fontVariant: ['tabular-nums'] }}>
+      <T variant="heading" color={color} style={{ fontVariant: ['tabular-nums'] }}>
         {n}
       </T>
       <T variant="caption" color={color}>
@@ -607,7 +631,7 @@ function FailedCard({ message }: { message?: string }) {
       <View style={[styles.banner, { backgroundColor: c.cardMuted }]}>
         <Icon name="note" size={16} color={c.textSecondary} />
         <T variant="caption" tone="secondary" style={{ flex: 1 }}>
-          Fit never guesses at a menu it can’t read. Flat, well lit photos work best.
+          Second Look never guesses at a menu it can’t read. Flat, well lit photos work best.
         </T>
       </View>
     </Animated.View>
@@ -631,6 +655,7 @@ function Missing() {
 }
 
 const styles = StyleSheet.create({
+  topScrim: { position: 'absolute', left: 0, right: 0, top: 0 },
   noPhoto: { position: 'absolute', left: space.xxl, right: space.xxl, alignItems: 'center', justifyContent: 'center', gap: space.md },
   checking: { borderRadius: radius.chip, paddingHorizontal: space.md, justifyContent: 'center', position: 'absolute', right: 0, top: -30 },
   checkingSmall: { borderRadius: radius.chip, paddingHorizontal: 7, paddingVertical: 3 },
@@ -640,9 +665,9 @@ const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   top: { position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg },
   pill: { flexDirection: 'row', alignItems: 'center', gap: space.sm, height: 40, paddingHorizontal: space.lg, maxWidth: 240 },
-  counters: { flexDirection: 'row', gap: space.sm, minHeight: 52 },
+  counters: { flexDirection: 'row', gap: space.sm, minHeight: 60 },
   productCounters: { flexDirection: 'row' },
-  counter: { flex: 1, borderRadius: radius.md, paddingVertical: space.sm, paddingHorizontal: space.md, gap: 0 },
+  counter: { flex: 1, borderRadius: radius.card - 6, paddingVertical: space.md - 2, paddingHorizontal: space.md + 2, gap: 0 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.lg },
   divider: { height: StyleSheet.hairlineWidth, marginLeft: space.lg + 10 + space.md },
   mod: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },

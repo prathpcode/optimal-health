@@ -12,8 +12,12 @@ import Animated, {
   useDerivedValue,
   useReducedMotion,
   useSharedValue,
+  withRepeat,
+  withSequence,
   withSpring,
+  withTiming,
 } from 'react-native-reanimated';
+import { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -103,6 +107,16 @@ export default function HomeScreen() {
       transform: [{ translateX: -turn * 0.7 }, { scaleX: 1 - stretch.value * 0.12 }],
     };
   });
+  // The arrow that says there are past scans below: it bobs gently and goes as soon as the scroll starts.
+  const bob = useSharedValue(0);
+  useEffect(() => {
+    if (reduced) return;
+    bob.value = withRepeat(withSequence(withTiming(1, { duration: 900 }), withTiming(0, { duration: 900 })), -1);
+  }, [reduced, bob]);
+  const hintStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 40], [0.9, 0], Extrapolation.CLAMP),
+    transform: [{ translateY: bob.value * 5 }],
+  }));
   const headlineStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [0, PULL * 2.2], [1, 0], Extrapolation.CLAMP) }));
 
   if (name === undefined) return <View style={{ flex: 1, backgroundColor: c.bg }} />;
@@ -147,6 +161,11 @@ export default function HomeScreen() {
       <View style={{ position: 'absolute', top: insets.top + space.md, right: gutter }}>
         <GlassButton tone="theme" icon="person" label="Your profile" onPress={() => router.push('/profile')} />
       </View>
+      {recent?.length ? (
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, alignItems: 'center', bottom: bottom + space.md + SCAN_SIZE + space.md }, hintStyle]}>
+          <Icon name="down" size={18} color={c.textTertiary} />
+        </Animated.View>
+      ) : null}
       <Tap accessibilityRole="button" accessibilityLabel="Scan" feedback="tap" scaleTo={0.97} onPress={() => router.push('/scan')} style={{ position: 'absolute', left: gutter, right: gutter, bottom: bottom + space.md }}>
         <GlassSurface tone="theme" interactive style={styles.scan}>
           <Icon name="camera" size={20} color={c.text} />
