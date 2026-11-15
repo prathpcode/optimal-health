@@ -46,9 +46,11 @@ export default function TogetherScreen() {
         contentInsetAdjustmentBehavior="never"
         contentContainerStyle={{ paddingTop: insets.top + titleTop, paddingHorizontal: gutter, paddingBottom: bottom + space.huge + 62 }}
         showsVerticalScrollIndicator={false}>
-        <T variant="heroBold" accessibilityRole="header" style={styles.title}>
-          Together
-        </T>
+        {account ? (
+          <T variant="heroBold" accessibilityRole="header" style={styles.title}>
+            Together
+          </T>
+        ) : null}
         {!ready ? null : account ? <SignedIn pickable={pickable} pick={pick} /> : <SignedOut pickable={pickable} pick={pick} />}
       </ScrollView>
       {account ? (
@@ -103,12 +105,6 @@ function SignedOut({ pickable, pick }: { pickable: RoomView[]; pick: Pick }) {
       <Animated.View entering={enterAt(1, reduced)}>
         <SectionTitle title="Pick your rooms" />
         <RoomChecklist rooms={pickable} picked={pick.picked} onToggle={pick.toggle} />
-        <View style={[styles.privacy, { marginTop: space.lg }]}>
-          <Icon name="lock" size={12} color={c.textTertiary} />
-          <T variant="caption" tone="tertiary">
-            Signs you in with Whop. Your profile stays private.
-          </T>
-        </View>
       </Animated.View>
 
       <Animated.View entering={enterAt(2, reduced)}>
@@ -117,7 +113,7 @@ function SignedOut({ pickable, pick }: { pickable: RoomView[]; pick: Pick }) {
           <GlassSurface tone="theme" interactive style={styles.empty}>
             <T variant="headline">Race your friends</T>
             <T variant="caption" tone="secondary">
-              Every dish you order scores by how well it fits you. Most points wins.
+              Compete with your friends and see who can eat the healthiest!
             </T>
             <PointsKey />
           </GlassSurface>
