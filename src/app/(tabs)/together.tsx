@@ -16,10 +16,10 @@ import { useTogether, type RoomView } from '@/lib/community';
 import { useLatestPosts } from '@/lib/whopForum';
 import { PostCard } from '@/components/post';
 import { signOutOfWhop, useWhopAccount } from '@/lib/whop';
-import { enterAt, gutter, radius, space, titleTop, topBar, useTheme } from '@/theme';
+import { enterAt, gutter, radius, shadow, space, titleTop, topBar, useTheme } from '@/theme';
 
 export default function TogetherScreen() {
-  const { c } = useTheme();
+  const { c, dark } = useTheme();
   const insets = useSafeAreaInsets();
   const bottom = Platform.OS === 'ios' ? insets.bottom : 0;
   const { ready, account } = useWhopAccount();
@@ -44,7 +44,7 @@ export default function TogetherScreen() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView
         contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={{ paddingTop: insets.top + titleTop, paddingHorizontal: gutter, paddingBottom: bottom + space.huge + (pick.picked.length ? 62 : 0) }}
+        contentContainerStyle={{ paddingTop: insets.top + titleTop, paddingHorizontal: gutter, paddingBottom: bottom + space.huge + 62 }}
         showsVerticalScrollIndicator={false}>
         <T variant="heroBold" accessibilityRole="header" style={styles.title}>
           Together
@@ -55,6 +55,17 @@ export default function TogetherScreen() {
         <View style={{ position: 'absolute', top: insets.top + topBar, right: gutter }}>
           <GlassButton tone="theme" icon="person" label="Account" onPress={accountMenu} />
         </View>
+      ) : null}
+      {account && mine.length && !pick.picked.length ? (
+        <Tap
+          accessibilityRole="button"
+          accessibilityLabel="Make a post"
+          feedback="tap"
+          scaleTo={0.9}
+          onPress={() => router.push({ pathname: '/compose/[slug]', params: { slug: mine[0].slug } })}
+          style={[styles.fab, { backgroundColor: c.primary, bottom: bottom + space.md }, shadow('floating', dark)]}>
+          <Icon name="plus" size={26} color={c.onPrimary} weight="bold" />
+        </Tap>
       ) : null}
       {ready ? (
         <JoinBar
@@ -226,6 +237,7 @@ function LatestPosts({ slugs }: { slugs: string[] }) {
 }
 
 const styles = StyleSheet.create({
+  fab: { position: 'absolute', right: gutter, width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', gap: space.sm + 2 },
   bigAction: { borderRadius: radius.card, padding: space.lg, gap: space.md, minHeight: 112, justifyContent: 'space-between' },
   bigIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
