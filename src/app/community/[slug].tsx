@@ -1,29 +1,23 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, FlatList, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { useReducedMotion } from 'react-native-reanimated';
+import { Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar, BackButton, RoomIcon } from '@/components/community';
 import { Icon } from '@/components/Icon';
-import { Segmented } from '@/components/Segmented';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { attempt, ChallengeHero, ChallengeRow, PulseDot, REACTION_LABEL } from '@/components/together';
+import { attempt, REACTION_LABEL, RoomStatus } from '@/components/together';
 import { Button } from '@/components/ui';
-import { leaveRoom, sendMessage, useRoom, type Message } from '@/lib/community';
+import { leaveRoom, sendMessage, useRoom, type Message, type RoomView } from '@/lib/community';
 import { useWhopAccount } from '@/lib/whop';
-import { enterAt, gutter, radius, roomAccent, space, tint, type as typeScale, useTheme } from '@/theme';
-
-type Tab = 'chat' | 'challenges';
-
+import { gutter, radius, roomAccent, space, tint, type as typeScale, useTheme } from '@/theme';
 
 export default function RoomScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const { room, messages, challenges } = useRoom(slug);
+  const { room, messages } = useRoom(slug);
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<Tab>('chat');
   if (!room) return null;
 
   const more = () =>
@@ -55,30 +49,17 @@ export default function RoomScreen() {
             <T variant="title" numberOfLines={1}>
               {room.title}
             </T>
-            <View style={styles.live}>
-              <PulseDot color={c.good} size={7} />
-              <T variant="caption" tone="secondary">
-                {room.members.toLocaleString()} members
-              </T>
-            </View>
+            <RoomStatus room={room} />
           </View>
         </View>
-        <Segmented<Tab>
-          label="Room sections"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: 'chat', label: 'Chat' },
-            { value: 'challenges', label: challenges.length ? `Challenges ${challenges.length}` : 'Challenges' },
-          ]}
-        />
       </View>
-      {tab === 'chat' ? <Chat slug={room.slug} title={room.title} joined={room.joined} messages={messages} /> : <Challenges slug={room.slug} joined={room.joined} />}
+      <Chat room={room} messages={messages} />
     </KeyboardAvoidingView>
   );
 }
 
-function Chat({ slug, title, joined, messages }: { slug: string; title: string; joined: boolean; messages: Message[] }) {
+function Chat({ room, messages }: { room: RoomView; messages: Message[] }) {
+  const { slug, title, joined } = room;
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const { account } = useWhopAccount();
@@ -96,7 +77,6 @@ function Chat({ slug, title, joined, messages }: { slug: string; title: string; 
         inverted
         data={rows}
         keyExtractor={(m) => m.id}
-        contentContainerStyle={{ paddingHorizontal: gutter, paddingVertical: space.lg }}
         keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
         renderItem={({ item, index }) => {
@@ -104,6 +84,8 @@ function Chat({ slug, title, joined, messages }: { slug: string; title: string; 
           const first = !older || older.author !== item.author || item.at - older.at > 10 * 60_000;
           return <Bubble m={item} first={first} slug={slug} />;
         }}
+        ListEmptyComponent={<EmptyRoom room={room} />}
+        contentContainerStyle={rows.length ? { paddingHorizontal: gutter, paddingVertical: space.lg } : { flexGrow: 1, paddingHorizontal: gutter }}
       />
       <View style={[styles.composerWrap, { paddingBottom: insets.bottom + space.sm, borderTopColor: c.hairline, backgroundColor: c.bg }]}>
         {joined ? (
@@ -194,33 +176,22 @@ function Bubble({ m, first, slug }: { m: Message; first: boolean; slug: string }
   );
 }
 
-function Challenges({ slug, joined }: { slug: string; joined: boolean }) {
-  const { challenges } = useRoom(slug);
-  const insets = useSafeAreaInsets();
-  const reduced = useReducedMotion();
+/** No messages yet: a friendly first line, in the room's colour. The list is inverted, so flip it back upright. */
+function EmptyRoom({ room }: { room: RoomView }) {
+  const { c, dark } = useTheme();
+  const accent = roomAccent[room.slug] ?? c.text;
   return (
-    <ScrollView contentContainerStyle={{ paddingHorizontal: gutter, paddingTop: space.md, paddingBottom: insets.bottom + space.huge, gap: space.md }} showsVerticalScrollIndicator={false}>
-      {challenges.length === 0 ? (
-        <View style={{ paddingVertical: space.xxxl, alignItems: 'center' }}>
-          <T tone="secondary">No challenges yet.</T>
-        </View>
-      ) : (
-        challenges.map((ch, i) => (
-          <Animated.View key={ch.id} entering={enterAt(i, reduced)}>
-            {ch.joined ? <ChallengeHero ch={ch} /> : <ChallengeRow ch={ch} />}
-          </Animated.View>
-        ))
-      )}
-      {joined ? (
-        <Button
-          label="New challenge"
-          icon="plus"
-          variant="secondary"
-          onPress={() => router.push({ pathname: '/challenge/new', params: { room: slug } })}
-          style={{ marginTop: space.sm }}
-        />
-      ) : null}
-    </ScrollView>
+    <View style={[styles.empty, { transform: [{ scaleY: -1 }] }]}>
+      <View style={[styles.wave, { backgroundColor: tint(accent, dark ? 0.22 : 0.12) }]}>
+        <Icon name="chat" size={26} color={accent} />
+      </View>
+      <T variant="headline" style={{ textAlign: 'center' }}>
+        {room.reasons[0] ? `Say hi to people with ${room.reasons[0].toLowerCase()}` : `Say hi to ${room.title}`}
+      </T>
+      <T tone="secondary" style={{ textAlign: 'center' }}>
+        Ask what they order, or share a dish after a scan.
+      </T>
+    </View>
   );
 }
 
@@ -228,7 +199,8 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   moreBtn: { height: 38, paddingHorizontal: space.sm, justifyContent: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  live: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md, paddingHorizontal: space.xl, paddingVertical: space.huge },
+  wave: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
   composerWrap: { paddingHorizontal: gutter, paddingTop: space.sm, borderTopWidth: StyleSheet.hairlineWidth },
   composer: { flexDirection: 'row', alignItems: 'flex-end', borderRadius: 22, borderWidth: 1, paddingLeft: space.lg, padding: 5, gap: space.sm },
   input: { flex: 1, maxHeight: 120, paddingTop: 8, paddingBottom: 8 },

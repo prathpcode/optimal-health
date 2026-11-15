@@ -10,9 +10,10 @@ export const FIT_LABEL: Record<Fit, string> = {
   cant_tell: "Can't tell",
 };
 
+/** Section headings use the verdict words themselves: one vocabulary across the result, the pills and the tally. */
 export const SECTION_LABEL: Record<RankedItem['section'], string> = {
-  best: 'Best for you',
-  okay: 'Okay',
+  best: 'Good fit',
+  okay: 'Okay, with notes',
   cant_tell: "Can't tell",
   not_fit: 'Not a fit',
 };

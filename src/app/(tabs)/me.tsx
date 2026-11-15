@@ -12,7 +12,7 @@ import type { Rule, RuleLevel } from '@engine/types';
 import { Icon, type IconName } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { Card, Chip, SectionLabel } from '@/components/ui';
+import { Card, Chip } from '@/components/ui';
 import { HAS_BACKEND } from '@/lib/backend';
 import { useProfile, type MedStatus, type ProfileRule } from '@/lib/profile';
 import { LEVEL_LABEL } from '@/lib/verdict';
@@ -47,19 +47,19 @@ export default function MeScreen() {
       <View style={styles.header}>
         <T variant="display">Me</T>
         {saved ? (
-          <Animated.View entering={FadeIn.duration(duration.fast)} exiting={FadeOut.duration(duration.base)} style={[styles.saved, { backgroundColor: c.goodSoft }]}>
-            <Icon name="check" size={12} color={c.good} weight="bold" />
-            <T variant="caption" color={c.good}>
+          <Animated.View entering={FadeIn.duration(duration.fast)} exiting={FadeOut.duration(duration.base)} style={[styles.saved, { backgroundColor: c.cardMuted }]}>
+            <Icon name="check" size={12} color={c.check} weight="bold" />
+            <T variant="caption" color={c.check}>
               Saved
             </T>
           </Animated.View>
         ) : null}
       </View>
       <T tone="secondary" style={{ marginBottom: space.xl }}>
-        What you choose here becomes the rules every scan is checked against.
+        Tell Fit what you manage. It turns your answers into the rules every scan is checked against.
       </T>
 
-      <Section index={0} title="Allergies" icon="allergy">
+      <Section index={0} title="Allergies" icon="allergy" count={profile.allergies.length}>
         <View style={styles.chips}>
           {ALLERGIES.map((o) => (
             <Chip key={o.key} label={o.label} selected={profile.allergies.includes(o.key)} onPress={() => update((p) => ({ ...p, allergies: toggle(p.allergies, o.key) }))} />
@@ -67,7 +67,7 @@ export default function MeScreen() {
         </View>
       </Section>
 
-      <Section index={1} title="Medicines" icon="pill">
+      <Section index={1} title="Medicines" icon="pill" count={profile.medications.length}>
         <MedicineList
           names={profile.medications.map((m) => m.name)}
           meds={meds}
@@ -79,7 +79,7 @@ export default function MeScreen() {
         </T>
       </Section>
 
-      <Section index={2} title="Conditions" icon="heart">
+      <Section index={2} title="Conditions" icon="heart" count={profile.conditions.length}>
         <View style={styles.chips}>
           {CONDITIONS.map((o) => (
             <Chip
@@ -97,7 +97,7 @@ export default function MeScreen() {
         </View>
       </Section>
 
-      <Section index={3} title="Diet" icon="leaf">
+      <Section index={3} title="Diet" icon="leaf" count={profile.diets.length}>
         <View style={styles.chips}>
           {DIETS.map((o) => (
             <Chip key={o.key} label={o.label} selected={profile.diets.includes(o.key)} onPress={() => update((p) => ({ ...p, diets: toggle(p.diets, o.key) }))} />
@@ -105,9 +105,13 @@ export default function MeScreen() {
         </View>
       </Section>
 
-      <View style={[styles.sectionTitle, { marginTop: space.sm }]}>
-        <Icon name="shield" size={15} color={c.textSecondary} />
-        <SectionLabel>Your rules</SectionLabel>
+      <View style={[styles.rulesHead, { borderTopColor: c.rule }]}>
+        <T variant="title" accessibilityRole="header">
+          What Fit checks
+        </T>
+        <T variant="body" tone="secondary">
+          Made from your answers above. Switch one off to stop checking it.
+        </T>
       </View>
       {rules.length === 0 ? (
         <Card muted>
@@ -121,7 +125,7 @@ export default function MeScreen() {
               entering={reduced ? FadeIn : FadeIn.duration(duration.base)}
               exiting={FadeOut.duration(duration.fast)}
               layout={reduced ? undefined : LinearTransition.springify().damping(22)}>
-              {i > 0 ? <View style={[styles.divider, { backgroundColor: c.hairline }]} /> : null}
+              {i > 0 ? <RuleLine /> : null}
               <RuleRow rule={r} onToggle={(on) => setRuleEnabled(r.id, on)} onRemove={r.custom ? () => removeRule(r.id) : undefined} />
             </Animated.View>
           ))}
@@ -135,18 +139,33 @@ export default function MeScreen() {
   );
 }
 
-function Section({ index, title, icon, children }: { index: number; title: string; icon: IconName; children: React.ReactNode }) {
+/** One slip per thing you manage: a heading with how many you picked, then the choices. */
+function Section({ index, title, icon, count, children }: { index: number; title: string; icon: IconName; count: number; children: React.ReactNode }) {
   const { c } = useTheme();
   const reduced = useReducedMotion();
   return (
-    <Animated.View entering={enterAt(index, reduced)} style={{ marginBottom: space.xxl }}>
-      <View style={styles.sectionTitle}>
-        <Icon name={icon} size={15} color={c.textSecondary} />
-        <SectionLabel>{title}</SectionLabel>
-      </View>
-      {children}
+    <Animated.View entering={enterAt(index, reduced)} style={{ marginBottom: space.md }}>
+      <Card style={{ gap: space.md }}>
+        <View style={styles.sectionTitle}>
+          <Icon name={icon} size={17} color={c.check} />
+          <T variant="headline" accessibilityRole="header" style={{ flex: 1 }}>
+            {title}
+          </T>
+          {count > 0 ? (
+            <T variant="figure" color={c.carbon}>
+              {count}
+            </T>
+          ) : null}
+        </View>
+        {children}
+      </Card>
     </Animated.View>
   );
+}
+
+function RuleLine() {
+  const { c } = useTheme();
+  return <View style={[styles.divider, { backgroundColor: c.hairline }]} />;
 }
 
 const MED_STATE: Record<MedStatus['state'], string> = {
@@ -162,7 +181,7 @@ function MedicineList({ names, meds, onRemove }: { names: string[]; meds: MedSta
   const { c } = useTheme();
   if (names.length === 0) return null;
   return (
-    <Card style={{ padding: 0, overflow: 'hidden', marginBottom: space.md }}>
+    <View style={[styles.medList, { borderColor: c.hairline }]}>
       {names.map((name, i) => {
         const status = meds.find((m) => m.name.toLowerCase() === name.toLowerCase());
         const state = status?.state ?? 'pending';
@@ -176,7 +195,7 @@ function MedicineList({ names, meds, onRemove }: { names: string[]; meds: MedSta
                 <T variant="bodyStrong">{name}</T>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   {state === 'pending' ? <ActivityIndicator size="small" color={c.textSecondary} /> : null}
-                  <T variant="caption" color={bad ? c.okay : c.textSecondary}>
+                  <T variant="caption" color={bad ? c.text : c.textSecondary} style={bad ? { fontWeight: '600' } : null}>
                     {text}
                   </T>
                 </View>
@@ -188,7 +207,7 @@ function MedicineList({ names, meds, onRemove }: { names: string[]; meds: MedSta
           </Animated.View>
         );
       })}
-    </Card>
+    </View>
   );
 }
 
@@ -223,7 +242,7 @@ function MedicineSearch({ onAdd, taken }: { onAdd: (name: string) => void; taken
 
   return (
     <View>
-      <View style={[styles.search, { backgroundColor: c.card, borderColor: c.hairline }]}>
+      <View style={[styles.search, { backgroundColor: c.cardMuted, borderColor: c.rule }]}>
         <Icon name="plus" size={15} color={c.textSecondary} />
         <TextInput
           value={term}
@@ -239,7 +258,7 @@ function MedicineSearch({ onAdd, taken }: { onAdd: (name: string) => void; taken
         {loading ? <ActivityIndicator size="small" color={c.textSecondary} /> : null}
       </View>
       {shown.length > 0 ? (
-        <Animated.View entering={FadeIn.duration(duration.fast)} style={[styles.results, { backgroundColor: c.card, borderColor: c.hairline }]}>
+        <Animated.View entering={FadeIn.duration(duration.fast)} style={[styles.results, { backgroundColor: c.card, borderColor: c.rule }]}>
           {shown.map((r, i) => (
             <Tap
               key={r.name}
@@ -263,10 +282,14 @@ function MedicineSearch({ onAdd, taken }: { onAdd: (name: string) => void; taken
   );
 }
 
-function levelColor(level: Rule['level'], c: Colors) {
-  if (level === 'never') return { fg: c.notFit, bg: c.notFitSoft };
-  if (level === 'avoid') return { fg: c.okay, bg: c.okaySoft };
-  return { fg: c.textSecondary, bg: c.cantTellSoft };
+/**
+ * Rule levels are ranked by ink, never by verdict colour (red, amber and green mean verdicts only): Never is solid
+ * ink, Avoid is an ink outline, the soft levels are check green on the muted slip.
+ */
+function levelColor(level: Rule['level'], c: Colors): { fg: string; bg: string; border?: string } {
+  if (level === 'never') return { fg: c.onPrimary, bg: c.primary };
+  if (level === 'avoid') return { fg: c.text, bg: 'transparent', border: c.text };
+  return { fg: c.check, bg: c.cardMuted };
 }
 
 const STATUS_TEXT: Record<Rule['status'], string> = {
@@ -299,7 +322,7 @@ function AddRule({ rules, onAdd }: { rules: ProfileRule[]; onAdd: (tag: string, 
 
   if (!open) {
     return (
-      <Tap accessibilityRole="button" accessibilityLabel="Add your own rule" feedback="tap" scaleTo={0.98} onPress={() => setOpen(true)} style={[styles.addRule, { borderColor: c.hairline }]}>
+      <Tap accessibilityRole="button" accessibilityLabel="Add your own rule" feedback="tap" scaleTo={0.98} onPress={() => setOpen(true)} style={[styles.addRule, { borderColor: c.rule }]}>
         <Icon name="plus" size={15} color={c.textSecondary} />
         <T variant="bodyStrong" tone="secondary">
           Add your own rule
@@ -335,7 +358,7 @@ function AddRule({ rules, onAdd }: { rules: ProfileRule[]; onAdd: (tag: string, 
         </View>
       ) : (
         <View>
-          <View style={[styles.search, { backgroundColor: c.card, borderColor: c.hairline }]}>
+          <View style={[styles.search, { backgroundColor: c.cardMuted, borderColor: c.rule }]}>
             <Icon name="plus" size={15} color={c.textSecondary} />
             <TextInput
               value={term}
@@ -351,7 +374,7 @@ function AddRule({ rules, onAdd }: { rules: ProfileRule[]; onAdd: (tag: string, 
             />
           </View>
           {matches.length > 0 ? (
-            <View style={[styles.results, { backgroundColor: c.card, borderColor: c.hairline }]}>
+            <View style={[styles.results, { backgroundColor: c.card, borderColor: c.rule }]}>
               {matches.map((t, i) => (
                 <Tap
                   key={t.id}
@@ -387,7 +410,7 @@ function AddRule({ rules, onAdd }: { rules: ProfileRule[]; onAdd: (tag: string, 
       ) : null}
 
       {check?.weakens ? (
-        <T variant="caption" color={c.okay}>
+        <T variant="caption" style={{ fontWeight: '600' }}>
           You already have a stronger rule: {describe(check.weakens)}. If you no longer need it, switch it off in the list above.
         </T>
       ) : check?.replaces.length ? (
@@ -397,7 +420,7 @@ function AddRule({ rules, onAdd }: { rules: ProfileRule[]; onAdd: (tag: string, 
       ) : null}
 
       <View style={{ flexDirection: 'row', gap: space.sm }}>
-        <Tap accessibilityRole="button" accessibilityLabel="Cancel" feedback="tap" onPress={reset} style={[styles.formButton, { backgroundColor: c.card, borderWidth: 1.5, borderColor: c.hairline }]}>
+        <Tap accessibilityRole="button" accessibilityLabel="Cancel" feedback="tap" onPress={reset} style={[styles.formButton, { backgroundColor: c.card, borderWidth: 1.5, borderColor: c.rule }]}>
           <T variant="bodyStrong">Cancel</T>
         </Tap>
         <Tap
@@ -428,7 +451,7 @@ function RuleRow({ rule, onToggle, onRemove }: { rule: Rule; onToggle: (on: bool
   const status = STATUS_TEXT[rule.status];
   return (
     <View style={[styles.rule, !rule.enabled ? { opacity: 0.5 } : null]}>
-      <View style={[styles.level, { backgroundColor: col.bg }]}>
+      <View style={[styles.level, { backgroundColor: col.bg }, col.border ? { borderWidth: 1.5, borderColor: col.border } : null]}>
         <T variant="micro" color={col.fg}>
           {LEVEL_LABEL[rule.level]}
         </T>
@@ -443,7 +466,7 @@ function RuleRow({ rule, onToggle, onRemove }: { rule: Rule; onToggle: (on: bool
             {rule.from.label}
           </T>
           {status ? (
-            <T variant="caption" color={rule.status === 'unverified' ? c.okay : c.textTertiary}>
+            <T variant="caption" color={rule.status === 'unverified' ? c.text : c.textTertiary}>
               · {status}
             </T>
           ) : null}
@@ -469,19 +492,21 @@ function RuleRow({ rule, onToggle, onRemove }: { rule: Rule; onToggle: (on: bool
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xs },
   saved: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.chip },
-  sectionTitle: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.md },
+  sectionTitle: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  rulesHead: { gap: space.xs, marginTop: space.xxl, paddingTop: space.xl, marginBottom: space.md, borderTopWidth: StyleSheet.hairlineWidth },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  divider: { height: StyleSheet.hairlineWidth, marginLeft: space.lg },
+  divider: { height: StyleSheet.hairlineWidth },
   rule: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md + 2 },
   level: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, minWidth: 62, alignItems: 'center' },
   ruleMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  med: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
+  medList: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
+  med: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
   remove: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   search: { flexDirection: 'row', alignItems: 'center', gap: space.sm, height: 48, borderRadius: radius.button, borderWidth: 1.5, paddingHorizontal: space.lg },
   input: { flex: 1, fontSize: 16, height: '100%' },
   results: { marginTop: space.sm, borderRadius: radius.button, borderWidth: 1.5, overflow: 'hidden' },
   result: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg, paddingVertical: space.md + 2 },
-  addRule: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, height: 48, borderRadius: radius.button, borderWidth: 1.5, borderStyle: 'dashed', marginTop: space.md },
+  addRule: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, height: 48, borderRadius: radius.button, borderWidth: 1.5, borderStyle: 'dashed', marginTop: space.md, minHeight: 48 },
   picked: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   formButton: { flex: 1, height: 48, borderRadius: radius.button, alignItems: 'center', justifyContent: 'center' },
 });

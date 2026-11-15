@@ -91,6 +91,9 @@ export default defineSchema({
     .index("by_memberId", ["memberId"])
     .index("by_room_and_memberId", ["room", "memberId"]),
 
+  // Last time a signed-in member's app was open, for "online now". High-churn, so kept apart from members.
+  presence: defineTable({ memberId: v.id("members"), lastSeenAt: v.number() }).index("by_memberId", ["memberId"]),
+
   // A room someone left; automatic placement never re-adds it.
   roomOptOuts: defineTable({ memberId: v.id("members"), room: v.string() }).index("by_memberId_and_room", ["memberId", "room"]),
 
@@ -111,27 +114,26 @@ export default defineSchema({
     ),
   }).index("by_room_and_at", ["room", "at"]),
 
+  // A challenge between friends ("Eat what fits", engine/challenge.ts). Joined by invite link.
   challenges: defineTable({
-    room: v.string(),
-    template: v.string(),
     days: v.number(),
-    entryCents: v.number(),
     startsAt: v.number(),
     tzOffsetMinutes: v.number(),
     createdBy: v.id("members"),
     playerCount: v.number(),
-  }).index("by_room_and_startsAt", ["room", "startsAt"]),
+    // Paid entry comes later with Whop checkout; 0 until then.
+    entryCents: v.number(),
+  }),
 
   entries: defineTable({ challengeId: v.id("challenges"), memberId: v.id("members"), joinedAt: v.number() })
     .index("by_challengeId_and_memberId", ["challengeId", "memberId"])
     .index("by_memberId", ["memberId"]),
 
-  checkins: defineTable({
-    challengeId: v.id("challenges"),
-    memberId: v.id("members"),
-    day: v.string(),
-    value: v.union(v.literal("yes"), v.literal("no")),
-  }).index("by_challengeId_and_memberId_and_day", ["challengeId", "memberId", "day"]),
+  // "I ordered this": the dish a person picked from one of their scans. Its fit is read from the scan when scoring,
+  // never stored here, so it always matches what the scan shows.
+  meals: defineTable({ deviceId: v.string(), scanId: v.id("scans"), itemId: v.string(), dishName: v.string(), at: v.number() })
+    .index("by_deviceId_and_at", ["deviceId", "at"])
+    .index("by_scanId", ["scanId"]),
 
   // The compiled and custom rules for a device.
   rules: defineTable({ deviceId: v.string(), custom: v.boolean(), ...ruleFields })

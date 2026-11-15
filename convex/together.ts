@@ -1,7 +1,7 @@
 import { v } from "convex/values";
-import { challengeDays, challengeTemplate, dayKey, DURATION_OPTIONS_DAYS, ENTRY_OPTIONS_CENTS, maxPoints, minToPlace, scoreEntry } from "../engine/challenge";
+import { DURATION_OPTIONS_DAYS, minMeals, scoreMeals, type Meal } from "../engine/challenge";
 import { COMMUNITY_GROUPS, communitiesFor, diffMemberships, matchCommunities } from "../engine/communityMatch";
-import type { Profile } from "../engine/types";
+import type { Fit, Profile } from "../engine/types";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { memberFor, requireMember } from "./members";
@@ -15,6 +15,8 @@ import { memberFor, requireMember } from "./members";
  */
 
 const DAY = 86_400_000;
+/** Seen within this long counts as online now. The app sends a heartbeat every 45 s while open. */
+const ONLINE_MS = 2 * 60_000;
 const EMPTY: Profile = { medications: [], conditions: [], allergies: [], diets: [] };
 const moneyLive = () => process.env.MONEY_CHALLENGES === "on";
 const isRoom = (slug: string) => COMMUNITY_GROUPS.some((g) => g.slug === slug);
@@ -71,47 +73,60 @@ export async function syncRoomsForDevice(ctx: MutationCtx, deviceId: string) {
 
 // ── Challenge scoring ─────────────────────────────────────────────────────────────────────────────────────────────
 
-type PlayerScore = { memberId: Id<"members">; name: string; avatarUrl: string | null; joinedAt: number; score: number; perDay?: Record<string, number> };
+type PlayerScore = {
+  memberId: Id<"members">;
+  name: string;
+  avatarUrl: string | null;
+  joinedAt: number;
+  meals: number;
+  good: number;
+  okay: number;
+  notFit: number;
+  score: number | null;
+  qualified: boolean;
+  perDay: Record<string, Fit[]>;
+};
 
-async function scorePlayers(ctx: QueryCtx, ch: Doc<"challenges">, meId: Id<"members"> | null): Promise<PlayerScore[]> {
-  const t = challengeTemplate(ch.template);
-  if (!t) return [];
+/** A device's meals in a time window, each with the fit its scan shows now. */
+async function mealsOf(ctx: QueryCtx, deviceId: string, from: number, to: number): Promise<Meal[]> {
+  const rows = await ctx.db
+    .query("meals")
+    .withIndex("by_deviceId_and_at", (q) => q.eq("deviceId", deviceId).gte("at", from).lt("at", to))
+    .take(200);
+  const out: Meal[] = [];
+  for (const m of rows) {
+    const scan = await ctx.db.get("scans", m.scanId);
+    out.push({ at: m.at, fit: scan?.verdicts[m.itemId]?.fit ?? "cant_tell" });
+  }
+  return out;
+}
+
+async function scorePlayers(ctx: QueryCtx, ch: Doc<"challenges">): Promise<PlayerScore[]> {
   const window = { startsAt: ch.startsAt, days: ch.days, tzOffsetMinutes: ch.tzOffsetMinutes };
   const end = ch.startsAt + ch.days * DAY;
-  const entries = await ctx.db.query("entries").withIndex("by_challengeId_and_memberId", (q) => q.eq("challengeId", ch._id)).take(100);
+  const entries = await ctx.db.query("entries").withIndex("by_challengeId_and_memberId", (q) => q.eq("challengeId", ch._id)).take(50);
   const out: PlayerScore[] = [];
   for (const e of entries) {
     const m = await ctx.db.get("members", e.memberId);
     if (!m) continue;
-    let scanTimes: number[] = [];
-    if (t.proof === "scans") {
-      const scans = await ctx.db.query("scans").withIndex("by_deviceId", (q) => q.eq("deviceId", m.deviceId)).order("desc").take(200);
-      scanTimes = scans.filter((s) => s.status === "done" && s._creationTime >= ch.startsAt && s._creationTime < end).map((s) => s._creationTime);
-    }
-    const rows = await ctx.db
-      .query("checkins")
-      .withIndex("by_challengeId_and_memberId_and_day", (q) => q.eq("challengeId", ch._id).eq("memberId", m._id))
-      .take(60);
-    const s = scoreEntry(t, window, scanTimes, rows.map((r) => ({ day: r.day, value: r.value })));
-    out.push({ memberId: m._id, name: m.name, avatarUrl: m.avatarUrl ?? null, joinedAt: e.joinedAt, score: s.total, perDay: m._id === meId ? s.perDay : undefined });
+    const s = scoreMeals(await mealsOf(ctx, m.deviceId, ch.startsAt, end), window);
+    out.push({ memberId: m._id, name: m.name, avatarUrl: m.avatarUrl ?? null, joinedAt: e.joinedAt, ...s });
   }
   return out;
 }
 
 function challengeSummary(ch: Doc<"challenges">) {
-  const t = challengeTemplate(ch.template)!;
-  return {
-    id: ch._id,
-    room: ch.room,
-    template: ch.template,
-    days: ch.days,
-    entryCents: ch.entryCents,
-    startsAt: ch.startsAt,
-    tzOffsetMinutes: ch.tzOffsetMinutes,
-    playerCount: ch.playerCount,
-    max: maxPoints(t, ch.days),
-    needed: minToPlace(t, ch.days),
-  };
+  return { id: ch._id, days: ch.days, startsAt: ch.startsAt, tzOffsetMinutes: ch.tzOffsetMinutes, playerCount: ch.playerCount, needed: minMeals(ch.days) };
+}
+
+/** How many of a room's members had the app open within ONLINE_MS of `now`. */
+async function onlineIn(ctx: QueryCtx, room: string, now: number): Promise<number> {
+  let n = 0;
+  for (const r of await ctx.db.query("roomMembers").withIndex("by_room_and_memberId", (q) => q.eq("room", room)).take(500)) {
+    const p = await ctx.db.query("presence").withIndex("by_memberId", (q) => q.eq("memberId", r.memberId)).unique();
+    if (p && now - p.lastSeenAt < ONLINE_MS) n++;
+  }
+  return n;
 }
 
 // ── Queries ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -126,24 +141,23 @@ export const home = query({
     const matches = new Map(matchCommunities(profile).map((m) => [m.slug, m.reasons]));
     const mine = new Map((await myRoomRows(ctx, me._id)).map((r) => [r.room, r.source]));
     const counts = new Map((await ctx.db.query("rooms").take(100)).map((r) => [r.slug, r.memberCount]));
-    const rooms = COMMUNITY_GROUPS.map((g) => ({
-      slug: g.slug,
-      members: counts.get(g.slug) ?? 0,
-      reasons: matches.get(g.slug) ?? [],
-      source: mine.get(g.slug) ?? null,
-    }));
+    const rooms = [];
+    for (const g of COMMUNITY_GROUPS) {
+      rooms.push({
+        slug: g.slug,
+        members: counts.get(g.slug) ?? 0,
+        // Real people with the app open in the last two minutes; only counted for your own rooms.
+        online: mine.has(g.slug) ? await onlineIn(ctx, g.slug, now) : 0,
+        reasons: matches.get(g.slug) ?? [],
+        source: mine.get(g.slug) ?? null,
+      });
+    }
 
     const challenges = [];
-    for (const slug of mine.keys()) {
-      const rows = await ctx.db
-        .query("challenges")
-        .withIndex("by_room_and_startsAt", (q) => q.eq("room", slug).gte("startsAt", now - 31 * DAY))
-        .take(10);
-      for (const ch of rows) {
-        if (ch.startsAt + ch.days * DAY <= now) continue;
-        const joined = !!(await ctx.db.query("entries").withIndex("by_challengeId_and_memberId", (q) => q.eq("challengeId", ch._id).eq("memberId", me._id)).unique());
-        challenges.push({ ...challengeSummary(ch), joined, players: await scorePlayers(ctx, ch, me._id) });
-      }
+    for (const e of await ctx.db.query("entries").withIndex("by_memberId", (q) => q.eq("memberId", me._id)).order("desc").take(20)) {
+      const ch = await ctx.db.get("challenges", e.challengeId);
+      if (!ch || ch.startsAt + ch.days * DAY + 3 * DAY <= now) continue;
+      challenges.push({ ...challengeSummary(ch), joined: true, players: await scorePlayers(ctx, ch) });
     }
     return {
       me: { id: me._id, name: me.name, username: me.username, avatarUrl: me.avatarUrl ?? null, autoPlace: me.autoPlace ?? null },
@@ -155,21 +169,11 @@ export const home = query({
 });
 
 export const room = query({
-  args: { session: v.string(), room: v.string(), now: v.number() },
-  handler: async (ctx, { session, room, now }) => {
+  args: { session: v.string(), room: v.string() },
+  handler: async (ctx, { session, room }) => {
     const me = await requireMember(ctx, session);
     if (!isRoom(room)) return null;
     const recent = await ctx.db.query("messages").withIndex("by_room_and_at", (q) => q.eq("room", room)).order("desc").take(100);
-    const challenges = await ctx.db
-      .query("challenges")
-      .withIndex("by_room_and_startsAt", (q) => q.eq("room", room).gte("startsAt", now - 31 * DAY))
-      .take(20);
-    const live = [];
-    for (const ch of challenges) {
-      if (ch.startsAt + ch.days * DAY <= now) continue;
-      const joined = !!(await ctx.db.query("entries").withIndex("by_challengeId_and_memberId", (q) => q.eq("challengeId", ch._id).eq("memberId", me._id)).unique());
-      live.push({ ...challengeSummary(ch), joined, players: await scorePlayers(ctx, ch, me._id) });
-    }
     return {
       messages: recent.reverse().map((m) => ({
         id: m._id,
@@ -180,7 +184,6 @@ export const room = query({
         mine: m.memberId === me._id,
         dish: m.dish ?? null,
       })),
-      challenges: live,
     };
   },
 });
@@ -191,8 +194,8 @@ export const challenge = query({
     const me = await requireMember(ctx, session);
     const ch = await ctx.db.get("challenges", id);
     if (!ch) return null;
-    const players = await scorePlayers(ctx, ch, me._id);
-    return { ...challengeSummary(ch), joined: players.some((p) => p.memberId === me._id), players, moneyLive: moneyLive() };
+    const players = await scorePlayers(ctx, ch);
+    return { ...challengeSummary(ch), joined: players.some((p) => p.memberId === me._id), players };
   },
 });
 
@@ -267,41 +270,35 @@ export const send = mutation({
 });
 
 export const createChallenge = mutation({
-  args: { session: v.string(), room: v.string(), template: v.string(), days: v.number(), entryCents: v.number(), startsAt: v.number(), tzOffsetMinutes: v.number() },
+  args: { session: v.string(), days: v.number(), startsAt: v.number(), tzOffsetMinutes: v.number() },
   handler: async (ctx, args) => {
     const me = await requireMember(ctx, args.session);
-    const inRoom = await ctx.db.query("roomMembers").withIndex("by_room_and_memberId", (q) => q.eq("room", args.room).eq("memberId", me._id)).unique();
-    if (!inRoom) throw new Error("Join the room first");
-    if (!challengeTemplate(args.template)) throw new Error("Unknown challenge");
-    if (!(DURATION_OPTIONS_DAYS as readonly number[]).includes(args.days)) throw new Error("Pick 7, 14 or 30 days");
-    if (!(ENTRY_OPTIONS_CENTS as readonly number[]).includes(args.entryCents)) throw new Error("Unsupported entry");
-    if (args.entryCents > 0 && !moneyLive()) throw new Error("Paid challenges aren’t switched on yet");
+    if (!(DURATION_OPTIONS_DAYS as readonly number[]).includes(args.days)) throw new Error("Pick 3, 7 or 14 days");
     const now = Date.now();
     if (args.startsAt < now - DAY || args.startsAt > now + 14 * DAY) throw new Error("Start within the next two weeks");
     if (Math.abs(args.tzOffsetMinutes) > 14 * 60) throw new Error("Bad time zone");
     const id = await ctx.db.insert("challenges", {
-      room: args.room,
-      template: args.template,
       days: args.days,
-      entryCents: args.entryCents,
       startsAt: args.startsAt,
       tzOffsetMinutes: args.tzOffsetMinutes,
       createdBy: me._id,
       playerCount: 1,
+      entryCents: 0,
     });
     await ctx.db.insert("entries", { challengeId: id, memberId: me._id, joinedAt: now });
     return id;
   },
 });
 
+/** Join from an invite link. */
 export const joinChallenge = mutation({
   args: { session: v.string(), id: v.id("challenges") },
   handler: async (ctx, { session, id }) => {
     const me = await requireMember(ctx, session);
     const ch = await ctx.db.get("challenges", id);
     if (!ch) throw new Error("Challenge not found");
-    if (ch.entryCents > 0 && !moneyLive()) throw new Error("Paid challenges aren’t switched on yet");
     if (Date.now() >= ch.startsAt + ch.days * DAY) throw new Error("This challenge has ended");
+    if (ch.playerCount >= 50) throw new Error("This challenge is full");
     const has = await ctx.db.query("entries").withIndex("by_challengeId_and_memberId", (q) => q.eq("challengeId", id).eq("memberId", me._id)).unique();
     if (has) return null;
     await ctx.db.insert("entries", { challengeId: id, memberId: me._id, joinedAt: Date.now() });
@@ -324,24 +321,41 @@ export const leaveChallenge = mutation({
   },
 });
 
-/** A daily check-in, for today or yesterday only (in the challenge's time zone), while the challenge runs. */
-export const checkIn = mutation({
-  args: { session: v.string(), id: v.id("challenges"), day: v.string(), value: v.union(v.literal("yes"), v.literal("no")) },
-  handler: async (ctx, { session, id, day, value }) => {
-    const me = await requireMember(ctx, session);
-    const ch = await ctx.db.get("challenges", id);
-    if (!ch) throw new Error("Challenge not found");
-    const now = Date.now();
-    const allowed = [dayKey(now, ch.tzOffsetMinutes), dayKey(now - DAY, ch.tzOffsetMinutes)];
-    if (!allowed.includes(day) || !challengeDays(ch.startsAt, ch.days, ch.tzOffsetMinutes).includes(day)) throw new Error("You can check in for today or yesterday");
-    const entry = await ctx.db.query("entries").withIndex("by_challengeId_and_memberId", (q) => q.eq("challengeId", id).eq("memberId", me._id)).unique();
-    if (!entry) throw new Error("Join the challenge first");
-    const existing = await ctx.db
-      .query("checkins")
-      .withIndex("by_challengeId_and_memberId_and_day", (q) => q.eq("challengeId", id).eq("memberId", me._id).eq("day", day))
-      .unique();
-    if (existing) await ctx.db.patch("checkins", existing._id, { value });
-    else await ctx.db.insert("checkins", { challengeId: id, memberId: me._id, day, value });
+/** The app is open. Sent every 45 s while signed in. */
+export const heartbeat = mutation({
+  args: { session: v.string() },
+  handler: async (ctx, { session }) => {
+    const me = await memberFor(ctx, session);
+    if (!me) return null;
+    const row = await ctx.db.query("presence").withIndex("by_memberId", (q) => q.eq("memberId", me._id)).unique();
+    if (row) await ctx.db.patch("presence", row._id, { lastSeenAt: Date.now() });
+    else await ctx.db.insert("presence", { memberId: me._id, lastSeenAt: Date.now() });
     return null;
+  },
+});
+
+// ── Meals ("I ordered this") ──────────────────────────────────────────────────────────────────────────────────────
+
+/** The dish logged from a scan, if any. Device-keyed like scans, so it works before signing in. */
+export const mealForScan = query({
+  args: { deviceId: v.string(), scanId: v.id("scans") },
+  handler: async (ctx, { deviceId, scanId }) => {
+    const row = await ctx.db.query("meals").withIndex("by_scanId", (q) => q.eq("scanId", scanId)).first();
+    return row && row.deviceId === deviceId ? { itemId: row.itemId, dishName: row.dishName } : null;
+  },
+});
+
+/** Log (or change) what was ordered from a scan. One meal per scan. Returns the dish's fit for the celebration. */
+export const logMeal = mutation({
+  args: { deviceId: v.string(), scanId: v.id("scans"), itemId: v.string() },
+  handler: async (ctx, { deviceId, scanId, itemId }) => {
+    const scan = await ctx.db.get("scans", scanId);
+    if (!scan || scan.deviceId !== deviceId) throw new Error("Scan not found");
+    const item = scan.items.find((i) => i.id === itemId);
+    if (!item) throw new Error("Dish not found");
+    const existing = await ctx.db.query("meals").withIndex("by_scanId", (q) => q.eq("scanId", scanId)).first();
+    if (existing) await ctx.db.patch("meals", existing._id, { itemId, dishName: item.name });
+    else await ctx.db.insert("meals", { deviceId, scanId, itemId, dishName: item.name, at: Date.now() });
+    return { fit: (scan.verdicts[itemId]?.fit ?? "cant_tell") as Fit };
   },
 });

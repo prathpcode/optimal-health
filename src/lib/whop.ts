@@ -128,6 +128,8 @@ export async function signInWithWhop(): Promise<SignInResult> {
       // Our server asks Whop who this token belongs to, so nobody can post as someone else.
       const deviceId = (await SecureStore.getItemAsync('fit.deviceId').catch(() => null)) ?? 'unknown';
       session = (await convex.action(api.members.signIn, { deviceId, accessToken: token.access_token })).session;
+      // Lead with the rooms your conditions match: signing in places you there (any room can be left).
+      await convex.mutation(api.together.setAutoPlace, { session, on: true, skip: [] }).catch(() => {});
     }
     const account: WhopAccount = {
       userId: me.sub,

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RoomIcon } from '@/components/community';
 import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
-import { attempt } from '@/components/together';
+import { attempt, RoomStatus } from '@/components/together';
 import { Button } from '@/components/ui';
 import { joinRoom, useRoom } from '@/lib/community';
 import { space, useTheme } from '@/theme';
@@ -33,7 +33,7 @@ export default function JoinSheet() {
         <RoomIcon icon={room.icon} slug={room.slug} size={72} />
         <View style={{ gap: space.xs, alignItems: 'center' }}>
           <T variant="title">{room.title}</T>
-          <T tone="secondary">{room.members.toLocaleString()} members</T>
+          <RoomStatus room={room} />
         </View>
       </View>
       <View style={{ gap: space.md }}>

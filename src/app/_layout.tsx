@@ -2,10 +2,18 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { CelebrationLayer } from '@/components/Celebration';
 import { BackendProvider } from '@/lib/backend';
+import { usePresenceHeartbeat } from '@/lib/community';
 import { onPhoto, useTheme } from '@/theme';
 
 export const unstable_settings = { anchor: '(tabs)' };
+
+/** Tells the backend you have the app open, so rooms can show who's online (live mode only). */
+function Presence() {
+  usePresenceHeartbeat();
+  return null;
+}
 
 export default function RootLayout() {
   const { c, dark } = useTheme();
@@ -19,7 +27,7 @@ export default function RootLayout() {
       sheetCornerRadius: 28,
       contentStyle: { backgroundColor: c.card },
     }) as const;
-  const navTheme ={ ...base, colors: { ...base.colors, background: c.bg, card: c.card, text: c.text, primary: c.text, border: c.hairline } };
+  const navTheme = { ...base, colors: { ...base.colors, background: c.bg, card: c.card, text: c.text, primary: c.text, border: c.hairline } };
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.bg }}>
@@ -46,14 +54,19 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: c.card },
               }}
             />
+            {/* The questions in large type, to show across the table. */}
+            <Stack.Screen name="server/[scanId]" options={sheet([0.95])} />
             {/* Together: rooms and challenges are pushed screens; picking and joining are sheets like the dish sheet. */}
             <Stack.Screen name="community/[slug]" />
             <Stack.Screen name="challenge/[id]" />
-            <Stack.Screen name="challenge/new" options={sheet([0.75, 0.95])} />
+            <Stack.Screen name="challenge/new" options={sheet([0.6])} />
             <Stack.Screen name="join/[slug]" options={sheet([0.5])} />
             <Stack.Screen name="rooms" options={sheet([0.62, 0.95])} />
             <Stack.Screen name="share/[scanId]" options={sheet([0.75, 0.95])} />
+            <Stack.Screen name="ate/[scanId]" options={sheet([0.7, 0.95])} />
           </Stack>
+          <CelebrationLayer />
+          <Presence />
         </ThemeProvider>
       </BackendProvider>
     </GestureHandlerRootView>

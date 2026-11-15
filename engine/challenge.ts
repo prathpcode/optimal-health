@@ -1,26 +1,27 @@
-import challengesJson from "../data/challenges.json";
+import type { Fit } from "./types";
 
-/** Group challenge scoring and payouts. Pure: every amount is integer cents, every rounding rule is written here. */
+/**
+ * "Eat what fits": a challenge between friends.
+ * After a scan, a player taps the dish they ordered. Each meal counts by how well it fits that player's own needs
+ * (the same verdict the app shows them): Good fit is a full point, Okay with notes half, Not a fit nothing. The score
+ * is the share of meals that fit, as a percentage, so ordering well wins, not scanning the most. A player needs a
+ * minimum number of meals to qualify. Pure: amounts are integer cents, every rounding rule is written here.
+ */
 
-export type ChallengeTemplate = {
-  id: string;
-  title: string;
-  blurb: string;
-  proof: "scans" | "checkin";
-  count: "days" | "scans";
-  perDayMax: number;
-  minToPlacePct: number;
-};
+export const CHALLENGE_NAME = "Eat what fits";
 
-export const CHALLENGE_TEMPLATES = challengesJson.templates as ChallengeTemplate[];
+export const DURATION_OPTIONS_DAYS = [3, 7, 14] as const;
 
-export function challengeTemplate(id: string): ChallengeTemplate | undefined {
-  return CHALLENGE_TEMPLATES.find((t) => t.id === id);
+/** Points per meal, out of 2. "Can't tell" meals do not count either way. */
+export const MEAL_POINTS: Record<Fit, number> = { good: 2, okay: 1, not_fit: 0, cant_tell: 0 };
+
+/** Meals needed to qualify: about one every other day, at least three. */
+export function minMeals(days: number): number {
+  return Math.max(3, Math.ceil(days / 2));
 }
 
-/** Entry fees a challenge may charge, in cents. 0 is a free challenge. */
-export const ENTRY_OPTIONS_CENTS = [0, 500, 1000, 2500] as const;
-export const DURATION_OPTIONS_DAYS = [7, 14, 30] as const;
+/** At most this many meals count per day, so a day of snacks cannot swamp a week. */
+export const MEALS_PER_DAY = 3;
 
 const DAY_MS = 86_400_000;
 
@@ -37,41 +38,62 @@ export function challengeDays(startsAt: number, days: number, tzOffsetMinutes: n
   return Array.from({ length: days }, (_, i) => dayKey(startsAt + i * DAY_MS, tzOffsetMinutes));
 }
 
-export function maxPoints(t: ChallengeTemplate, days: number): number {
-  return t.perDayMax * days;
-}
+export type Meal = { at: number; fit: Fit };
 
-/** Points needed to place: a share of the maximum, rounded up. */
-export function minToPlace(t: ChallengeTemplate, days: number): number {
-  return Math.ceil((maxPoints(t, days) * t.minToPlacePct) / 100);
-}
+export type MealScore = {
+  /** Meals that counted (inside the challenge, at most MEALS_PER_DAY a day, "can't tell" left out). */
+  meals: number;
+  good: number;
+  okay: number;
+  notFit: number;
+  /** 0–100, the share of points out of the most possible; null with no counted meals. */
+  score: number | null;
+  qualified: boolean;
+  /** The counted meals' fits per challenge day, in order eaten. */
+  perDay: Record<string, Fit[]>;
+};
 
-export type Checkin = { day: string; value: "yes" | "no" };
-
-/** One player's points per challenge day and in total. Scans and check-ins outside the challenge's days count for nothing. */
-export function scoreEntry(
-  t: ChallengeTemplate,
-  window: { startsAt: number; days: number; tzOffsetMinutes: number },
-  scanTimes: number[],
-  checkins: Checkin[],
-): { perDay: Record<string, number>; total: number } {
+export function scoreMeals(meals: Meal[], window: { startsAt: number; days: number; tzOffsetMinutes: number }): MealScore {
   const days = challengeDays(window.startsAt, window.days, window.tzOffsetMinutes);
-  const perDay: Record<string, number> = Object.fromEntries(days.map((d) => [d, 0]));
-  if (t.proof === "scans") {
-    for (const ms of scanTimes) {
-      const d = dayKey(ms, window.tzOffsetMinutes);
-      if (d in perDay) perDay[d] += 1;
-    }
-  } else {
-    const yes = new Set(checkins.filter((c) => c.value === "yes").map((c) => c.day));
-    for (const d of days) if (yes.has(d)) perDay[d] = 1;
+  const perDay: Record<string, Fit[]> = Object.fromEntries(days.map((d) => [d, []]));
+  for (const m of [...meals].sort((a, b) => a.at - b.at)) {
+    if (m.fit === "cant_tell") continue;
+    const d = dayKey(m.at, window.tzOffsetMinutes);
+    if (d in perDay && perDay[d].length < MEALS_PER_DAY) perDay[d].push(m.fit);
   }
-  let total = 0;
-  for (const d of days) {
-    perDay[d] = t.count === "days" ? Math.min(perDay[d], 1) : Math.min(perDay[d], t.perDayMax);
-    total += perDay[d];
-  }
-  return { perDay, total };
+  const counted = days.flatMap((d) => perDay[d]);
+  const points = counted.reduce((a, f) => a + MEAL_POINTS[f], 0);
+  return {
+    meals: counted.length,
+    good: counted.filter((f) => f === "good").length,
+    okay: counted.filter((f) => f === "okay").length,
+    notFit: counted.filter((f) => f === "not_fit").length,
+    score: counted.length ? Math.round((points / (counted.length * 2)) * 100) : null,
+    qualified: counted.length >= minMeals(window.days),
+    perDay,
+  };
+}
+
+export type RankInput = { id: string; score: number | null; meals: number; qualified: boolean; joinedAt: number };
+
+/**
+ * Leaderboard order: qualified players first, by score, then by more meals; then everyone else the same way.
+ * Players level on all of that share a rank (1, 1, 3).
+ */
+export function rankPlayers(players: RankInput[]): Record<string, number> {
+  const key = (p: RankInput) => [p.qualified ? 1 : 0, p.score ?? -1, p.meals] as const;
+  const sorted = [...players].sort((a, b) => {
+    const ka = key(a);
+    const kb = key(b);
+    return kb[0] - ka[0] || kb[1] - ka[1] || kb[2] - ka[2] || a.joinedAt - b.joinedAt;
+  });
+  const ranks: Record<string, number> = {};
+  sorted.forEach((p, i) => {
+    const prev = sorted[i - 1];
+    const same = prev && key(prev).every((v, j) => v === key(p)[j]);
+    ranks[p.id] = same ? ranks[prev.id] : i + 1;
+  });
+  return ranks;
 }
 
 /** How the prize is split between places, in percent. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { challengeDays, challengeTemplate, dayKey, defaultShares, minToPlace, scoreEntry, settle, type SettleEntry } from "./challenge";
+import { challengeDays, dayKey, defaultShares, minMeals, rankPlayers, scoreMeals, settle, type Meal, type SettleEntry } from "./challenge";
 
 const START = Date.UTC(2026, 10, 2, 8); // 2 Nov 2026, 08:00 UTC
 const H = 3_600_000;
@@ -16,30 +16,41 @@ describe("days", () => {
   });
 });
 
-describe("scoreEntry", () => {
-  const window = { startsAt: START, days: 3, tzOffsetMinutes: 0 };
-  it("counts days with a scan, once a day", () => {
-    const t = challengeTemplate("scan_before_order")!;
-    const s = scoreEntry(t, window, [START, START + H, START + 2 * D], []);
-    expect(s.total).toBe(2);
-    expect(s.perDay).toEqual({ "2026-11-02": 1, "2026-11-03": 0, "2026-11-04": 1 });
+describe("scoreMeals", () => {
+  const window = { startsAt: START, days: 7, tzOffsetMinutes: 0 };
+  const meal = (h: number, fit: Meal["fit"]) => ({ at: START + h * H, fit });
+
+  it("scores the share of meals that fit: good is full, okay half, not a fit nothing", () => {
+    const s = scoreMeals([meal(1, "good"), meal(5, "okay"), meal(30, "not_fit"), meal(50, "good")], window);
+    expect(s).toMatchObject({ meals: 4, good: 2, okay: 1, notFit: 1, score: 63, qualified: true });
   });
-  it("caps scans per day and ignores scans outside the challenge", () => {
-    const t = challengeTemplate("scan_every_meal_out")!;
-    const scans = [0, 1, 2, 3, 4].map((i) => START + i * H).concat([START - D, START + 3 * D]);
-    expect(scoreEntry(t, window, scans, []).total).toBe(3);
+  it("rewards ordering well, not scanning more", () => {
+    const few = scoreMeals([meal(1, "good"), meal(25, "good"), meal(49, "good"), meal(73, "good")], window);
+    const many = scoreMeals([...[1, 2, 25, 26, 49, 50, 73, 74].map((h) => meal(h, "good")), meal(97, "not_fit"), meal(98, "not_fit")], window);
+    expect(few.score).toBeGreaterThan(many.score!);
   });
-  it("counts only yes check-ins on challenge days", () => {
-    const t = challengeTemplate("no_added_sugar")!;
-    const s = scoreEntry(t, window, [START], [
-      { day: "2026-11-02", value: "yes" },
-      { day: "2026-11-03", value: "no" },
-      { day: "2026-11-09", value: "yes" },
-    ]);
-    expect(s.total).toBe(1);
+  it("leaves out can't-tell meals, meals outside the challenge, and a fourth meal in a day", () => {
+    const s = scoreMeals([meal(-2, "good"), meal(1, "cant_tell"), meal(1, "good"), meal(2, "good"), meal(3, "good"), meal(4, "not_fit"), meal(24 * 8, "not_fit")], window);
+    expect(s.meals).toBe(3);
+    expect(s.score).toBe(100);
   });
-  it("needs 70% of the days to place, rounded up", () => {
-    expect(minToPlace(challengeTemplate("no_added_sugar")!, 7)).toBe(5);
+  it("needs about one meal every other day to qualify", () => {
+    expect(minMeals(3)).toBe(3);
+    expect(minMeals(7)).toBe(4);
+    expect(minMeals(14)).toBe(7);
+    expect(scoreMeals([meal(1, "good")], window)).toMatchObject({ score: 100, qualified: false });
+    expect(scoreMeals([], window).score).toBeNull();
+  });
+});
+
+describe("rankPlayers", () => {
+  const p = (id: string, score: number | null, meals: number, qualified: boolean, joinedAt = 0) => ({ id, score, meals, qualified, joinedAt });
+  it("puts qualified players first, then by score, then by more meals", () => {
+    const ranks = rankPlayers([p("a", 100, 2, false), p("b", 80, 5, true), p("c", 80, 7, true), p("d", null, 0, false)]);
+    expect(ranks).toEqual({ c: 1, b: 2, a: 3, d: 4 });
+  });
+  it("lets players level on everything share a rank", () => {
+    expect(rankPlayers([p("a", 90, 4, true, 1), p("b", 90, 4, true, 2), p("c", 50, 4, true)])).toEqual({ a: 1, b: 1, c: 3 });
   });
 });
 
