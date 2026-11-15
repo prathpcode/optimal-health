@@ -52,14 +52,28 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
 
 ## Not built yet
 
-- App: second menu page (`scans.addPage`), restaurant confirmation and location (`scans.setRestaurant`), on-device
-  text recognition for dish boxes (`lines`), product Compare, custom rules (`rules.addCustom`), condition search and
-  option chips from `lookup`, `rules.notes`.
-- Backend: evaluator thresholds are still starting values; the benchmark covers one chain and allergens only; nothing
-  is tested on real phone photos; condition and medication rules are source-checked but not clinically reviewed; no
-  product or tag cache.
+- App: second menu page (`scans.addPage`), on-device text recognition for dish boxes (`lines`), product Compare,
+  condition search and option chips from `lookup`, `rules.notes`, a daily amount on a custom Limit rule. Restaurant
+  confirmation and custom rules are built but have not been run on a phone.
+- Backend: the benchmark covers one chain and allergens only; nothing is tested on real phone photos
+  (`npm run bench:readers` is ready for them); condition and medication rules are source-checked but not clinically
+  reviewed. Judge thresholds are still the starting values: `bench/reports/*-thresholds.md` has what the benchmark
+  supports and why adopting it is a product decision, not a drop-in number.
 - Later: "how did that sit?" and a personal response model, health-record import, accounts and sharing, a regulatory
   review before any public release.
+
+## How some things behave
+
+- Restaurant memory: a restaurant is its name plus the phone's location rounded to about 100 m (rounded on the phone).
+  The app asks for location once, on the result screen, when the person confirms the name. `scans.setRestaurant`
+  returns the restaurant id, or null with no location (answers then apply to that scan only); on a finished menu scan
+  it also applies what that restaurant has told people before and stores answers already given on the scan.
+- A custom rule replaces every rule on its tag. The app will not swap a switched-on profile rule for a weaker custom
+  one (`engine/customRules.ts`).
+- Cache (`convex/cache.ts`): the answer to one exact tagging or second-pass request is reused for 30 days, a barcode's
+  database record for 7. Keys hash the model, instructions and text sent, so only an identical request hits; nothing
+  cached depends on a profile. Reading the photo, wording and package-warning matching are never cached.
+  `SCAN_CACHE=off` on the deployment turns it off, and the benchmark never uses it.
 
 ## Project commands
 
@@ -72,6 +86,8 @@ npm run typecheck:app       # whole app
 npm run scan -- <photo>     # run a photo or --barcode through the live backend and print the result
 npm run bench               # score the pipeline against a chain's published allergens (uses the model API)
 npm run verify:sources      # fetch every cited page and check each quote is on it
+npm run bench:readers -- <photos>   # read the same photos with the current and a faster model; lists what the faster one loses
+npm run bench:thresholds    # what judge thresholds the last benchmark supports (no model calls)
 ```
 
 Run `npm run bench` after changing reader prompts, judge questions, tags or hides-in lists, and `verify:sources`
