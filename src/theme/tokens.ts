@@ -3,55 +3,49 @@ import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 // The only source of colour, type, spacing, radius and shadow values. Screens use these and nothing else.
 
 export const palette = {
-  // The Guest Check: pale green check stock as the ground, slip-white sheets ruled in check green, ink for text,
-  // carbon violet for figures. Verdict colours appear only on verdicts.
   light: {
-    bg: '#E3EBD8',
-    card: '#FBFCF8',
-    cardMuted: '#EDF2E6',
-    text: '#16181A',
-    textSecondary: '#4B564C',
-    textTertiary: '#6F7B70',
-    hairline: 'rgba(47,93,58,0.16)',
-    rule: 'rgba(47,93,58,0.32)',
-    check: '#2F5D3A',
-    carbon: '#3B3F8F',
-    primary: '#16181A',
+    bg: '#F6F6F4',
+    card: '#FFFFFF',
+    cardMuted: '#F0F0EE',
+    text: '#0B0B0C',
+    textSecondary: '#6B6B70',
+    textTertiary: '#A3A3A8',
+    hairline: 'rgba(0,0,0,0.06)',
+    primary: '#0B0B0C',
     onPrimary: '#FFFFFF',
     onAccent: '#FFFFFF',
-    good: '#1A9458',
-    okay: '#B97A00',
-    notFit: '#D93A40',
-    cantTell: '#6E6E73',
-    goodSoft: 'rgba(26,148,88,0.12)',
-    okaySoft: 'rgba(214,150,10,0.16)',
-    notFitSoft: 'rgba(217,58,64,0.11)',
-    cantTellSoft: 'rgba(110,110,115,0.13)',
+    good: '#1FA463',
+    okay: '#E8A317',
+    notFit: '#E5484D',
+    cantTell: '#8E8E93',
+    goodSoft: 'rgba(31,164,99,0.12)',
+    okaySoft: 'rgba(232,163,23,0.14)',
+    notFitSoft: 'rgba(229,72,77,0.12)',
+    cantTellSoft: 'rgba(142,142,147,0.14)',
     scrim: 'rgba(0,0,0,0.35)',
+    glass: 'rgba(255,255,255,0.72)',
   },
   dark: {
-    bg: '#0E1310',
-    card: '#171E19',
-    cardMuted: '#1F2822',
-    text: '#EEF2EA',
-    textSecondary: '#A2AEA4',
-    textTertiary: '#748177',
-    hairline: 'rgba(160,205,170,0.12)',
-    rule: 'rgba(160,205,170,0.26)',
-    check: '#8DBE95',
-    carbon: '#AEB2F7',
-    primary: '#EEF2EA',
-    onPrimary: '#0E1310',
+    bg: '#0B0B0C',
+    card: '#1A1A1C',
+    cardMuted: '#232326',
+    text: '#F5F5F4',
+    textSecondary: '#9A9AA0',
+    textTertiary: '#636368',
+    hairline: 'rgba(255,255,255,0.08)',
+    primary: '#F5F5F4',
+    onPrimary: '#0B0B0C',
     onAccent: '#FFFFFF',
-    good: '#3CC983',
+    good: '#34C77B',
     okay: '#F2B63D',
     notFit: '#FF6369',
     cantTell: '#A1A1A6',
-    goodSoft: 'rgba(60,201,131,0.15)',
+    goodSoft: 'rgba(52,199,123,0.16)',
     okaySoft: 'rgba(242,182,61,0.16)',
-    notFitSoft: 'rgba(255,99,105,0.15)',
-    cantTellSoft: 'rgba(161,161,166,0.16)',
+    notFitSoft: 'rgba(255,99,105,0.16)',
+    cantTellSoft: 'rgba(161,161,166,0.18)',
     scrim: 'rgba(0,0,0,0.5)',
+    glass: 'rgba(44,44,46,0.6)',
   },
 } as const;
 
@@ -68,7 +62,7 @@ export const onPhoto = {
   black: '#000000',
 } as const;
 
-/** One accent per community room, used for its tile and icon. Same in both themes; tiles use it at low opacity. */
+/** One accent per community room, used for its icon. Same in both themes; tiles use it at low opacity. */
 export const roomAccent: Record<string, string> = {
   'heart-health': '#FF5A5F',
   'kidney-health': '#3D8BFF',
@@ -94,34 +88,29 @@ export function tint(hex: string, alpha: number): string {
 export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32, huge: 48 } as const;
 export const gutter = space.xl;
 
-/** Paper corners: slips and buttons are only gently rounded; pills stay round. */
-export const radius = { chip: 999, sm: 8, button: 14, md: 12, card: 16, sheet: 22 } as const;
+export const radius = { chip: 999, sm: 10, button: 16, md: 18, card: 24, sheet: 28 } as const;
 
 const tabular: TextStyle = { fontVariant: ['tabular-nums'] };
 
-/**
- * Four sizes do the work (34 / 22 / 17 / 13, iOS Large Title, Title 2, Body, Footnote); weight makes the rest of
- * the hierarchy. micro is the check's printed column heading, the only uppercase style.
- */
 export const type = {
-  display: { fontSize: 34, lineHeight: 41, fontWeight: '700', letterSpacing: -0.4, ...tabular },
-  title: { fontSize: 22, lineHeight: 28, fontWeight: '700', letterSpacing: -0.3 },
+  /** Headlines and headings. Geist is loaded in the root layout, one family per weight; no fontWeight with it. */
+  hero: { fontFamily: 'Geist-Regular', fontSize: 34, lineHeight: 42, letterSpacing: -0.8 },
+  heroBold: { fontFamily: 'Geist-SemiBold', fontSize: 34, lineHeight: 42, letterSpacing: -0.8 },
+  heading: { fontFamily: 'Geist-SemiBold', fontSize: 20, lineHeight: 26, letterSpacing: -0.3 },
+  display: { fontSize: 34, lineHeight: 40, fontWeight: '700', letterSpacing: -0.6, ...tabular },
+  title: { fontSize: 22, lineHeight: 28, fontWeight: '600', letterSpacing: -0.3 },
   headline: { fontSize: 17, lineHeight: 22, fontWeight: '600', letterSpacing: -0.2 },
-  body: { fontSize: 17, lineHeight: 23, fontWeight: '400', letterSpacing: -0.2 },
-  bodyStrong: { fontSize: 17, lineHeight: 23, fontWeight: '600', letterSpacing: -0.2 },
+  body: { fontSize: 15, lineHeight: 21, fontWeight: '400' },
+  bodyStrong: { fontSize: 15, lineHeight: 21, fontWeight: '600' },
   caption: { fontSize: 13, lineHeight: 18, fontWeight: '500' },
-  micro: { fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
-  /** Questions shown to a server across the table: the one size above Title, for reading at arm's length. */
-  stub: { fontSize: 28, lineHeight: 34, fontWeight: '600', letterSpacing: -0.4 },
-  figure: { fontSize: 13, lineHeight: 18, fontWeight: '600', fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }), ...tabular },
+  micro: { fontSize: 11, lineHeight: 13, fontWeight: '600', letterSpacing: 0.6, textTransform: 'uppercase' },
 } satisfies Record<string, TextStyle>;
 
 export type TypeVariant = keyof typeof type;
 
 export function shadow(level: 'card' | 'floating', dark: boolean): ViewStyle {
   if (dark) return {};
-  // A slip lies flat on the check stock (a short, tight shadow); only things that float (sheets, chips on the photo) lift.
-  const s = level === 'card' ? { y: 1, r: 3, o: 0.07 } : { y: 8, r: 24, o: 0.16 };
+  const s = level === 'card' ? { y: 4, r: 16, o: 0.06 } : { y: 8, r: 24, o: 0.14 };
   return Platform.select<ViewStyle>({
     ios: { shadowColor: '#000', shadowOffset: { width: 0, height: s.y }, shadowRadius: s.r / 2, shadowOpacity: s.o },
     android: { elevation: level === 'card' ? 2 : 8 },

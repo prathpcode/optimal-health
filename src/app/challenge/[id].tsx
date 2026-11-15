@@ -108,7 +108,7 @@ export default function ChallengeScreen() {
             ))}
             {ch.standings.length <= 1 && ch.status !== 'ended' ? (
               <Tap accessibilityRole="button" accessibilityLabel="Invite a friend" onPress={invite} style={styles.inviteRow} feedback="tap">
-                <View style={[styles.invitePlus, { borderColor: c.rule }]}>
+                <View style={[styles.invitePlus, { borderColor: c.hairline }]}>
                   <Icon name="plus" size={14} color={c.textSecondary} weight="bold" />
                 </View>
                 <T variant="bodyStrong" tone="secondary">

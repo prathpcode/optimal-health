@@ -1,5 +1,4 @@
 import { useMutation } from 'convex/react';
-import { Asset } from 'expo-asset';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { useCallback } from 'react';
 
@@ -7,7 +6,7 @@ import { api } from '@convex/_generated/api';
 import type { Id } from '@convex/_generated/dataModel';
 import { HAS_BACKEND } from './backend';
 import type { Where } from './location';
-import { rememberPhoto, SAMPLE_PHOTO } from './scan';
+import { rememberPhoto } from './scan';
 
 /**
  * Longest side sent to the reader. Small print stays legible at this size, and it is under the size at which the
@@ -27,14 +26,6 @@ export async function prepareImage(uri: string): Promise<Prepared> {
   }
   const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.82 });
   return { uri: saved.uri, width: saved.width, height: saved.height };
-}
-
-/** The bundled sample menu as a local file, ready to upload. */
-export async function sampleMenuFile(): Promise<Prepared> {
-  const asset = Asset.fromModule(SAMPLE_PHOTO);
-  await asset.downloadAsync();
-  const uri = asset.localUri ?? asset.uri;
-  return { uri, width: asset.width ?? 1200, height: asset.height ?? 1600 };
 }
 
 /** `location`, when the phone already has one, lets the backend recognise the restaurant. */

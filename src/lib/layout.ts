@@ -22,6 +22,41 @@ export function boxToRect(box: Box, photo: Rect): Rect {
   };
 }
 
+/** The smallest box that holds all of a dish's lines (its name and the description under it). */
+export function unionBox(boxes: Box[]): Box {
+  return {
+    top: Math.min(...boxes.map((b) => b.top)),
+    left: Math.min(...boxes.map((b) => b.left)),
+    bottom: Math.max(...boxes.map((b) => b.bottom)),
+    right: Math.max(...boxes.map((b) => b.right)),
+  };
+}
+
+/**
+ * Where to draw a photo so that one region of it (the part with the menu's dishes) fills a container, instead of
+ * the whole photo being shrunk to fit. The returned rect is the WHOLE photo and usually runs past the container's
+ * edges. The region gets a margin of `pad` (a fraction of the photo), and the photo is never enlarged beyond
+ * `maxZoom` times its fit-everything size, so a menu shot from far away does not turn to mush.
+ */
+export function zoomRect(container: Rect, image: { width: number; height: number }, region: Box, options: { pad?: number; maxZoom?: number } = {}): Rect | null {
+  const pad = options.pad ?? 0.03;
+  const maxZoom = options.maxZoom ?? 3;
+  if (!container.width || !container.height || !image.width || !image.height) return null;
+  const left = Math.max(0, region.left - pad), right = Math.min(1, region.right + pad);
+  const top = Math.max(0, region.top - pad), bottom = Math.min(1, region.bottom + pad);
+  const regionW = (right - left) * image.width, regionH = (bottom - top) * image.height;
+  if (!(regionW > 0) || !(regionH > 0)) return null;
+  const fit = Math.min(container.width / image.width, container.height / image.height);
+  const scale = Math.min(container.width / regionW, container.height / regionH, fit * maxZoom);
+  if (scale <= fit * 1.1) return null; // the region already nearly fills the photo: not worth moving anything
+  return {
+    x: container.x + (container.width - regionW * scale) / 2 - left * image.width * scale,
+    y: container.y + (container.height - regionH * scale) / 2 - top * image.height * scale,
+    width: image.width * scale,
+    height: image.height * scale,
+  };
+}
+
 export type ChipInput = {
   id: string;
   box: Box;

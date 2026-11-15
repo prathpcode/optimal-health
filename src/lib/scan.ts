@@ -35,6 +35,8 @@ export type ScanView = {
   restaurant?: string;
   /** Set once the backend knows which restaurant this is (a name plus a location); answers are remembered against it. */
   restaurantId?: string;
+  /** Every line of text found on the photo, shown as faint outlines until the dishes have positions of their own. */
+  textBoxes?: Box[];
   /** Fast first-pass verdicts, still being checked (PLAN 7.1). Shown as "checking", no questions yet. */
   provisional: boolean;
   notice?: string;
@@ -82,7 +84,7 @@ function subscribePhotos(l: () => void) {
 
 function usePhotos(): Record<string, LocalPhoto> {
   loadPhotos();
-  return useSyncExternalStore(subscribePhotos, () => photos);
+  return useSyncExternalStore(subscribePhotos, () => photos, () => photos);
 }
 
 // ---- The bundled sample: the fixture menu laid over the bundled menu photo, replayed through the same stages as a
@@ -172,7 +174,7 @@ function subscribeSample(l: () => void) {
 }
 
 function useSampleScan(active: boolean) {
-  const view = useSyncExternalStore(subscribeSample, () => sample.view);
+  const view = useSyncExternalStore(subscribeSample, () => sample.view, () => sample.view);
   return { view: active ? view : undefined, answer: answerSample };
 }
 
@@ -217,6 +219,7 @@ function useLiveScan(id: string | null) {
       summary: record.summary,
       restaurant: record.restaurantName,
       restaurantId: record.restaurantId,
+      textBoxes: record.textBoxes,
       provisional: record.provisional === true,
       notice: record.notice,
       generic: record.generic,
@@ -313,7 +316,7 @@ function subscribeConfirmed(l: () => void) {
 /** Whether this person has already confirmed this restaurant's name on this device. */
 export function useRestaurantConfirmed(restaurantId: string | undefined): boolean {
   loadConfirmed();
-  const all = useSyncExternalStore(subscribeConfirmed, () => confirmed);
+  const all = useSyncExternalStore(subscribeConfirmed, () => confirmed, () => confirmed);
   return !!restaurantId && all.includes(restaurantId);
 }
 

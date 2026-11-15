@@ -24,18 +24,19 @@ import type { Fit, Item, RankedItem, ScanQuestion } from '@engine/types';
 import { AnswerButtons } from '@/components/AnswerButtons';
 import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
-import { MenuOverlay, ScanSweep } from '@/components/MenuOverlay';
+import { MenuOverlay, ScanSweep, TextOutlines } from '@/components/MenuOverlay';
 import { ProductResult } from '@/components/ProductResult';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { Sheet, type SheetHandle } from '@/components/Sheet';
-import { MealCard } from '@/components/together';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { Button, Card, Perforation, Rule, SectionLabel, Skeleton, strikeFor, VerdictDot, VerdictLine } from '@/components/ui';
+import { Button, Card, SectionLabel, Skeleton, VerdictDot } from '@/components/ui';
 import { haptic } from '@/lib/haptics';
-import { containRect } from '@/lib/layout';
+import { containRect, unionBox, zoomRect } from '@/lib/layout';
+import { goBack } from '@/lib/nav';
+import { MealCard } from '@/components/together';
 import { SAMPLE_ID, useScan, useSetRestaurant, type Answer, type ScanView } from '@/lib/scan';
-import { FIT_LABEL, fitColor, SECTION_FIT, SECTION_LABEL } from '@/lib/verdict';
+import { fitColor, SECTION_FIT, SECTION_LABEL } from '@/lib/verdict';
 import { duration, ease, enterAt, onPhoto, radius, space, spring, useTheme } from '@/theme';
 
 const SNAPS = [0.34, 0.62, 0.93];
@@ -88,6 +89,20 @@ export default function ResultScreen() {
     return { ...r, x: r.x + space.lg, y: r.y + area.top };
   }, [image?.width, image?.height, width, area]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Once the dishes have positions, the photo moves in on the part that holds them: a menu photographed from a
+  // step back would otherwise be too small to read the boxes on.
+  const dishBoxes = useMemo(() => (view?.items ?? []).flatMap((i) => i.position ?? []), [view?.items]);
+  const closeUp = useMemo(() => {
+    if (!image || dishBoxes.length === 0) return null;
+    return zoomRect({ x: space.lg, y: area.top, width: width - space.lg * 2, height: area.height }, image, unionBox(dishBoxes));
+  }, [image?.width, image?.height, dishBoxes, width, area]); // eslint-disable-line react-hooks/exhaustive-deps
+  const zoom = useSharedValue(0);
+  useEffect(() => {
+    zoom.value = closeUp ? (reduced ? withTiming(1, { duration: duration.base }) : withSpring(1, { ...spring.gentle, damping: 26 })) : 0;
+  }, [closeUp, reduced, zoom]);
+  // Where the photo ends up, for laying the boxes over it.
+  const shown = closeUp ?? target;
+
   const settle = useSharedValue(0);
   useEffect(() => {
     if (!target) return;
@@ -96,14 +111,22 @@ export default function ResultScreen() {
 
   const photoStyle = useAnimatedStyle(() => {
     if (!full || !target) return {};
-    const s = 1 + (target.width / full.width - 1) * settle.value;
-    const tx = (target.x + target.width / 2 - (full.x + full.width / 2)) * settle.value;
-    const ty = (target.y + target.height / 2 - (full.y + full.height / 2)) * settle.value;
+    // First from full screen to the space above the sheet, then (if there is a close-up) in on the dishes.
+    const end = closeUp ?? target;
+    const z = closeUp ? zoom.value : 0;
+    const w = target.width + (end.width - target.width) * z;
+    const cx = target.x + target.width / 2 + (end.x + end.width / 2 - (target.x + target.width / 2)) * z;
+    const cy = target.y + target.height / 2 + (end.y + end.height / 2 - (target.y + target.height / 2)) * z;
+    const s = 1 + (w / full.width - 1) * settle.value;
+    const tx = (cx - (full.x + full.width / 2)) * settle.value;
+    const ty = (cy - (full.y + full.height / 2)) * settle.value;
     return { transform: [{ translateX: tx }, { translateY: ty }, { scale: s }] };
   });
 
   // Chips are laid out for the settled photo, so they appear only once it has arrived there.
-  const overlayStyle = useAnimatedStyle(() => ({ opacity: interpolate(settle.value, [0.9, 1], [0, 1], Extrapolation.CLAMP) }));
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(settle.value, [0.9, 1], [0, 1], Extrapolation.CLAMP) * (closeUp ? interpolate(zoom.value, [0.85, 1], [0, 1], Extrapolation.CLAMP) : 1),
+  }));
 
   // ---- Haptics as the result lands
   const status = view?.status;
@@ -177,20 +200,24 @@ export default function ResultScreen() {
       )}
 
       {/* Verdict chips over the dishes */}
-      {view && target && !failed && !isProduct ? (
+      {view && target && shown && !failed && !isProduct ? (
         <Animated.View style={[StyleSheet.absoluteFill, overlayStyle]} pointerEvents="box-none">
           {view.items.some((i) => i.position?.length) ? (
-            <MenuOverlay photo={target} bounds={{ width, height: area.top + area.height }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={selectDish} />
+            <MenuOverlay photo={shown} bounds={{ width, height: area.top + area.height }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={selectDish} />
           ) : (
-            // No dish positions (they need on-device text recognition): verdict chips in a row over the photo.
-            <ChipRow view={view} bottom={height - (area.top + area.height) + space.md} selectedId={selected} onSelect={selectDish} />
+            // No dish positions (text recognition is off, or found nothing to match): the text that was found, if
+            // any, as faint outlines, and verdict chips in a row over the photo.
+            <>
+              {view.textBoxes?.length ? <TextOutlines photo={target} boxes={view.textBoxes} /> : null}
+              <ChipRow view={view} bottom={height - (area.top + area.height) + space.md} selectedId={selected} onSelect={selectDish} />
+            </>
           )}
         </Animated.View>
       ) : null}
 
       {/* Top bar */}
       <View style={[styles.top, { paddingTop: insets.top + space.sm }]} pointerEvents="box-none">
-        <GlassButton icon="close" label="Close" onPress={() => router.back()} />
+        <GlassButton icon="close" label="Close" onPress={goBack} />
         <StatusPill view={view} />
         <View style={{ width: 44 }} />
       </View>
@@ -210,7 +237,7 @@ export default function ResultScreen() {
             <FailedCard message={view?.error} />
           ) : (
             <>
-              {view?.generic ? <Banner icon="person" text="This is a general answer. Add your allergies and medicines in Me for one that fits you." onPress={() => router.dismissTo('/me')} /> : null}
+              {view?.generic ? <Banner icon="person" text="This is a general answer. Add your allergies and medicines in Manage for one that fits you." onPress={() => router.dismissTo('/me')} /> : null}
               {view?.notice ? <Banner icon="note" text={view.notice} /> : null}
 
               {/* Offered only once the scan has finished: until then the pipeline is still writing the record. */}
@@ -257,22 +284,15 @@ export default function ResultScreen() {
 
               {view && !isProduct && view.questions.length > 0 ? (
                 <Animated.View entering={enterAt(2, reduced)} layout={reduced ? undefined : LinearTransition.springify().damping(22)} style={{ marginTop: space.xxl }}>
-                  <SectionLabel style={{ marginBottom: space.sm }}>Ask your server</SectionLabel>
-                  {/* The tear-off stub: what to ask, and one tap to show it to the server in large type. */}
-                  <View style={[styles.stub, { backgroundColor: c.cardMuted, borderColor: c.rule }]}>
-                    <Perforation color={c.card} />
-                    <View style={{ padding: space.lg, gap: space.lg }}>
-                      {view.questions.map((q, i) => (
-                        <QuestionRow key={q.id} q={q} item={itemsById.get(q.itemId)} divider={i > 0} onAnswer={(v) => answer(q.id, v)} />
-                      ))}
-                      <Button
-                        label="Show your server"
-                        icon="server"
-                        variant="secondary"
-                        onPress={() => router.push({ pathname: '/server/[scanId]', params: { scanId: id } })}
-                      />
-                    </View>
+                  <View style={styles.askHeader}>
+                    <Icon name="server" size={16} color={c.textSecondary} />
+                    <SectionLabel>Ask your server</SectionLabel>
                   </View>
+                  <Card style={{ gap: space.xl }}>
+                    {view.questions.map((q, i) => (
+                      <QuestionRow key={q.id} q={q} item={itemsById.get(q.itemId)} divider={i > 0} onAnswer={(v) => answer(q.id, v)} />
+                    ))}
+                  </Card>
                 </Animated.View>
               ) : null}
 
@@ -285,7 +305,7 @@ export default function ResultScreen() {
               {view?.status === 'done' ? (
                 <Animated.View entering={FadeIn.delay(200)} style={styles.footer}>
                   <Button label="Scan again" variant="secondary" icon="camera" onPress={() => router.replace('/scan')} style={{ flex: 1 }} />
-                  <Button label="Done" onPress={() => router.back()} style={{ flex: 1 }} />
+                  <Button label="Done" onPress={goBack} style={{ flex: 1 }} />
                 </Animated.View>
               ) : null}
             </>
@@ -317,9 +337,14 @@ function StatusPill({ view }: { view: ScanView | undefined }) {
 }
 
 function SheetHeader({ view, working, failed, isProduct }: { view: ScanView | undefined; working: boolean; failed: boolean; isProduct: boolean }) {
+  const { c } = useTheme();
   const counts = useMemo(() => {
     const ranking = view?.ranking ?? [];
-    return SECTIONS.map((section) => ({ section, n: ranking.filter((r) => r.section === section).length })).filter((x) => x.n > 0);
+    return {
+      good: ranking.filter((r) => r.section === 'best' || r.section === 'okay').length,
+      ask: ranking.filter((r) => r.section === 'cant_tell').length,
+      out: ranking.filter((r) => r.section === 'not_fit').length,
+    };
   }, [view?.ranking]);
 
   if (failed) {
@@ -348,9 +373,9 @@ function SheetHeader({ view, working, failed, isProduct }: { view: ScanView | un
         {view && view.ranking.length > 0 && !isProduct ? (
           <>
             {view.provisional ? <CheckingTag /> : null}
-            {counts.map((x, i) => (
-              <Tally key={x.section} n={x.n} fit={SECTION_FIT[x.section]} index={i} />
-            ))}
+            <Counter n={counts.good} label="Fit you" color={c.good} soft={c.goodSoft} index={0} />
+            <Counter n={counts.ask} label="Ask first" color={c.cantTell} soft={c.cantTellSoft} index={1} />
+            <Counter n={counts.out} label="Not a fit" color={c.notFit} soft={c.notFitSoft} index={2} />
           </>
         ) : working && !(isProduct && view?.verdicts && Object.keys(view.verdicts).length) ? (
           <Stepper view={view} />
@@ -392,24 +417,20 @@ function StepBar({ state }: { state: 'done' | 'active' | 'todo' }) {
   const style = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
   return (
     <View style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: c.cardMuted, overflow: 'hidden' }}>
-      <Animated.View style={[{ height: '100%', borderRadius: 3, backgroundColor: c.check }, style]} />
+      <Animated.View style={[{ height: '100%', borderRadius: 3, backgroundColor: c.text }, style]} />
     </View>
   );
 }
 
-/** One entry of the check's total: the verdict's line mark, the count, and the verdict words. */
-function Tally({ n, fit, index }: { n: number; fit: Fit; index: number }) {
-  const { c } = useTheme();
+function Counter({ n, label, color, soft, index }: { n: number; label: string; color: string; soft: string; index: number }) {
   const reduced = useReducedMotion();
-  const col = fitColor(fit, c).solid;
   return (
-    <Animated.View entering={enterAt(index, reduced)} style={styles.tally} accessibilityLabel={`${n} ${FIT_LABEL[fit]}`}>
-      <VerdictLine fit={fit} width={16} />
-      <T variant="bodyStrong" color={col} style={{ fontVariant: ['tabular-nums'] }}>
+    <Animated.View entering={enterAt(index, reduced)} style={[styles.counter, { backgroundColor: soft }]}>
+      <T variant="headline" color={color} style={{ fontVariant: ['tabular-nums'] }}>
         {n}
       </T>
-      <T variant="caption" tone="secondary">
-        {FIT_LABEL[fit]}
+      <T variant="caption" color={color}>
+        {label}
       </T>
     </Animated.View>
   );
@@ -428,30 +449,27 @@ function DishRow({ index, item, row, selected, provisional, divider, onPress }: 
 
   return (
     <Animated.View entering={enterAt(index, reduced)}>
-      {divider ? <Rule inset={space.lg} /> : null}
-      <Tap accessibilityRole="button" accessibilityLabel={`${item?.name ?? 'Dish'}. ${FIT_LABEL[fit]}. ${row.line}`} onPress={onPress} scaleTo={0.985}>
+      {divider ? <View style={[styles.divider, { backgroundColor: c.hairline }]} /> : null}
+      <Tap accessibilityRole="button" accessibilityLabel={`${item?.name ?? 'Dish'}. ${row.line}`} onPress={onPress} scaleTo={0.985}>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: fitColor(fit, c).soft }, bg]} />
         <View style={styles.row}>
-          <View style={{ flex: 1, gap: 4 }}>
+          <View style={{ paddingTop: 6 }}>
+            <VerdictDot fit={fit} />
+          </View>
+          <View style={{ flex: 1, gap: 3 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-              <T variant="headline" numberOfLines={1} style={[{ flexShrink: 1 }, strikeFor(fit, c)]}>
+              <T variant="headline" numberOfLines={1} style={{ flexShrink: 1 }}>
                 {item?.name ?? 'Dish'}
               </T>
               {provisional ? <CheckingTag small /> : null}
-            </View>
-            <View style={styles.verdictLine}>
-              <VerdictLine fit={fit} width={18} />
-              <T variant="caption" color={fitColor(fit, c).solid}>
-                {FIT_LABEL[fit]}
-              </T>
             </View>
             <T variant="body" tone="secondary" numberOfLines={2}>
               {row.line}
             </T>
             {row.modification ? (
               <View style={styles.mod}>
-                <Icon name="sparkle" size={12} color={c.check} />
-                <T variant="caption" color={c.check} style={{ flex: 1 }} numberOfLines={2}>
+                <Icon name="sparkle" size={12} color={c.good} />
+                <T variant="caption" color={c.good} style={{ flex: 1 }} numberOfLines={2}>
                   {row.modification}
                 </T>
               </View>
@@ -482,6 +500,9 @@ function CheckingTag({ small }: { small?: boolean }) {
   );
 }
 
+/** When there are more dishes than chips, the ones that are out or need a question are the ones to keep. */
+const CHIP_ORDER: Record<Fit | 'none', number> = { not_fit: 0, cant_tell: 1, okay: 2, good: 3, none: 4 };
+
 /** Verdict chips in a wrapping row over the photo, for scans without dish positions. */
 function ChipRow({ view, bottom, selectedId, onSelect }: { view: ScanView; bottom: number; selectedId: string | null; onSelect: (id: string) => void }) {
   const reduced = useReducedMotion();
@@ -489,7 +510,7 @@ function ChipRow({ view, bottom, selectedId, onSelect }: { view: ScanView; botto
   const names = new Map(view.items.map((i) => [i.id, i.name]));
   return (
     <View pointerEvents="box-none" style={[styles.chipRow, { bottom }]}>
-      {rows.slice(0, 12).map((r, i) => (
+      {[...rows].sort((a, b) => CHIP_ORDER[a.fit ?? 'none'] - CHIP_ORDER[b.fit ?? 'none']).slice(0, 12).map((r, i) => (
         <Animated.View key={r.id} entering={reduced ? FadeIn : ZoomIn.springify().damping(14).delay(i * 40)} layout={reduced ? undefined : LinearTransition.springify().damping(20)}>
           <Tap accessibilityRole="button" accessibilityLabel={names.get(r.id) ?? 'Dish'} feedback="select" scaleTo={0.94} onPress={() => onSelect(r.id)}>
             <View style={[styles.lensChip, selectedId === r.id ? styles.lensChipSelected : null]}>
@@ -509,7 +530,7 @@ function QuestionRow({ q, item, divider, onAnswer }: { q: ScanQuestion; item?: I
   const { c } = useTheme();
   return (
     <View style={{ gap: space.md }}>
-      {divider ? <View style={{ marginTop: -space.sm }}><Rule strong /></View> : null}
+      {divider ? <View style={[styles.divider, { backgroundColor: c.hairline, marginLeft: 0, marginTop: -space.sm }]} /> : null}
       <View style={{ gap: 4 }}>
         <T variant="caption" tone="secondary">
           {item?.name ?? 'Dish'}
@@ -600,7 +621,7 @@ function Missing() {
       <T variant="headline" color={onPhoto.text}>
         This scan is no longer here
       </T>
-      <Tap accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={{ padding: space.lg }}>
+      <Tap accessibilityRole="button" accessibilityLabel="Go back" onPress={goBack} style={{ padding: space.lg }}>
         <T variant="bodyStrong" color={onPhoto.textSecondary}>
           Go back
         </T>
@@ -619,13 +640,13 @@ const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   top: { position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg },
   pill: { flexDirection: 'row', alignItems: 'center', gap: space.sm, height: 40, paddingHorizontal: space.lg, maxWidth: 240 },
-  counters: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.lg, rowGap: space.sm, minHeight: 24, alignItems: 'center' },
+  counters: { flexDirection: 'row', gap: space.sm, minHeight: 52 },
   productCounters: { flexDirection: 'row' },
-  tally: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  verdictLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  stub: { borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  counter: { flex: 1, borderRadius: radius.md, paddingVertical: space.sm, paddingHorizontal: space.md, gap: 0 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.lg },
+  divider: { height: StyleSheet.hairlineWidth, marginLeft: space.lg + 10 + space.md },
   mod: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  askHeader: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.sm },
   answered: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -space.xs },
   banner: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderRadius: radius.md, padding: space.md },
   footer: { flexDirection: 'row', gap: space.sm, marginTop: space.xxl },

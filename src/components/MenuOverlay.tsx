@@ -17,9 +17,9 @@ import Animated, {
   ZoomIn,
 } from 'react-native-reanimated';
 
-import type { Fit, Item, Rule, Verdict } from '@engine/types';
+import type { Box, Fit, Item, Rule, Verdict } from '@engine/types';
 import { tagLabel } from '@engine/tags';
-import { DOT, estimateChipWidth, placeChips, type Rect } from '@/lib/layout';
+import { boxToRect, DOT, estimateChipWidth, placeChips, unionBox, type Rect } from '@/lib/layout';
 import { fitColor } from '@/lib/verdict';
 import { duration, onPhoto, palette, radius, shadow, space, spring } from '@/theme';
 import { T } from './T';
@@ -78,7 +78,8 @@ export function MenuOverlay({
       const fit = verdicts[i.id]?.fit;
       return {
         id: i.id,
-        box: i.position![0],
+        // The whole dish: its name and the description lines under it.
+        box: unionBox(i.position!),
         height: reason ? CHIP_TWO : CHIP_ONE,
         width: estimateChipWidth(i.name, reason),
         important: fit === 'not_fit' || fit === 'cant_tell',
@@ -147,14 +148,15 @@ function DishMarker({
   const outlineOpacity = useSharedValue(0);
   const top = useSharedValue(y);
   const hadFit = useRef(fit !== null);
-  const col = fit ? fitColor(fit, light).solid : light.cantTell;
+  const col = fit ? fitColor(fit, light).solid : onPhoto.textSecondary;
 
   // The verdict "pop": once, when a verdict first lands on this chip, staggered down the menu.
   useEffect(() => {
     if (fit && !hadFit.current && !reduced) {
       pop.value = withDelay(order * 60, withSequence(withTiming(1.07, { duration: 140 }), withSpring(1, spring.pop)));
     }
-    if (fit) outlineOpacity.value = withDelay(order * 60, withTiming(1, { duration: 300 }));
+    // The box is there as soon as the dish has a name: faint and grey until a verdict colours it.
+    outlineOpacity.value = withDelay(order * 60, withTiming(fit ? 1 : 0.6, { duration: 300 }));
     hadFit.current = fit !== null;
   }, [fit, order, reduced, pop, outlineOpacity]);
 
@@ -164,7 +166,7 @@ function DishMarker({
   }, [y, reduced, top]);
 
   const chipStyle = useAnimatedStyle(() => ({ top: top.value, transform: [{ scale: pop.value }] }));
-  const outlineStyle = useAnimatedStyle(() => ({ opacity: outlineOpacity.value * (selected ? 1 : 0.55) }));
+  const outlineStyle = useAnimatedStyle(() => ({ opacity: outlineOpacity.value * (selected ? 1 : 0.8) }));
 
   return (
     <>
@@ -172,7 +174,8 @@ function DishMarker({
         pointerEvents="none"
         style={[
           styles.outline,
-          { left: outline.x - 4, top: outline.y - 4, width: outline.width + 8, height: outline.height + 8, borderColor: col },
+          // A light wash of the verdict's colour inside the box, so a dish reads at a glance even without a label.
+          { left: outline.x - 4, top: outline.y - 4, width: outline.width + 8, height: outline.height + 8, borderColor: col, backgroundColor: fit ? `${col}26` : 'transparent' },
           outlineStyle,
         ]}
       />
@@ -217,6 +220,30 @@ function DishMarker({
   );
 }
 
+/**
+ * Every line of text found on the photo, as faint outlines. Shown for the first seconds of a scan, before any dish
+ * has a name, so the menu is visibly being found; replaced by the dish boxes once they exist.
+ */
+export function TextOutlines({ photo, boxes }: { photo: Rect; boxes: Box[] }) {
+  const reduced = useReducedMotion();
+  if (photo.width === 0) return null;
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {boxes.map((b, i) => {
+        const r = boxToRect(b, photo);
+        return (
+          <Animated.View
+            key={i}
+            entering={reduced ? FadeIn.duration(duration.fast) : FadeIn.duration(duration.base).delay(Math.min(i * 12, 600))}
+            exiting={FadeOut.duration(duration.fast)}
+            style={[styles.textLine, { left: r.x - 2, top: r.y - 1, width: r.width + 4, height: r.height + 2 }]}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 /** A soft bright band sweeping down the photo while it is being read. */
 export function ScanSweep({ photo, active }: { photo: Rect; active: boolean }) {
   const reduced = useReducedMotion();
@@ -257,6 +284,7 @@ export function ScanSweep({ photo, active }: { photo: Rect; active: boolean }) {
 
 const styles = StyleSheet.create({
   outline: { position: 'absolute', borderWidth: 2, borderRadius: radius.sm },
+  textLine: { position: 'absolute', borderWidth: 1, borderRadius: 3, borderColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.08)' },
   chipWrap: { position: 'absolute' },
   dot: { width: DOT, height: DOT, borderRadius: DOT / 2, borderWidth: 2.5, borderColor: onPhoto.chip },
   dotSelected: { transform: [{ scale: 1.25 }] },

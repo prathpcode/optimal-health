@@ -169,6 +169,12 @@ export type ScanRecord = {
   /** The restaurant's name as printed on the menu or as the user corrected it. */
   restaurantName?: string;
   restaurantId?: string;
+  /**
+   * Where every line of text is on the photo, present from about a second into a scan until the dishes get positions
+   * of their own (`Item.position`). Lets the app show the menu being found before anything has a name. Absent when
+   * text recognition is not configured.
+   */
+  textBoxes?: Box[];
   /** Something the user should know about this result, e.g. that their medication rules were still being read. */
   notice?: string;
   error?: string;

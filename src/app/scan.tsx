@@ -18,8 +18,9 @@ import { useDeviceId } from '@/lib/backend';
 import { haptic } from '@/lib/haptics';
 import { containRect, type Rect } from '@/lib/layout';
 import { lastLocation, locate } from '@/lib/location';
+import { goBack } from '@/lib/nav';
 import { restartSample, SAMPLE_ID } from '@/lib/scan';
-import { prepareImage, sampleMenuFile, useStartBarcode, useStartScan, type Prepared } from '@/lib/upload';
+import { prepareImage, useStartBarcode, useStartScan, type Prepared } from '@/lib/upload';
 import { duration, onPhoto, radius, space, spring } from '@/theme';
 
 type Phase = 'live' | 'capturing' | 'uploading' | 'error';
@@ -139,20 +140,6 @@ export default function ScanScreen() {
     }
   };
 
-  const useSample = async () => {
-    if (phase === 'uploading' || phase === 'capturing') return;
-    haptic.tap();
-    setPhase('capturing');
-    try {
-      const file = await sampleMenuFile();
-      setStill(file);
-      await submit(file);
-    } catch {
-      setStill(null);
-      fail();
-    }
-  };
-
   const retake = () => {
     setStill(null);
     setPhase('live');
@@ -167,7 +154,7 @@ export default function ScanScreen() {
     return (
       <View style={[styles.black, { paddingTop: insets.top + space.md, paddingHorizontal: space.xl }]}>
         <StatusBar style="light" />
-        <GlassButton icon="close" label="Close" onPress={() => router.back()} />
+        <GlassButton icon="close" label="Close" onPress={goBack} />
         <View style={styles.permission}>
           <View style={styles.permissionIcon}>
             <Icon name="camera" size={28} color={onPhoto.text} />
@@ -250,7 +237,7 @@ export default function ScanScreen() {
 
       {/* Top bar */}
       <View style={[styles.top, { paddingTop: insets.top + space.sm }]}>
-        <GlassButton icon="close" label="Close" onPress={() => router.back()} />
+        <GlassButton icon="close" label="Close" onPress={goBack} />
         <T variant="headline" color={onPhoto.text}>
           {phase === 'uploading' ? 'Sending' : 'Scan'}
         </T>
@@ -271,22 +258,7 @@ export default function ScanScreen() {
               </T>
             </Tap>
           </Animated.View>
-        ) : (
-          <GlassSurface style={styles.modes}>
-            <View style={styles.modeOn}>
-              <Icon name="menu" size={15} color={onPhoto.chipText} />
-              <T variant="caption" color={onPhoto.chipText} style={{ fontWeight: '600' }}>
-                Menu or label
-              </T>
-            </View>
-            <View style={styles.modeOff}>
-              <Icon name="barcode" size={15} color={onPhoto.textSecondary} />
-              <T variant="caption" color={onPhoto.textSecondary}>
-                Barcodes scan on their own
-              </T>
-            </View>
-          </GlassSurface>
-        )}
+        ) : null}
 
         <View style={styles.shutterRow}>
           <GlassButton icon="photos" label="Choose from photos" onPress={pickFromLibrary} size={50} />
@@ -301,8 +273,12 @@ export default function ScanScreen() {
               )}
             </View>
           </Tap>
-          <GlassButton icon="sparkle" label="Use the sample menu" onPress={useSample} size={50} />
+          <View style={{ width: 50 }} />
         </View>
+
+        <T variant="caption" color={onPhoto.textSecondary}>
+          Menu, item(s), or barcode
+        </T>
       </View>
     </View>
   );
@@ -314,9 +290,6 @@ const styles = StyleSheet.create({
   hint: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
   hintPill: { paddingHorizontal: space.lg, paddingVertical: space.sm + 2 },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', gap: space.xl },
-  modes: { flexDirection: 'row', padding: 4, gap: 2 },
-  modeOn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: onPhoto.chip, borderRadius: radius.chip, paddingHorizontal: space.lg, paddingVertical: space.sm },
-  modeOff: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.lg, paddingVertical: space.sm },
   shutterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch', paddingHorizontal: space.xxxl + space.sm },
   shutter: { width: 78, height: 78, borderRadius: 39, borderWidth: 4, borderColor: onPhoto.text, alignItems: 'center', justifyContent: 'center' },
   shutterInner: { width: 62, height: 62, borderRadius: 31, backgroundColor: onPhoto.text },
