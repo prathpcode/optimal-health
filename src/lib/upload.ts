@@ -37,7 +37,7 @@ export async function sampleMenuFile(): Promise<Prepared> {
   return { uri, width: asset.width ?? 1200, height: asset.height ?? 1600 };
 }
 
-/** `location`, when the phone already has one, lets the backend recognise the restaurant (PLAN 6.5). */
+/** `location`, when the phone already has one, lets the backend recognise the restaurant. */
 type StartScan = (image: Prepared, deviceId: string, location?: Where | null) => Promise<string>;
 
 /** Upload a prepared photo to Convex storage and start the pipeline. Resolves to the new scan id. */

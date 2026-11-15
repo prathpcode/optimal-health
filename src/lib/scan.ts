@@ -277,7 +277,7 @@ function useSetRestaurantLive(): SetRestaurant {
 /** Null without a backend (the bundled sample has no restaurant to remember). */
 export const useSetRestaurant: () => SetRestaurant | null = HAS_BACKEND ? useSetRestaurantLive : () => null;
 
-// The person confirms a restaurant's name once (PLAN 6.5). Which ones they have confirmed is kept on the device.
+// The person confirms a restaurant's name once. Which ones they have confirmed is kept on the device.
 const CONFIRMED_KEY = 'fit.restaurantsConfirmed';
 let confirmed: string[] = [];
 let confirmedLoaded = false;
