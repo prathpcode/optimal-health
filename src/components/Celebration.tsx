@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
+  type SharedValue,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -13,11 +14,11 @@ import Animated, {
 
 import { clearCelebration, useCelebration, type Celebration as C } from '@/lib/celebrate';
 import { haptic } from '@/lib/haptics';
-import { roomAccent, space, spring, useTheme } from '@/theme';
+import { space, spring, useTheme } from '@/theme';
 import { GlassSurface } from './Glass';
+import { Icon } from './Icon';
 import { T } from './T';
 
-const COUNT = 36;
 const SHOW_MS = 1800;
 
 // Native form sheets draw above the root view, so a sheet that celebrates mounts its own layer ("local"); while one
@@ -29,7 +30,7 @@ const setLocal = (d: number) => {
   layerListeners.forEach((l) => l());
 };
 
-/** A confetti burst and a big springy title whenever something is celebrated. Mount once at the root, and in sheets with `local`. */
+/** A check that pops with a ring and a few rays, and a small title, whenever something is celebrated. Mount once at the root, and in sheets with `local`. */
 export function CelebrationLayer({ local }: { local?: boolean }) {
   const current = useCelebration();
   const others = useSyncExternalStore(
@@ -48,108 +49,86 @@ export function CelebrationLayer({ local }: { local?: boolean }) {
   return <Burst key={current.id} c={current} />;
 }
 
-/** A small seeded generator, so a burst is the same on every render (and differs between bursts). */
-function seeded(seed: number) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-type Piece = { angle: number; speed: number; size: number; color: string; spin: number; round: boolean; delay: number };
+const RAYS = 8;
+const DISC = 56;
 
 function Burst({ c: celebration }: { c: C }) {
   const { c } = useTheme();
   const reduced = useReducedMotion();
-  const { width, height } = useWindowDimensions();
+  const { height } = useWindowDimensions();
 
-  const pieces = useMemo<Piece[]>(() => {
-    const colors = [...Object.values(roomAccent), c.good, c.good, c.okay];
-    const random = seeded(celebration.id);
-    return Array.from({ length: COUNT }, (_, i) => ({
-      angle: -Math.PI / 2 + ((i / COUNT) * 2 - 1) * Math.PI * 0.55 + (random() - 0.5) * 0.3,
-      speed: 260 + random() * 260,
-      size: 7 + random() * 7,
-      color: colors[i % colors.length],
-      spin: (random() - 0.5) * 900,
-      round: i % 3 === 0,
-      delay: random() * 90,
-    }));
-  }, [c.good, c.okay, celebration.id]);
-
-  const title = useSharedValue(0);
+  const pop = useSharedValue(0);
+  const wave = useSharedValue(0);
   const fade = useSharedValue(1);
 
   useEffect(() => {
     haptic.success();
     const id = celebration.id;
     const done = () => clearCelebration(id);
-    title.value = reduced ? withTiming(1, { duration: 200 }) : withSpring(1, spring.pop);
+    pop.value = reduced ? withTiming(1, { duration: 200 }) : withSpring(1, spring.pop);
+    wave.value = reduced ? 0 : withDelay(80, withTiming(1, { duration: 650, easing: Easing.out(Easing.cubic) }));
     fade.value = withDelay(SHOW_MS - 300, withTiming(0, { duration: 300 }, (finished) => finished && runOnJS(done)()));
-  }, [celebration.id, reduced, title, fade]);
+  }, [celebration.id, reduced, pop, wave, fade]);
 
-  const titleStyle = useAnimatedStyle(() => ({
-    opacity: fade.value * Math.min(1, title.value * 1.5),
-    transform: [{ scale: reduced ? 1 : 0.6 + title.value * 0.4 }, { translateY: (1 - title.value) * 16 }],
+  const neutral = celebration.tone === 'neutral';
+  const accent = neutral ? c.textSecondary : celebration.tone === 'good' ? c.okay : c.good;
+
+  const wrap = useAnimatedStyle(() => ({ opacity: fade.value }));
+  const disc = useAnimatedStyle(() => ({ transform: [{ scale: reduced ? 1 : 0.4 + pop.value * 0.6 }] }));
+  const ring = useAnimatedStyle(() => ({ opacity: (1 - wave.value) * 0.5, transform: [{ scale: 1 + wave.value * 1.3 }] }));
+  const pill = useAnimatedStyle(() => ({
+    opacity: Math.min(1, pop.value * 1.5),
+    transform: [{ translateY: reduced ? 0 : (1 - pop.value) * 10 }],
   }));
-
-  const accent = celebration.tone === 'neutral' ? c.text : c.good;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {reduced || celebration.tone === 'neutral'
-        ? null
-        : pieces.map((p, i) => <Particle key={i} p={p} originX={width / 2} originY={height * 0.42} />)}
-      <Animated.View style={[styles.center, { top: height * 0.42 - 60 }, titleStyle]}>
-        <GlassSurface tone="theme" style={styles.badge}>
-          <T variant="heroBold" color={accent} style={styles.title}>
-            {celebration.title}
-          </T>
-          {celebration.subtitle ? (
-            <T variant="bodyStrong" tone="secondary" style={{ textAlign: 'center' }}>
-              {celebration.subtitle}
+      <Animated.View style={[styles.center, { top: height * 0.4 - DISC }, wrap]}>
+        <View style={styles.mark}>
+          {reduced || neutral ? null : (
+            <>
+              <Animated.View style={[styles.ring, { borderColor: accent }, ring]} />
+              {Array.from({ length: RAYS }, (_, i) => (
+                <Ray key={i} angle={(i / RAYS) * 360} color={accent} t={wave} />
+              ))}
+            </>
+          )}
+          <Animated.View style={[styles.disc, { backgroundColor: accent }, disc]}>
+            <Icon name={celebration.icon ?? 'check'} size={26} color="#FFFFFF" weight="bold" />
+          </Animated.View>
+        </View>
+        <Animated.View style={pill}>
+          <GlassSurface tone="theme" style={styles.badge}>
+            <T variant="heading" style={styles.title}>
+              {celebration.title}
             </T>
-          ) : null}
-        </GlassSurface>
+            {celebration.subtitle ? (
+              <T variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
+                {celebration.subtitle}
+              </T>
+            ) : null}
+          </GlassSurface>
+        </Animated.View>
       </Animated.View>
     </View>
   );
 }
 
-function Particle({ p, originX, originY }: { p: Piece; originX: number; originY: number }) {
-  const t = useSharedValue(0);
-  useEffect(() => {
-    t.value = withDelay(p.delay, withTiming(1, { duration: SHOW_MS - p.delay, easing: Easing.linear }));
-  }, [t, p.delay]);
-  const style = useAnimatedStyle(() => {
-    const s = t.value * (SHOW_MS / 1000);
-    // A thrown piece: initial velocity along its angle, slowed by drag, pulled down by gravity.
-    const drag = 1 - Math.exp(-s * 2.4);
-    const x = Math.cos(p.angle) * p.speed * (drag / 2.4);
-    const y = Math.sin(p.angle) * p.speed * (drag / 2.4) + 420 * s * s;
-    return {
-      opacity: t.value < 0.75 ? 1 : 1 - (t.value - 0.75) / 0.25,
-      transform: [{ translateX: originX + x }, { translateY: originY + y }, { rotate: `${p.spin * s}deg` }, { scaleX: Math.cos(s * 9 + p.spin) }],
-    };
-  });
-  return (
-    <Animated.View
-      style={[
-        styles.piece,
-        { width: p.size, height: p.round ? p.size : p.size * 0.5, borderRadius: p.round ? p.size / 2 : 2, backgroundColor: p.color },
-        style,
-      ]}
-    />
-  );
+/** One short line thrown straight out from the mark, shrinking as it goes. */
+function Ray({ angle, color, t }: { angle: number; color: string; t: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => ({
+    opacity: t.value < 0.6 ? 1 : 1 - (t.value - 0.6) / 0.4,
+    transform: [{ rotate: `${angle}deg` }, { translateY: -(DISC / 2 + 8 + t.value * 22) }, { scaleY: 1 - t.value * 0.7 }],
+  }));
+  return <Animated.View style={[styles.ray, { backgroundColor: color }, style]} />;
 }
 
 const styles = StyleSheet.create({
-  piece: { position: 'absolute', left: 0, top: 0 },
-  center: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-  badge: { paddingHorizontal: space.xxl, paddingVertical: space.lg, borderRadius: 32, alignItems: 'center', gap: space.xs, minWidth: 168 },
-  title: { fontSize: 48, lineHeight: 56, letterSpacing: -1.2, textAlign: 'center' },
+  center: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: space.md },
+  mark: { width: DISC, height: DISC, alignItems: 'center', justifyContent: 'center' },
+  disc: { width: DISC, height: DISC, borderRadius: DISC / 2, alignItems: 'center', justifyContent: 'center' },
+  ring: { position: 'absolute', width: DISC, height: DISC, borderRadius: DISC / 2, borderWidth: 2 },
+  ray: { position: 'absolute', width: 3, height: 10, borderRadius: 1.5 },
+  badge: { paddingHorizontal: space.xl, paddingVertical: space.md, borderRadius: 24, alignItems: 'center', gap: 2, minWidth: 140 },
+  title: { textAlign: 'center' },
 });

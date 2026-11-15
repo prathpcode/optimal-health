@@ -32,7 +32,7 @@ export default function ChallengeScreen() {
   useEffect(() => {
     if (!won || cheered.has(id)) return;
     cheered.add(id);
-    celebrate({ title: 'You won', subtitle: `${wonPoints} points`, tone: 'great' });
+    celebrate({ title: 'You won', subtitle: `${wonPoints} points`, tone: 'great', icon: 'trophy' });
   }, [won, id, wonPoints]);
 
   if (!ch) {

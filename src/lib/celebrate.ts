@@ -1,10 +1,12 @@
 import { useSyncExternalStore } from 'react';
 
+import type { IconName } from '@/components/Icon';
+
 /**
- * A moment worth celebrating: joining or starting a challenge, or logging a meal. The root layout draws a confetti
- * burst for whichever arrives (src/components/Celebration.tsx).
+ * A moment worth celebrating: joining or starting a challenge, or logging a meal. The root layout draws a short
+ * check-and-ring moment for whichever arrives (src/components/Celebration.tsx).
  */
-export type Celebration = { id: number; title: string; subtitle?: string; tone: 'great' | 'good' | 'neutral' };
+export type Celebration = { id: number; title: string; subtitle?: string; tone: 'great' | 'good' | 'neutral'; icon?: IconName };
 
 let current: Celebration | null = null;
 const listeners = new Set<() => void>();

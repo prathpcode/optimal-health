@@ -5,7 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } 
 
 import { dishEmoji, REACTION_EMOJI } from '@/lib/emoji';
 import { haptic } from '@/lib/haptics';
-import { likePost, type Photo, type Post } from '@/lib/whopForum';
+import { toggleLike, useLike, type Photo, type Post } from '@/lib/whopForum';
 import { radius, roomAccent, space, spring, tint, useTheme } from '@/theme';
 import { Avatar } from './community';
 import { GlassSurface } from './Glass';
@@ -64,24 +64,26 @@ export function DishCard({ post, slug }: { post: Post; slug: string }) {
   );
 }
 
-function Like({ post, slug }: { post: Post; slug: string }) {
+function Like({ post }: { post: Post }) {
   const { c } = useTheme();
+  const { liked, likes } = useLike(post);
   const pop = useSharedValue(1);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
-  const like = () => {
-    if (post.liked || post.pending) return;
+  const press = () => {
+    if (post.pending) return;
     haptic.tap();
-    pop.set(withSequence(withSpring(1.35, spring.pop), withSpring(1, spring.snappy)));
-    void attempt(likePost(slug, post.id));
+    if (!liked) pop.set(withSequence(withSpring(1.35, spring.pop), withSpring(1, spring.snappy)));
+    void attempt(toggleLike(post.id));
   };
+  const color = liked ? c.notFit : c.textSecondary;
   return (
-    <Tap accessibilityRole="button" accessibilityLabel={post.liked ? `Liked, ${post.likes}` : `Like, ${post.likes}`} accessibilityState={{ selected: post.liked }} onPress={like} hitSlop={8} style={styles.stat}>
+    <Tap accessibilityRole="button" accessibilityLabel={liked ? `Liked, ${likes}. Tap to unlike` : `Like, ${likes}`} accessibilityState={{ selected: liked }} onPress={press} hitSlop={8} style={styles.stat}>
       <Animated.View style={style}>
-        <Icon name={post.liked ? "liked" : "like"} size={17} color={post.liked ? c.notFit : c.textSecondary} />
+        <Icon name={liked ? 'liked' : 'like'} size={17} color={color} />
       </Animated.View>
-      {post.likes > 0 ? (
-        <T variant="caption" color={post.liked ? c.notFit : c.textSecondary}>
-          {post.likes}
+      {likes > 0 ? (
+        <T variant="caption" color={color}>
+          {likes}
         </T>
       ) : null}
     </Tap>
@@ -117,7 +119,7 @@ export function PostCard({ post, slug, full }: { post: Post; slug: string; full?
         </View>
       ) : null}
       <View style={styles.footer}>
-        <Like post={post} slug={slug} />
+        <Like post={post} />
         <View style={styles.stat}>
           <Icon name="chat" size={16} color={c.textSecondary} />
           {post.comments > 0 ? (

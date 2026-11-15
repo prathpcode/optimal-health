@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DURATION_OPTIONS_DAYS, MEALS_PER_DAY } from '@engine/challenge';
+import { DURATION_OPTIONS_DAYS } from '@engine/challenge';
 import { inviteToChallenge, PointsKey } from '@/components/challenge';
 import { T } from '@/components/T';
 import { attempt, GlassAction } from '@/components/together';
@@ -22,7 +22,7 @@ function midnight(offsetDays: number) {
   return d.getTime();
 }
 
-/** Start a points race: how it scores, how long, when; then straight to inviting friends. */
+/** Start a challenge: how it scores, how long, when; then straight to inviting friends. */
 export default function NewChallenge() {
   const insets = useSafeAreaInsets();
   const [days, setDays] = useState<number>(7);
@@ -38,7 +38,7 @@ export default function NewChallenge() {
     const ok = await attempt(createChallenge(days, startsAt).then((x) => (id = x)));
     setBusy(false);
     if (!ok || !id) return;
-    celebrate({ title: 'Race on', subtitle: 'Now invite your friends', tone: 'great' });
+    celebrate({ title: 'Challenge on', subtitle: 'Invite your friends', tone: 'great', icon: 'trophy' });
     router.replace({ pathname: '/challenge/[id]', params: { id } });
     setTimeout(() => void inviteToChallenge({ id, days }), 600);
   };
@@ -46,36 +46,30 @@ export default function NewChallenge() {
   return (
     <ScrollView contentContainerStyle={{ padding: space.xxl, paddingBottom: insets.bottom + space.xl, gap: space.xxl }} showsVerticalScrollIndicator={false}>
       <View style={{ gap: space.sm }}>
-        <T variant="heroBold">Start a points race</T>
+        <T variant="heroBold">Start a challenge</T>
         <T variant="bodyStrong" tone="secondary">
-          Scan the menu, then tap what you ordered. Dishes that fit your diet score points. Most points wins.
+          Compete with your friends and see 
         </T>
       </View>
 
       <PointsKey />
 
-      <View style={{ gap: space.md }}>
-        <T variant="heading">How long</T>
-        <View style={styles.chips}>
-          {DURATION_OPTIONS_DAYS.map((d) => (
-            <Chip key={d} label={LENGTH_LABEL[d] ?? `${d} days`} selected={days === d} onPress={() => setDays(d)} />
-          ))}
-        </View>
+      <View style={styles.chips}>
+        {DURATION_OPTIONS_DAYS.map((d) => (
+          <Chip key={d} label={LENGTH_LABEL[d] ?? `${d} days`} selected={days === d} onPress={() => setDays(d)} />
+        ))}
+      </View>
+
+      <View style={styles.chips}>
+        <Chip label="Today" selected={!later} onPress={() => setLater(false)} />
+        <Chip label="Tomorrow" selected={later} onPress={() => setLater(true)} />
       </View>
 
       <View style={{ gap: space.md }}>
-        <T variant="heading">Starts</T>
-        <View style={styles.chips}>
-          <Chip label="Today" selected={!later} onPress={() => setLater(false)} />
-          <Chip label="Tomorrow" selected={later} onPress={() => setLater(true)} />
-        </View>
-      </View>
-
-      <View style={{ gap: space.md }}>
+        <GlassAction label="Start and invite" icon="trophy" onPress={start} loading={busy} />
         <T variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
-          Ends {ends} · up to {MEALS_PER_DAY} dishes a day count
+          Ends {ends}
         </T>
-        <GlassAction label="Start and invite friends" icon="trophy" onPress={start} loading={busy} />
       </View>
     </ScrollView>
   );
