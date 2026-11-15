@@ -45,3 +45,7 @@ example
 # env
 .env
 .env.local
+
+# Impeccable engine binary: the launcher downloads it on first run
+.agents/skills/impeccable/scripts/bin/
+.claude/skills/impeccable/scripts/bin/
