@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { dishKey, restaurantId as makeRestaurantId, type RememberedAnswer } from "../engine/memory";
-import { afterAnswer } from "../engine/pipeline";
+import { afterAnswer, afterRestaurant, answersToRemember } from "../engine/pipeline";
 import type { Rule, ScanRecord } from "../engine/types";
 import { answerValue, hardCheck, item, location, rankedItem, scanKind, scanQuestion, scanStatus, textLine, verdict } from "./validators";
 
@@ -194,7 +194,14 @@ export const addPage = mutation({
   },
 });
 
-/** Confirm or correct which restaurant a scan is from, so that answers are remembered against the right place. */
+/**
+ * Confirm or correct which restaurant a scan is from, so that answers are remembered against the right place.
+ * Returns the restaurant's id, or null when there is no location to tell it from another place of the same name.
+ *
+ * On a finished menu scan this also brings the scan in line with the restaurant it now belongs to: what that
+ * restaurant has told people before is applied (as the pipeline would have done had it known), and answers already
+ * given on this scan are stored against it, and taken back from the place the scan was wrongly matched to.
+ */
 export const setRestaurant = mutation({
   args: { scanId: v.id("scans"), name: v.string(), location: v.optional(location) },
   handler: async (ctx, { scanId, name, location: where }) => {
@@ -202,7 +209,23 @@ export const setRestaurant = mutation({
     if (!row) throw new Error("Scan not found");
     const loc = where ?? row.location;
     const id = makeRestaurantId(name, loc);
-    await ctx.db.patch("scans", scanId, { restaurantName: name.trim(), ...(loc ? { location: loc } : {}), ...(id ? { restaurantId: id } : {}) });
+    const named = { restaurantName: name.trim(), ...(loc ? { location: loc } : {}), ...(id ? { restaurantId: id } : {}) };
+    // While the pipeline is still running it writes the verdicts itself, from the restaurant it was started with.
+    if (!id || id === row.restaurantId || row.status !== "done" || row.kind !== "menu") {
+      await ctx.db.patch("scans", scanId, named);
+      return id;
+    }
+    const mine = answersToRemember(row, row.rulesUsed);
+    if (row.restaurantId && mine.length) {
+      const elsewhere = await ctx.db.query("answers").withIndex("by_restaurantId", (q) => q.eq("restaurantId", row.restaurantId!)).order("desc").take(500);
+      for (const a of elsewhere) {
+        if (a.deviceId === row.deviceId && mine.some((m) => m.dishKey === a.dishKey && m.tag === a.tag && m.at === a.at)) await ctx.db.delete("answers", a._id);
+      }
+    }
+    for (const a of mine) await ctx.db.insert("answers", { restaurantId: id, deviceId: row.deviceId, ...a });
+    const rows = await ctx.db.query("answers").withIndex("by_restaurantId", (q) => q.eq("restaurantId", id)).order("desc").take(500);
+    const remembered: RememberedAnswer[] = rows.map((r) => ({ dishKey: r.dishKey, tag: r.tag, value: r.value, deviceId: r.deviceId, at: r.at }));
+    await ctx.db.patch("scans", scanId, { ...named, ...afterRestaurant(row, row.rulesUsed, remembered, row.deviceId, new Date()) });
     return id;
   },
 });

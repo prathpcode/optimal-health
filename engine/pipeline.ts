@@ -2,6 +2,7 @@
 // The network calls live in convex/; the decisions live here so they can be tested.
 
 import { evaluate, withSecondOpinion, type Thresholds } from "./evaluate";
+import { applyRemembered, dishKey, type RememberedAnswer } from "./memory";
 import { withLabelFindings } from "./otc";
 import { codeCheck, containsTerm, literalTags, normalise } from "./tagMatch";
 import { isKnownTag, tagInfo, tagLabel, tagSatisfies } from "./tags";
@@ -184,15 +185,28 @@ export function applyAnswer(checks: HardCheck[], question: ScanQuestion, value: 
  * unsourced notes, wording and ordering are carried over, but sections follow the new verdicts.
  */
 export function afterAnswer(
-  scan: { items: Item[]; checks: HardCheck[]; verdicts: Record<string, Verdict>; ranking: RankedItem[]; questions: ScanQuestion[] },
+  scan: StoredScan,
   rules: Rule[],
   questionId: string,
   value: "yes" | "no" | "skipped",
   at: string,
-): { checks: HardCheck[]; verdicts: Record<string, Verdict>; ranking: RankedItem[]; questions: ScanQuestion[] } | null {
+): Reevaluated | null {
   const question = scan.questions.find((q) => q.id === questionId);
   if (!question) return null;
   const checks = value === "skipped" ? scan.checks : applyAnswer(scan.checks, question, value, at);
+  const answers = new Map(scan.questions.map((q) => [q.id, q.answer]));
+  answers.set(questionId, value);
+  return reevaluate(scan, rules, checks, answers);
+}
+
+type StoredScan = { items: Item[]; checks: HardCheck[]; verdicts: Record<string, Verdict>; ranking: RankedItem[]; questions: ScanQuestion[] };
+type Reevaluated = { checks: HardCheck[]; verdicts: Record<string, Verdict>; ranking: RankedItem[]; questions: ScanQuestion[] };
+
+/**
+ * Recompute a finished scan from items + rules + the given checks. The model's unsourced notes, wording and ordering
+ * are carried over, but sections follow the new verdicts.
+ */
+function reevaluate(scan: StoredScan, rules: Rule[], checks: HardCheck[], answers: Map<string, ScanQuestion["answer"]>): Reevaluated {
   let verdicts = buildVerdicts(scan.items, rules, checks);
   // Findings from a product's own label (package warnings, an ingredient already taken) do not come from rules,
   // so recomputing from rules would drop them. Carry them over; they can only keep the verdict cautious.
@@ -205,11 +219,47 @@ export function afterAnswer(
   );
   verdicts = applySecondOpinions(verdicts, notes);
   const ranking = buildRanking(scan.items, verdicts, rules, scan.ranking);
-  const answers = new Map(scan.questions.map((q) => [q.id, q.answer]));
-  answers.set(questionId, value);
   // Keep answered questions on the list (the app shows them as answered) and add any still open.
   const open = buildQuestions(scan.items, verdicts);
   const kept = scan.questions.filter((q) => answers.get(q.id) && !open.some((o) => o.id === q.id));
   const questions = [...open, ...kept].map((q) => (answers.get(q.id) ? { ...q, answer: answers.get(q.id) } : q));
   return { checks, verdicts, ranking, questions };
+}
+
+/** The checks whose answer was given on this scan (through one of its questions), as opposed to remembered from an earlier visit. */
+function answeredHere(scan: Pick<StoredScan, "questions">, c: HardCheck): boolean {
+  const q = scan.questions.find((x) => x.itemId === c.itemId && x.ruleId === c.ruleId);
+  return q?.answer === "yes" || q?.answer === "no";
+}
+
+/**
+ * Re-evaluate a finished scan once it is known, or corrected, which restaurant it is from. What that restaurant has
+ * told people before is attached to the checks, exactly as the pipeline does for a scan that knew its restaurant
+ * from the start. Answers given on this scan are kept; answers that were remembered from another restaurant (the
+ * scan was first matched to the wrong place) are dropped, since they were never about this one.
+ */
+export function afterRestaurant(scan: StoredScan, rules: Rule[], remembered: RememberedAnswer[], deviceId: string, now: Date): Reevaluated {
+  const own = scan.checks.map((c) => {
+    if (!c.answer || answeredHere(scan, c)) return c;
+    const { answer: _dropped, ...rest } = c;
+    return rest;
+  });
+  const checks = applyRemembered(own, scan.items, rules, remembered, deviceId, now);
+  return reevaluate(scan, rules, checks, new Map(scan.questions.map((q) => [q.id, q.answer])));
+}
+
+/**
+ * The answers this person gave on this scan, in the form they are remembered per restaurant. Used when a scan gets
+ * its restaurant only after questions were answered, so those answers are not lost. Answers that were themselves
+ * remembered from an earlier visit are left out: they are already stored, against the restaurant they were about.
+ */
+export function answersToRemember(scan: Pick<StoredScan, "items" | "checks" | "questions">, rules: Rule[]): Omit<RememberedAnswer, "deviceId">[] {
+  const out: Omit<RememberedAnswer, "deviceId">[] = [];
+  for (const c of scan.checks) {
+    if (c.answer?.by !== "this_user" || !answeredHere(scan, c)) continue;
+    const item = scan.items.find((i) => i.id === c.itemId);
+    const rule = rules.find((r) => r.id === c.ruleId);
+    if (item && rule) out.push({ dishKey: dishKey(item), tag: rule.tag, value: c.answer.value, at: c.answer.at });
+  }
+  return out;
 }
