@@ -53,6 +53,13 @@ export default defineSchema({
     version: v.optional(v.number()),
   }).index("by_rxcui", ["rxcui"]),
 
+  // The parsed answer to one exact model request (dish tagging, or the per-tag second pass), keyed by a hash of the
+  // model, instructions and text sent. Holds nothing about any person. See convex/cache.ts.
+  tagCache: defineTable({ key: v.string(), step: v.string(), value: v.string(), at: v.number() }).index("by_key", ["key"]),
+
+  // What the food database returned for a barcode (ProductFacts as JSON).
+  productCache: defineTable({ barcode: v.string(), facts: v.string(), at: v.number() }).index("by_barcode", ["barcode"]),
+
   // The compiled and custom rules for a device.
   rules: defineTable({ deviceId: v.string(), custom: v.boolean(), ...ruleFields })
     .index("by_deviceId", ["deviceId"])
