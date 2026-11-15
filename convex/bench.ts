@@ -6,6 +6,7 @@ import { internalAction } from "./_generated/server";
 import { evaluate } from "../engine/evaluate";
 import { buildChecks } from "../engine/pipeline";
 import { tagLabel } from "../engine/tags";
+import { linesFromVision, type VisionText } from "../engine/textLines";
 import type { Rule } from "../engine/types";
 import { judgeAvailable, judgeItems } from "./judge";
 import { readerModel, tagAndCheck, transcribe } from "./pipeline";
@@ -62,5 +63,39 @@ export const transcribePhoto = internalAction({
     const started = Date.now();
     const read = await transcribe(new Anthropic(), [url], model);
     return { model: model ?? readerModel(), ms: Date.now() - started, read };
+  },
+});
+
+/**
+ * For trying shelf photos: what the text-recognition service finds on one stored photo. Returns the objects it
+ * boxes (it has a "Packaged goods" class), any logos, and every line of text with its position. Not called by the app.
+ */
+export const shelfProbe = internalAction({
+  args: { imageId: v.id("_storage") },
+  handler: async (ctx, { imageId }) => {
+    const key = process.env.GOOGLE_VISION_API_KEY;
+    if (!key) throw new Error("GOOGLE_VISION_API_KEY is not set");
+    const url = await ctx.storage.getUrl(imageId);
+    if (!url) throw new Error("Photo not found");
+    const content = Buffer.from(await (await fetch(url)).arrayBuffer()).toString("base64");
+    const started = Date.now();
+    const res = await fetch("https://vision.googleapis.com/v1/images:annotate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key },
+      body: JSON.stringify({ requests: [{ image: { content }, features: [{ type: "OBJECT_LOCALIZATION", maxResults: 100 }, { type: "LOGO_DETECTION", maxResults: 30 }, { type: "DOCUMENT_TEXT_DETECTION" }] }] }),
+    });
+    if (!res.ok) throw new Error(`vision ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    type Poly = { normalizedVertices?: { x?: number; y?: number }[]; vertices?: { x?: number; y?: number }[] };
+    const data = (await res.json()) as {
+      responses?: { localizedObjectAnnotations?: { name: string; score: number; boundingPoly: Poly }[]; logoAnnotations?: { description: string; score: number; boundingPoly: Poly }[]; fullTextAnnotation?: VisionText; error?: { message?: string } }[];
+    };
+    const r = data.responses?.[0] ?? {};
+    return {
+      ms: Date.now() - started,
+      error: r.error?.message ?? null,
+      objects: (r.localizedObjectAnnotations ?? []).map((o) => ({ name: o.name, score: o.score, corners: (o.boundingPoly.normalizedVertices ?? []).map((p) => ({ x: p.x ?? 0, y: p.y ?? 0 })) })),
+      logos: (r.logoAnnotations ?? []).map((l) => ({ name: l.description, score: l.score, corners: (l.boundingPoly.vertices ?? []).map((p) => ({ x: p.x ?? 0, y: p.y ?? 0 })) })),
+      lines: linesFromVision(r.fullTextAnnotation),
+    };
   },
 });
