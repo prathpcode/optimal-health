@@ -171,8 +171,28 @@ function capitalise(s: string): string {
 export type ModelRanking = { itemId: string; line: string; modification?: string }[];
 
 /**
+ * Words that mark a menu item as a drink. Used only to order the list: someone choosing what to eat is helped by
+ * the dishes first, and "sodas fit you" is rarely the news. Matched on whole words of the item's name.
+ */
+const DRINK_WORDS = new Set([
+  "soda", "sodas", "cola", "coke", "pepsi", "sprite", "water", "tea", "teas", "coffee", "coffees", "espresso", "latte", "cappuccino", "americano", "macchiato", "mocha",
+  "juice", "juices", "lemonade", "limeade", "smoothie", "smoothies", "milkshake", "milkshakes", "shake", "shakes", "beer", "beers", "lager", "ale", "ipa", "stout", "cider",
+  "wine", "wines", "champagne", "prosecco", "sake", "cocktail", "cocktails", "mocktail", "mocktails", "margarita", "mojito", "martini", "sangria", "spritz", "negroni",
+  "paloma", "whiskey", "whisky", "vodka", "gin", "rum", "tequila", "bourbon", "kombucha", "chai", "matcha", "cocoa", "beverage", "beverages", "drink", "drinks",
+]);
+/** Dishes whose names contain a drink word but are food. */
+const NOT_A_DRINK = /\b(cake|pie|braised|glazed|battered|sauce|cured|marinated|chicken|beef|pork|lamb|fish|salmon|shrimp|mussels|clams|risotto|ice cream|sorbet|tart|bread|float cake)\b/;
+
+export function isDrink(item: Pick<Item, "name" | "kind">): boolean {
+  if (item.kind !== "dish") return false;
+  const name = item.name.toLowerCase();
+  if (NOT_A_DRINK.test(name)) return false;
+  return name.split(/[^a-z]+/).some((w) => DRINK_WORDS.has(w));
+}
+
+/**
  * Build the ranked list. The section an item sits in comes only from its verdict, so a model cannot promote a
- * blocked dish. The model may order items within a section and word the line for unblocked items; blocked items
+ * blocked dish. Within a section, food comes before drinks. The model may order items within a section and word the line for unblocked items; blocked items
  * always get the code-written line. Items the model forgot are appended; ids it invented are ignored.
  */
 export function buildRanking(items: Item[], verdicts: Record<string, Verdict>, rules: Rule[], model: ModelRanking = []): RankedItem[] {
@@ -184,7 +204,7 @@ export function buildRanking(items: Item[], verdicts: Record<string, Verdict>, r
     const line = (!blocked && m?.line.trim()) || defaultLine(v, rules);
     const row: RankedItem = { itemId: item.id, section: SECTION[v.fit], line };
     if (!blocked && m?.modification?.trim()) row.modification = m.modification.trim();
-    return { row, key: [SECTION_ORDER.indexOf(SECTION[v.fit]), -(v.score ?? 0), modelPos.get(item.id) ?? Number.MAX_SAFE_INTEGER, i] };
+    return { row, key: [SECTION_ORDER.indexOf(SECTION[v.fit]), isDrink(item) ? 1 : 0, -(v.score ?? 0), modelPos.get(item.id) ?? Number.MAX_SAFE_INTEGER, i] };
   });
   rows.sort((a, b) => {
     for (let k = 0; k < a.key.length; k++) if (a.key[k] !== b.key[k]) return a.key[k] - b.key[k];

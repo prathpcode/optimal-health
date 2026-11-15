@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compileRules, conditionKey, conditionNotes } from "./compileRules";
-import { afterAnswer, applyAnswer, applySecondOpinions, buildChecks, buildQuestions, buildRanking, buildVerdicts, earlyHints, itemsFromReader, type ReaderDish } from "./pipeline";
+import { afterAnswer, applyAnswer, applySecondOpinions, buildChecks, buildQuestions, buildRanking, buildVerdicts, earlyHints, isDrink, itemsFromReader, type ReaderDish } from "./pipeline";
 import { duplicateFindings } from "./otc";
 import { buildVerdicts as verdictsFor } from "./pipeline";
 import { itemFromProduct } from "./product";
@@ -205,5 +205,25 @@ describe("earlyHints", () => {
   it("says nothing when no hard rule is switched on", () => {
     expect(earlyHints(lines, [{ ...NUTS, enabled: false }])).toEqual([]);
     expect(earlyHints(lines, [SODIUM])).toEqual([]);
+  });
+});
+
+describe("food before drinks", () => {
+  const menu = itemsFromReader([dishOf({ name: "Sodas" }), dishOf({ name: "Iced tea" }), dishOf({ name: "Hommus", description: "chickpeas, tahini" }), dishOf({ name: "Shish taouk", description: "grilled chicken" })]);
+  it("knows a drink from a dish, including dishes with a drink in their name", () => {
+    expect(menu.map(isDrink)).toEqual([true, true, false, false]);
+    for (const food of ["Beer battered fish", "Red wine braised short rib", "Rum cake", "Coffee ice cream", "Tea-smoked chicken"]) expect(isDrink({ name: food, kind: "dish" }), food).toBe(false);
+    for (const drink of ["Coffee: regular and decaffeinated", "Fresh orange juice", "House red wine", "Paloma"]) expect(isDrink({ name: drink, kind: "dish" }), drink).toBe(true);
+    expect(isDrink({ name: "Green tea", kind: "product" })).toBe(false);
+  });
+  it("lists the dishes ahead of the drinks within a section, whatever order the model gave", () => {
+    const verdicts = buildVerdicts(menu, rules, buildChecks(menu, rules, menu.map((m) => ({ itemId: m.id, tag: "tree_nuts", answer: "no" as const }))));
+    const model = menu.map((m) => ({ itemId: m.id, line: "fine" }));
+    expect(buildRanking(menu, verdicts, rules, model).map((r) => r.itemId)).toEqual(["d3", "d4", "d1", "d2"]);
+  });
+  it("still keeps a drink that is out in the Not a fit section", () => {
+    const drinks = itemsFromReader([dishOf({ name: "Almond milk latte" }), dishOf({ name: "Hommus" })]);
+    const verdicts = buildVerdicts(drinks, rules, buildChecks(drinks, rules));
+    expect(buildRanking(drinks, verdicts, rules).find((r) => r.itemId === "d1")?.section).toBe("not_fit");
   });
 });

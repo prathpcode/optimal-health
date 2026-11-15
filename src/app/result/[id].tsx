@@ -1,8 +1,8 @@
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, useWindowDimensions, View, type HostInstance, type ScrollViewInstance } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -158,12 +158,26 @@ export default function ResultScreen() {
     }
   };
 
+  // Coming back to this screen (the dish's page was closed) puts the photo back to its resting state: no dish
+  // picked out, no label over the menu.
+  useFocusEffect(
+    useCallback(() => {
+      setSelected(null);
+    }, []),
+  );
+
   const opening = useRef(false);
   const openDish = (itemId: string) => {
     if (opening.current) return;
     opening.current = true;
     router.push({ pathname: '/dish/[scanId]/[itemId]', params: { scanId: id, itemId } });
     setTimeout(() => (opening.current = false), 800);
+  };
+
+  /** A box on the photo was tapped: mark that dish (its label replaces any other) and open its page. */
+  const pickOnPhoto = (itemId: string) => {
+    setSelected(itemId);
+    openDish(itemId);
   };
 
   // A barcode or label scan is about one product: it gets its own layout, and the sheet opens taller.
@@ -214,7 +228,7 @@ export default function ResultScreen() {
       {view && target && shown && !failed && !isProduct ? (
         <Animated.View style={[StyleSheet.absoluteFill, overlayStyle]} pointerEvents="box-none">
           {view.items.some((i) => i.position?.length) ? (
-            <MenuOverlay photo={shown} bounds={{ width, height: area.top + area.height, top: area.top - 8 }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={selectDish} />
+            <MenuOverlay photo={shown} bounds={{ width, height: area.top + area.height, top: area.top - 8 }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={pickOnPhoto} />
           ) : (
             // No dish positions (text recognition is off, or found nothing to match): the text that was found, if
             // any, as faint outlines, and verdict chips in a row over the photo.
@@ -383,6 +397,14 @@ function SheetHeader({ view, working, failed, isProduct }: { view: ScanView | un
               {lead(view.summary)[1]}
             </T>
           ) : null}
+        </Animated.View>
+      ) : working ? (
+        // Until the written summary arrives, say here what is happening, in the same words as the pill above.
+        <Animated.View key={statusText(view)} entering={FadeIn.duration(duration.base)} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: 2 }}>
+          <ActivityIndicator size="small" color={c.textSecondary} />
+          <T variant="lead" tone="secondary">
+            {statusText(view) || 'Working'}…
+          </T>
         </Animated.View>
       ) : (
         <View style={{ gap: space.sm, paddingVertical: 2 }}>

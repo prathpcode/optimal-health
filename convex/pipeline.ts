@@ -408,7 +408,9 @@ const RANK_SYSTEM = `${WORDING_LIMITS}
 
 Return:
 - summary: two or three sentences for the top of the result: what looks best and why, what is out, what to ask.
-- ranking: for dishes with fit "good", "okay" or "cant_tell" only, best choice first for this person.
+  Talk about the food. The person is choosing what to eat: name dishes, and leave drinks out unless one of them is
+  out or needs a question.
+- ranking: for dishes with fit "good", "okay" or "cant_tell" only, best choice first for this person. Food before drinks.
   line = one short reason (under 60 characters), written as a plain phrase. Do not start it with the verdict
   ("Good fit:", "Okay:", "Check:"); the app already shows that. modification = a concrete, optional way to order it that helps with one
   of their LIMIT rules ("ask for the dressing on the side"), or "" if there is none worth suggesting.
