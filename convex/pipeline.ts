@@ -36,9 +36,9 @@ const nutrientIds = NUTRIENT_TAGS.map((t) => t.id) as [string, ...string[]];
 class ScanError extends Error {}
 
 /** One structured call to Claude. Throws ScanError with a message fit to show the user. */
-async function ask<T extends z.ZodType>(client: Anthropic, step: Step, schema: T, system: string, content: Anthropic.ContentBlockParam[]): Promise<z.infer<T>> {
+async function ask<T extends z.ZodType>(client: Anthropic, step: Step, schema: T, system: string, content: Anthropic.ContentBlockParam[], model?: string): Promise<z.infer<T>> {
   const response = await client.messages.parse({
-    model: MODELS[step](),
+    model: model ?? MODELS[step](),
     max_tokens: 16000,
     system,
     messages: [{ role: "user", content }],
@@ -187,6 +187,23 @@ For a label or product, fill "label" (leave its text fields "" and its numbers n
   Use null for anything not printed or not readable. Never estimate a number.
 
 - unreadable: if part of the photo is too blurry, cropped or dark to read, say which part in a few words; else "".`;
+
+export type Transcription = z.infer<typeof TranscribeSchema>;
+
+/**
+ * Read one or more photos. `model` overrides the configured reader; only bench/compareReaders.mjs passes it, to
+ * put two models side by side on the same photo.
+ */
+export async function transcribe(client: Anthropic, imageUrls: string[], model?: string): Promise<Transcription> {
+  return await ask(
+    client, "transcribe", TranscribeSchema, TRANSCRIBE_SYSTEM,
+    [...imageUrls.map((url): Anthropic.ContentBlockParam => ({ type: "image", source: { type: "url", url } })), { type: "text", text: "Transcribe this photo." }],
+    model,
+  );
+}
+
+/** The model that reads photos when nothing overrides it. */
+export const readerModel = () => MODELS.transcribe();
 
 // ---- 2a. Tag the dishes (text only, in parallel chunks) ----
 
@@ -453,12 +470,7 @@ export const run = internalAction({
       })();
 
       // 1. Transcribe. This is the only call that sees the photo.
-      const read = scan.imageUrls.length
-        ? await ask(client, "transcribe", TranscribeSchema, TRANSCRIBE_SYSTEM, [
-            ...scan.imageUrls.map((url: string): Anthropic.ContentBlockParam => ({ type: "image", source: { type: "url", url } })),
-            { type: "text", text: "Transcribe this photo." },
-          ])
-        : null;
+      const read = scan.imageUrls.length ? await transcribe(client, scan.imageUrls) : null;
       const ready = await rulesReady;
       const rules: Rule[] = await ctx.runMutation(internal.scans.refreshRules, { scanId });
       if (!ready) {

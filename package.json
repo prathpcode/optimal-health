@@ -61,7 +61,9 @@
     "typecheck:app": "tsc --noEmit",
     "verify:sources": "node bench/verifySources.mjs",
     "scan": "node bench/tryScan.mjs",
-    "bench": "node bench/run.mjs"
+    "bench": "node bench/run.mjs",
+    "bench:readers": "node bench/compareReaders.mjs",
+    "bench:thresholds": "node bench/tuneThresholds.mjs"
   },
   "private": true
 }

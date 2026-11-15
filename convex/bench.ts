@@ -8,7 +8,7 @@ import { buildChecks } from "../engine/pipeline";
 import { tagLabel } from "../engine/tags";
 import type { Rule } from "../engine/types";
 import { judgeAvailable, judgeItems } from "./judge";
-import { tagAndCheck } from "./pipeline";
+import { readerModel, tagAndCheck, transcribe } from "./pipeline";
 
 type Outcome = "blocked" | "ask" | "clear";
 
@@ -47,5 +47,20 @@ export const judgeDishes = internalAction({
         }),
       })),
     };
+  },
+});
+
+/**
+ * For bench/compareReaders.mjs: read one stored photo with a named model (or the configured reader) and report what
+ * it read and how long it took. Not called by the app.
+ */
+export const transcribePhoto = internalAction({
+  args: { imageId: v.id("_storage"), model: v.optional(v.string()) },
+  handler: async (ctx, { imageId, model }) => {
+    const url = await ctx.storage.getUrl(imageId);
+    if (!url) throw new Error("Photo not found");
+    const started = Date.now();
+    const read = await transcribe(new Anthropic(), [url], model);
+    return { model: model ?? readerModel(), ms: Date.now() - started, read };
   },
 });
