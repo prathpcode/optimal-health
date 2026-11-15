@@ -96,8 +96,9 @@ The judge only supplies the fast provisional verdicts (`provisional: true`); it 
   to `shelf.look`, which returns a box per package. Packages are found by grouping the recognised text into one
   block per package front, and named by matching those words against products already known by barcode
   (`productCache`); the matcher refuses when two products fit equally or the brand differs. Each still stands alone,
-  so nothing is tracked between frames. A shelf verdict can flag a product and can never call one fine: the best
-  state is "unflagged". Unknown packages get a faint outline and one database lookup in the background. Needs
+  so nothing is tracked between frames. A recognised product is shown as a good fit only after the careful
+  reading of its ingredients is in (the same verdict a barcode scan gives, with the same "confirm" note when a Never
+  rule is in play); until then it is "unflagged". Unknown packages get a faint outline and one database lookup in the background. Needs
   `GOOGLE_VISION_API_KEY`. Built and checked against a shelf photo; not yet run on a phone in a store.
 - A custom rule replaces every rule on its tag. The app will not swap a switched-on profile rule for a weaker custom
   one (`engine/customRules.ts`).

@@ -81,11 +81,17 @@ describe("shelfVerdict", () => {
     expect(shelfVerdict(bar, [NUTS], null)).toMatchObject({ state: "not_fit", checking: true });
     expect(shelfVerdict(bar, [NUTS], null).reason).toMatch(/tree nuts/i);
   });
-  it("never calls a product fine: with nothing against it, it is only unflagged", () => {
-    expect(shelfVerdict(soup, [NUTS], { modelTags: [], opinions: [{ itemId: "p1", tag: "tree_nuts", answer: "no" }] })).toEqual({ state: "unflagged" });
+  it("calls a product a good fit once the careful reading finds nothing, and still says what to check on the package", () => {
+    const v = shelfVerdict(soup, [NUTS], { modelTags: [], opinions: [{ itemId: "p1", tag: "tree_nuts", answer: "no" }] });
+    expect(v.state).toBe("good");
+    expect(v.checking).toBeUndefined();
+    expect(v.reason).toMatch(/confirm no tree nuts/i);
   });
-  it("is marked as still being checked until the models' reading is known", () => {
+  it("does not call it good on code's reading alone: until the careful reading is in, it is only unflagged", () => {
     expect(shelfVerdict(soup, [NUTS], null)).toEqual({ state: "unflagged", checking: true });
+  });
+  it("is plainly good, with nothing to confirm, when no hard rule is in play", () => {
+    expect(shelfVerdict(soup, [], { modelTags: [], opinions: [] })).toEqual({ state: "good" });
   });
   it("turns to a question when the careful reading is unsure", () => {
     expect(shelfVerdict(soup, [NUTS], { modelTags: [], opinions: [{ itemId: "p1", tag: "tree_nuts", answer: "maybe" }] }).state).toBe("cant_tell");

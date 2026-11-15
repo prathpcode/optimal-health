@@ -7,7 +7,7 @@
 // products the app already knows by barcode. A package it recognises is checked against the person's rules; one it
 // does not is outlined and, in the background, looked up so that a later frame may know it.
 //
-// What a shelf verdict can and cannot say is fixed in engine/shelf.ts: it can flag, it cannot clear.
+// What each shelf verdict means, and when a package may be shown as a good fit, is fixed in engine/shelf.ts.
 
 import Anthropic from "@anthropic-ai/sdk";
 import { v } from "convex/values";

@@ -133,11 +133,15 @@ export function matchProduct(block: string, products: KnownProduct[]): KnownProd
 // ---- What to show for a package that has been named ----
 
 /**
- * How a package is marked on the shelf view. There is deliberately no "good" here: from across an aisle the app
- * knows a product only by its database record, which can say an allergen is there but not that it is not. So the
- * best a package can be is "unflagged" (nothing against it so far; pick it up and scan it to be sure).
+ * How a package is marked on the shelf view.
+ * - "good": recognised, read carefully (code and the models), and nothing is against the person's rules. It is the
+ *   same verdict a barcode scan of the product gives, and carries the same caveat: the product is known from its
+ *   database record, which can say an allergen is there but cannot prove it is not. So a good package with a Never
+ *   rule in play still comes with a "confirm" reason to check the package, exactly as a menu dish does.
+ * - "unflagged": recognised, nothing against it yet, but the careful reading has not come back. Never shown as good.
+ * - "unknown": a package whose words did not match a product the app knows.
  */
-export type ShelfState = "not_fit" | "cant_tell" | "okay" | "unflagged" | "unknown";
+export type ShelfState = "good" | "not_fit" | "cant_tell" | "okay" | "unflagged" | "unknown";
 
 export type ShelfBox = {
   box: Box;
@@ -159,9 +163,12 @@ export type ShelfBox = {
 export function shelfVerdict(facts: ProductFacts, rules: Rule[], opinions: { modelTags: ModelTag[]; opinions: ReaderOpinion[] } | null): Pick<ShelfBox, "state" | "reason" | "checking"> {
   const item = itemFromProduct(facts, opinions?.modelTags ?? []);
   const verdict = evaluate(item, rules, buildChecks([item], rules, opinions?.opinions ?? []));
-  const state: ShelfState = verdict.fit === "good" ? "unflagged" : verdict.fit;
+  // Good only once the careful reading is in: code's own look at the words is enough to flag, not to clear.
+  const state: ShelfState = verdict.fit === "good" && !opinions ? "unflagged" : verdict.fit;
   const flagged = state === "not_fit" || state === "cant_tell";
-  return { state, ...(flagged ? { reason: defaultLine(verdict, rules) } : {}), ...(opinions ? {} : { checking: true }) };
+  // A good product that a Never rule could not fully clear says what to check on the package.
+  const toConfirm = state === "good" && verdict.findings.some((f) => f.outcome === "confirm");
+  return { state, ...(flagged || toConfirm ? { reason: defaultLine(verdict, rules) } : {}), ...(opinions ? {} : { checking: true }) };
 }
 
 /** A stable name for a block of words, so the same unrecognised package is not looked up again and again. */

@@ -22,8 +22,9 @@ import { duration, onPhoto, palette, radius, space } from '@/theme';
 const light = palette.light;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** What each mark says when a package is tapped. A shelf view can flag a product; it never calls one fine. */
+/** What each mark says when a package is tapped. */
 const STATE_TEXT: Record<ShelfState, string> = {
+  good: 'Good fit',
   not_fit: 'Not a fit',
   cant_tell: 'Check before you buy',
   okay: 'Okay, with notes',
@@ -32,6 +33,7 @@ const STATE_TEXT: Record<ShelfState, string> = {
 };
 
 function colour(state: ShelfState): string {
+  if (state === 'good') return light.good;
   if (state === 'not_fit') return light.notFit;
   if (state === 'cant_tell') return light.cantTell;
   if (state === 'okay') return light.okay;
@@ -40,8 +42,8 @@ function colour(state: ShelfState): string {
 
 /**
  * Point the camera along a shelf: stills go to the backend one after another (shelf.look) and each package it can
- * read gets a box. Red and grey mark the ones that break or may break a rule; a white box is a product it
- * recognises with nothing against it so far; a faint dashed one is a package it does not know yet. Tapping a box
+ * read gets a box. Green is a good fit; red and grey break or may break a rule; amber is okay with notes; a white box
+ * is a product it recognises whose careful check has not come back yet; a dashed one is a package it does not know. Tapping a box
  * holds the picture and says what it is, with a way through to the full product result.
  */
 export default function ShelfScreen() {
@@ -216,9 +218,11 @@ export default function ShelfScreen() {
                 {picked.reason ??
                   (picked.state === 'unknown'
                     ? 'Scan its barcode once and it will be recognised on the shelf from then on.'
-                    : picked.state === 'unflagged'
-                      ? 'Nothing in its listed ingredients is against your rules. From here that is all that can be said: scan it to be sure.'
-                      : 'Open it for the notes.')}
+                    : picked.state === 'good'
+                      ? 'Nothing in its ingredients is against your rules.'
+                      : picked.state === 'unflagged'
+                        ? 'Nothing against your rules so far. Its ingredients are still being checked.'
+                        : 'Open it for the notes.')}
               </T>
               <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.xs }}>
                 {picked.key ? (
@@ -267,7 +271,7 @@ function Mark({ box, rect, reduced, picked, dimmed, onPress }: { box: ShelfBox; 
               borderColor: unknown ? 'rgba(255,255,255,0.9)' : col,
               borderWidth: picked ? 5 : flagged ? 4.5 : unknown ? 2 : 3.5,
               borderStyle: unknown || box.checking ? 'dashed' : 'solid',
-              backgroundColor: flagged ? `${col}59` : box.state === 'okay' ? `${col}40` : unknown ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)',
+              backgroundColor: flagged ? `${col}59` : box.state === 'okay' || box.state === 'good' ? `${col}40` : unknown ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)',
             }}
           />
         </View>
