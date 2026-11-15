@@ -5,7 +5,7 @@ import type { Doc } from "./_generated/dataModel";
 import { dishKey, restaurantId as makeRestaurantId, type RememberedAnswer } from "../engine/memory";
 import { afterAnswer, afterRestaurant, answersToRemember } from "../engine/pipeline";
 import type { Rule, ScanRecord } from "../engine/types";
-import { answerValue, hardCheck, item, location, rankedItem, scanKind, scanQuestion, scanStatus, textLine, verdict } from "./validators";
+import { answerValue, earlyHint, hardCheck, item, location, rankedItem, scanKind, scanQuestion, scanStatus, textLine, verdict } from "./validators";
 
 /** A one-time URL the app uploads a photo to. The upload's response contains the storage id to pass to `start`. */
 export const generateUploadUrl = mutation({
@@ -70,6 +70,7 @@ function toRecord(row: Doc<"scans">): ScanRecord {
     ...(row.restaurantId ? { restaurantId: row.restaurantId } : {}),
     // Only until the dishes have positions of their own: after that the app outlines dishes, not raw text.
     ...(row.lines?.length && !row.items.some((i) => i.position?.length) && row.status !== "failed" ? { textBoxes: row.lines.slice(0, 300).map((l) => l.box) } : {}),
+    ...(row.hints?.length && !row.items.some((i) => i.position?.length) && row.status !== "failed" ? { earlyHints: row.hints } : {}),
     ...(row.notice ? { notice: row.notice } : {}),
     ...(row.error ? { error: row.error } : {}),
   };
@@ -157,6 +158,7 @@ export const patch = internalMutation({
     restaurantName: v.optional(v.string()),
     restaurantId: v.optional(v.string()),
     lines: v.optional(v.array(textLine)),
+    hints: v.optional(v.array(earlyHint)),
     notice: v.optional(v.string()),
     provisional: v.optional(v.boolean()),
     error: v.optional(v.string()),

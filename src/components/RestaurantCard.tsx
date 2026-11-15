@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Icon } from '@/components/Icon';
+import { GlassSurface } from '@/components/Glass';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { haptic } from '@/lib/haptics';
@@ -61,17 +61,16 @@ export function RestaurantCard({ scanId, name, restaurantId, setRestaurant }: { 
   return (
     <Animated.View entering={FadeIn.duration(duration.base)} style={[styles.card, { backgroundColor: c.cardMuted }]}>
       <View style={styles.head}>
-        <Icon name="fork" size={15} color={c.textSecondary} />
         {editing ? (
-          <T variant="bodyStrong" style={{ flex: 1 }}>
+          <T variant="heading" style={{ flex: 1 }}>
             {name ? 'What is this restaurant called?' : 'Which restaurant is this?'}
           </T>
         ) : known ? (
-          <T variant="bodyStrong" style={{ flex: 1 }} numberOfLines={1}>
+          <T variant="heading" style={{ flex: 1 }} numberOfLines={1}>
             {name}
           </T>
         ) : (
-          <T variant="bodyStrong" style={{ flex: 1 }} numberOfLines={2}>
+          <T variant="heading" style={{ flex: 1 }} numberOfLines={2}>
             Is this {name}?
           </T>
         )}
@@ -120,8 +119,10 @@ export function RestaurantCard({ scanId, name, restaurantId, setRestaurant }: { 
                 Yes
               </T>
             </Tap>
-            <Tap accessibilityRole="button" accessibilityLabel="Change restaurant name" feedback="tap" disabled={busy} onPress={startEditing} style={[styles.action, { backgroundColor: c.card, borderWidth: 1.5, borderColor: c.hairline }]}>
-              <T variant="bodyStrong">Change</T>
+            <Tap accessibilityRole="button" accessibilityLabel="Change restaurant name" feedback="tap" disabled={busy} onPress={startEditing}>
+              <GlassSurface tone="theme" interactive style={styles.action}>
+                <T variant="bodyStrong">Change</T>
+              </GlassSurface>
             </Tap>
           </View>
         </>
@@ -153,12 +154,12 @@ export function RestaurantCard({ scanId, name, restaurantId, setRestaurant }: { 
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: radius.md, padding: space.md, gap: space.sm, marginTop: space.md },
+  card: { borderRadius: radius.card, padding: space.lg, gap: space.sm, marginTop: space.md },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  input: { flex: 1, height: 44, borderRadius: radius.button - 4, borderWidth: 1.5, paddingHorizontal: space.md, fontSize: 16 },
+  input: { flex: 1, height: 44, borderRadius: radius.button, borderWidth: 1.5, paddingHorizontal: space.lg, fontSize: 16 },
   buttons: { flexDirection: 'row', gap: space.sm },
-  action: { height: 44, borderRadius: radius.button - 4, paddingHorizontal: space.xl, alignItems: 'center', justifyContent: 'center' },
+  action: { height: 40, borderRadius: radius.chip, paddingHorizontal: space.xl, alignItems: 'center', justifyContent: 'center' },
   foot: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   link: { textDecorationLine: 'underline' },
 });

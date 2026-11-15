@@ -212,6 +212,31 @@ export function TextOutlines({ photo, boxes }: { photo: Rect; boxes: Box[] }) {
   );
 }
 
+/**
+ * Lines that already look like trouble, a couple of seconds into a scan: a dashed box in the colour the dish is
+ * likely to end up, drawn over the faint text outlines. Dashed means "still checking", as it does on the dish boxes.
+ */
+export function EarlyHints({ photo, hints }: { photo: Rect; hints: { box: Box; fit: 'not_fit' | 'cant_tell' }[] }) {
+  const reduced = useReducedMotion();
+  if (photo.width === 0) return null;
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {hints.map((h, i) => {
+        const r = boxToRect(h.box, photo);
+        const col = fitColor(h.fit, light).solid;
+        return (
+          <Animated.View
+            key={`${h.box.top}-${h.box.left}`}
+            entering={reduced ? FadeIn.duration(duration.fast) : ZoomIn.springify().damping(14).delay(Math.min(i * 60, 400))}
+            exiting={FadeOut.duration(duration.fast)}
+            style={[styles.hint, { left: r.x - 4, top: r.y - 3, width: r.width + 8, height: r.height + 6, borderColor: col, backgroundColor: `${col}33` }]}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 /** A soft bright band sweeping down the photo while it is being read. */
 export function ScanSweep({ photo, active }: { photo: Rect; active: boolean }) {
   const reduced = useReducedMotion();
@@ -253,6 +278,7 @@ export function ScanSweep({ photo, active }: { photo: Rect; active: boolean }) {
 const styles = StyleSheet.create({
   box: { flex: 1, borderRadius: radius.sm },
   label: { position: 'absolute', height: LABEL_HEIGHT, backgroundColor: onPhoto.chip, borderRadius: 14, paddingHorizontal: space.md, justifyContent: 'center' },
+  hint: { position: 'absolute', borderWidth: 2, borderRadius: 5, borderStyle: 'dashed' },
   textLine: { position: 'absolute', borderWidth: 1, borderRadius: 3, borderColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.08)' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   name: { fontWeight: '600', flexShrink: 1 },

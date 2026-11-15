@@ -37,6 +37,8 @@ export type ScanView = {
   restaurantId?: string;
   /** Every line of text found on the photo, shown as faint outlines until the dishes have positions of their own. */
   textBoxes?: Box[];
+  /** Lines that already look like trouble, found from the recognised text before the dishes are read (still being checked). */
+  earlyHints?: { box: Box; fit: 'not_fit' | 'cant_tell' }[];
   /** Fast first-pass verdicts, still being checked (PLAN 7.1). Shown as "checking", no questions yet. */
   provisional: boolean;
   notice?: string;
@@ -220,6 +222,7 @@ function useLiveScan(id: string | null) {
       restaurant: record.restaurantName,
       restaurantId: record.restaurantId,
       textBoxes: record.textBoxes,
+      earlyHints: record.earlyHints,
       provisional: record.provisional === true,
       notice: record.notice,
       generic: record.generic,

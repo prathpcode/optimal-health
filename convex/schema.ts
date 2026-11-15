@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { hardCheck, item, location, medicationStatus, profile, rankedItem, ruleFields, scanKind, scanQuestion, scanStatus, textLine, verdict } from "./validators";
+import { earlyHint, hardCheck, item, location, medicationStatus, profile, rankedItem, ruleFields, scanKind, scanQuestion, scanStatus, textLine, verdict } from "./validators";
 
 export default defineSchema({
   // One row per scan. This is the ScanRecord the app draws; see engine/types.ts.
@@ -23,6 +23,7 @@ export default defineSchema({
     restaurantId: v.optional(v.string()),
     location: v.optional(location),
     lines: v.optional(v.array(textLine)),
+    hints: v.optional(v.array(earlyHint)),
     notice: v.optional(v.string()),
     error: v.optional(v.string()),
     // The rules in force when this scan ran, so answering a question re-evaluates against the same rules.

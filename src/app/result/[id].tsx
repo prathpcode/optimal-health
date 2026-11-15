@@ -25,7 +25,7 @@ import type { Fit, Item, RankedItem, ScanQuestion } from '@engine/types';
 import { AnswerButtons } from '@/components/AnswerButtons';
 import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
-import { MenuOverlay, ScanSweep, TextOutlines } from '@/components/MenuOverlay';
+import { EarlyHints, MenuOverlay, ScanSweep, TextOutlines } from '@/components/MenuOverlay';
 import { ProductResult } from '@/components/ProductResult';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { Sheet, type SheetHandle } from '@/components/Sheet';
@@ -49,6 +49,8 @@ const SECTIONS: RankedItem['section'][] = ['best', 'okay', 'cant_tell', 'not_fit
 function statusText(view: ScanView | undefined): string {
   const status = view?.status ?? 'reading';
   const product = view?.kind === 'product' || view?.kind === 'label';
+  // A few lines already look like trouble: say that something is being found, not just read.
+  if ((status === 'reading' || status === 'judging') && view?.earlyHints?.length && !Object.keys(view.verdicts).length) return 'Spotting things to check';
   if (status === 'reading') return view?.kind === 'product' ? 'Looking it up' : view?.kind === 'label' ? 'Reading the label' : 'Reading';
   if (status === 'judging') return view?.provisional ? (product ? 'Checking' : 'Checking each dish') : view?.items.length ? 'Checking your rules' : product ? 'Reading the label' : 'Reading the menu';
   if (status === 'ranking') return 'Confirming';
@@ -62,7 +64,6 @@ export default function ResultScreen() {
   const id = params.id;
   const { view, answer } = useScan(id);
   const setRestaurant = useSetRestaurant();
-  const { c } = useTheme();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
@@ -218,6 +219,7 @@ export default function ResultScreen() {
             // any, as faint outlines, and verdict chips in a row over the photo.
             <>
               {view.textBoxes?.length ? <TextOutlines photo={target} boxes={view.textBoxes} /> : null}
+              {view.earlyHints?.length ? <EarlyHints photo={target} hints={view.earlyHints} /> : null}
               <ChipRow view={view} bottom={height - (area.top + area.height) + space.md} selectedId={selected} onSelect={selectDish} />
             </>
           )}
@@ -294,7 +296,6 @@ export default function ResultScreen() {
               {view && !isProduct && view.questions.length > 0 ? (
                 <Animated.View entering={enterAt(2, reduced)} layout={reduced ? undefined : LinearTransition.springify().damping(22)} style={{ marginTop: space.xxl }}>
                   <View style={styles.askHeader}>
-                    <Icon name="server" size={16} color={c.textSecondary} />
                     <SectionLabel>Ask your server</SectionLabel>
                   </View>
                   <Card style={{ gap: space.xl }}>
@@ -318,6 +319,13 @@ export default function ResultScreen() {
       </Sheet>
     </View>
   );
+}
+
+/** Split a summary into its first sentence and whatever follows. */
+function lead(summary: string): [string, string] {
+  const at = summary.search(/[.!?](\s|$)/);
+  if (at < 0 || at >= summary.length - 2) return [summary.trim(), ''];
+  return [summary.slice(0, at + 1).trim(), summary.slice(at + 1).trim()];
 }
 
 function StatusPill({ view }: { view: ScanView | undefined }) {
@@ -360,10 +368,16 @@ function SheetHeader({ view, working, failed, isProduct }: { view: ScanView | un
   return (
     <View style={{ gap: space.md }}>
       {view?.summary ? (
-        <Animated.View entering={FadeIn.duration(duration.slow)}>
-          <T variant="headline" style={{ lineHeight: 23 }}>
-            {view.summary}
+        // The summary's first sentence is the headline, in the heading face; the rest reads as quieter body text.
+        <Animated.View entering={FadeIn.duration(duration.slow)} style={{ gap: space.sm }}>
+          <T variant="heading" accessibilityRole="header">
+            {lead(view.summary)[0]}
           </T>
+          {lead(view.summary)[1] ? (
+            <T variant="body" tone="secondary" style={{ lineHeight: 22 }}>
+              {lead(view.summary)[1]}
+            </T>
+          ) : null}
         </Animated.View>
       ) : (
         <View style={{ gap: space.sm, paddingVertical: 2 }}>
@@ -429,7 +443,7 @@ function Counter({ n, label, color, soft, index }: { n: number; label: string; c
   const reduced = useReducedMotion();
   return (
     <Animated.View entering={enterAt(index, reduced)} style={[styles.counter, { backgroundColor: soft }]}>
-      <T variant="headline" color={color} style={{ fontVariant: ['tabular-nums'] }}>
+      <T variant="heading" color={color} style={{ fontVariant: ['tabular-nums'] }}>
         {n}
       </T>
       <T variant="caption" color={color}>
@@ -644,9 +658,9 @@ const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   top: { position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg },
   pill: { flexDirection: 'row', alignItems: 'center', gap: space.sm, height: 40, paddingHorizontal: space.lg, maxWidth: 240 },
-  counters: { flexDirection: 'row', gap: space.sm, minHeight: 52 },
+  counters: { flexDirection: 'row', gap: space.sm, minHeight: 60 },
   productCounters: { flexDirection: 'row' },
-  counter: { flex: 1, borderRadius: radius.md, paddingVertical: space.sm, paddingHorizontal: space.md, gap: 0 },
+  counter: { flex: 1, borderRadius: radius.card - 6, paddingVertical: space.md - 2, paddingHorizontal: space.md + 2, gap: 0 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.lg },
   divider: { height: StyleSheet.hairlineWidth, marginLeft: space.lg + 10 + space.md },
   mod: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },

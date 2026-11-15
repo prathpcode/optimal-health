@@ -175,6 +175,12 @@ export type ScanRecord = {
    * text recognition is not configured.
    */
   textBoxes?: Box[];
+  /**
+   * Lines of the photo that already look like trouble for one of the person's hard rules, found from the recognised
+   * text a couple of seconds into a scan, before the dishes have been read. A first signal only: shown as "checking",
+   * and gone once the dishes have verdicts of their own. Absent when text recognition is not configured.
+   */
+  earlyHints?: { box: Box; fit: "not_fit" | "cant_tell" }[];
   /** Something the user should know about this result, e.g. that their medication rules were still being read. */
   notice?: string;
   error?: string;

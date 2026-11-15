@@ -119,6 +119,9 @@ export const location = v.object({ lat: v.number(), lng: v.number() });
 /** A line of text the phone recognised on the photo, with where it is (fractions of the photo). */
 export const textLine = v.object({ text: v.string(), box });
 
+/** A line of the photo flagged early, from the recognised text alone (engine/pipeline.ts earlyHints). */
+export const earlyHint = v.object({ box, fit: v.union(v.literal("not_fit"), v.literal("cant_tell")) });
+
 export const medicationStatus = v.object({
   name: v.string(),
   state: v.union(v.literal("pending"), v.literal("rules"), v.literal("no_rules"), v.literal("not_recognised"), v.literal("no_label"), v.literal("failed")),
