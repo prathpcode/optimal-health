@@ -115,8 +115,13 @@ async function avatarFor(userId: string) {
 
 const liked = new Set<string>();
 
+/** Markdown images in a post (how posts made with the business key carry photos) become photos; the text keeps the rest. */
+const MD_IMAGE = /!\[[^\]]*\]\((https:\/\/[^)\s]+)\)/g;
+
 function toPost(p: WhopPost, meId: string | undefined): Post {
-  const content = p.content ?? '';
+  const raw = p.content ?? '';
+  const inline = [...raw.matchAll(MD_IMAGE)].map((m) => ({ url: m[1] }));
+  const content = raw.replace(MD_IMAGE, '').replace(/^\s+/, '');
   const parsed = parseDish(p.title, content);
   const authorId = p.user?.id ?? '';
   return {
@@ -128,9 +133,12 @@ function toPost(p: WhopPost, meId: string | undefined): Post {
     text: parsed ? parsed.note : content,
     at: Date.parse(p.created_at),
     mine: authorId === meId,
-    photos: (p.attachments ?? [])
-      .filter((a) => a.url && (a.content_type ?? 'image/').startsWith('image/'))
-      .map((a) => ({ url: a.url!, width: a.width ?? undefined, height: a.height ?? undefined })),
+    photos: [
+      ...(p.attachments ?? [])
+        .filter((a) => a.url && (a.content_type ?? 'image/').startsWith('image/'))
+        .map((a) => ({ url: a.url!, width: a.width ?? undefined, height: a.height ?? undefined })),
+      ...inline,
+    ],
     dish: parsed?.dish,
     likes: p.like_count,
     liked: liked.has(p.id),
@@ -201,6 +209,35 @@ export function useComments(slug: string, postId: string) {
   const forum = ROOMS[slug]?.forumId;
   const key = `comments:${postId}`;
   return useFeed(key, () => loadPosts(key, `experience_id=${forum}&parent_id=${postId}`, account?.userId, false), 6_000, Boolean(account && forum));
+}
+
+/** The newest real posts across several rooms (yours), newest first, each with its room. Refreshed every 20 s. */
+export function useLatestPosts(slugs: string[], limit = 6): { items: (Post & { room: string })[]; loaded: boolean } {
+  const { account } = useWhopAccount();
+  const key = `latest:${slugs.join(',')}`;
+  const load = async () => {
+    try {
+      const pages = await Promise.all(
+        slugs
+          .filter((slug) => ROOMS[slug]?.forumId)
+          .map(async (slug) => {
+            const page = await whop<{ data: WhopPost[] }>(`/forum_posts?experience_id=${ROOMS[slug].forumId}&first=10`);
+            return page.data.map((p) => ({ p, slug }));
+          }),
+      );
+      const all = pages.flat();
+      await Promise.all([...new Set(all.map(({ p }) => p.user?.id).filter((x): x is string => Boolean(x)))].map(avatarFor));
+      const items = all
+        .map(({ p, slug }) => ({ ...toPost(p, account?.userId), room: slug }))
+        .sort((a, b) => b.at - a.at)
+        .slice(0, limit);
+      setFeed(key, { items, loaded: true, error: undefined });
+    } catch (e) {
+      setFeed(key, { loaded: true, error: e instanceof Error ? e.message : 'Could not reach Whop' });
+    }
+  };
+  const feed = useFeed(key, load, 20_000, Boolean(account && slugs.length));
+  return { items: feed.items as (Post & { room: string })[], loaded: feed.loaded };
 }
 
 /** One post, from whichever feed has it. */
