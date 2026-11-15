@@ -10,7 +10,16 @@ export const unstable_settings = { anchor: '(tabs)' };
 export default function RootLayout() {
   const { c, dark } = useTheme();
   const base = dark ? DarkTheme : DefaultTheme;
-  const navTheme = { ...base, colors: { ...base.colors, background: c.bg, card: c.card, text: c.text, primary: c.text, border: c.hairline } };
+  const sheet = (detents: number[]) =>
+    ({
+      presentation: 'formSheet',
+      sheetAllowedDetents: detents,
+      sheetInitialDetentIndex: 0,
+      sheetGrabberVisible: true,
+      sheetCornerRadius: 28,
+      contentStyle: { backgroundColor: c.card },
+    }) as const;
+  const navTheme ={ ...base, colors: { ...base.colors, background: c.bg, card: c.card, text: c.text, primary: c.text, border: c.hairline } };
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.bg }}>
@@ -37,6 +46,13 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: c.card },
               }}
             />
+            {/* Together: rooms and challenges are pushed screens; picking and joining are sheets like the dish sheet. */}
+            <Stack.Screen name="community/[slug]" />
+            <Stack.Screen name="challenge/[id]" />
+            <Stack.Screen name="challenge/new" options={sheet([0.75, 0.95])} />
+            <Stack.Screen name="join/[slug]" options={sheet([0.5])} />
+            <Stack.Screen name="rooms" options={sheet([0.62, 0.95])} />
+            <Stack.Screen name="share/[scanId]" options={sheet([0.75, 0.95])} />
           </Stack>
         </ThemeProvider>
       </BackendProvider>

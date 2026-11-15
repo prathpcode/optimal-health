@@ -35,6 +35,8 @@ export const PREVIEW = !TOGETHER_LIVE;
 export const MONEY_LIVE = false;
 
 const DAY = 86_400_000;
+/** Preview messages are timed relative to when the app started, so they don't drift while you read. */
+const OPENED_AT = Date.now();
 const tz = () => -new Date().getTimezoneOffset();
 
 // ── Preview data ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -308,8 +310,8 @@ function useChallengeViews(): ChallengeView[] {
   const s = useStore();
   const scans = useRecentScans();
   const { account } = useWhopAccount();
+  const now = useMinute();
   return useMemo(() => {
-    const now = Date.now();
     const scanTimes = (scans ?? []).filter((x) => x.status === 'done').map((x) => x.createdAt);
     return s.challenges.map((ch) => {
       const t = challengeTemplate(ch.template)!;
@@ -330,7 +332,7 @@ function useChallengeViews(): ChallengeView[] {
       });
       return buildView(ch, scored, now);
     });
-  }, [s.challenges, s.checkins, scans, account?.name, account?.avatarUrl]);
+  }, [s.challenges, s.checkins, scans, account?.name, account?.avatarUrl, now]);
 }
 
 // ── Hooks for screens ────────────────────────────────────────────────────────────────────────────────────────────
@@ -353,17 +355,14 @@ function useRoomPreview(slug: string) {
   const challenges = useChallengeViews();
   const room = rooms.all.find((r) => r.slug === slug);
   const messages = useMemo(() => {
-    const now = Date.now();
     const seeded: Message[] = (SEED_MESSAGES[slug] ?? []).map(([author, ago, text], i) => ({
       id: `seed_${slug}_${i}`,
       room: slug,
       author,
       text,
-      at: now - ago * 60_000,
+      at: OPENED_AT - ago * 60_000,
     }));
     return [...seeded, ...s.sent.filter((m) => m.room === slug)].sort((a, b) => a.at - b.at);
-    // Seeded times are relative to when the room was opened; recomputing on every send would make them drift.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, s.sent]);
   return { room, messages, challenges: challenges.filter((c) => c.room === slug && c.status !== 'ended') };
 }
@@ -505,6 +504,7 @@ function useRoomLive(slug: string) {
   const together = useTogetherLive();
   const { data: home, now, session } = useHomeLive();
   const data = useQuery(api.together.room, session ? { session, room: slug, now } : 'skip');
+  const meId = home?.me.id;
   return useMemo(() => {
     const room = together.all.find((r) => r.slug === slug);
     const messages: Message[] = (data?.messages ?? []).map((m) => ({
@@ -517,16 +517,17 @@ function useRoomLive(slug: string) {
       mine: m.mine,
       dish: m.dish ?? undefined,
     }));
-    const challenges = (data?.challenges ?? []).map((ch) => liveView(ch, home?.me.id, now)).filter((c) => c.status !== 'ended');
+    const challenges = (data?.challenges ?? []).map((ch) => liveView(ch, meId, now)).filter((c) => c.status !== 'ended');
     return { room, messages, challenges };
-  }, [together.all, data, home?.me.id, now, slug]);
+  }, [together.all, data, meId, now, slug]);
 }
 
 function useChallengeLive(id: string) {
   const { data: home, session } = useHomeLive();
   const now = useMinute();
   const data = useQuery(api.together.challenge, session ? { session, id: id as Id<'challenges'> } : 'skip');
-  return useMemo(() => (data ? liveView(data, home?.me.id, now) : undefined), [data, home?.me.id, now]);
+  const meId = home?.me.id;
+  return useMemo(() => (data ? liveView(data, meId, now) : undefined), [data, meId, now]);
 }
 
 function call<T>(fn: (session: string) => Promise<T>): Promise<T> {

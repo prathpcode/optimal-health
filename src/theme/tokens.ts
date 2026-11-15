@@ -60,7 +60,30 @@ export const onPhoto = {
   black: '#000000',
 } as const;
 
-export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32, huge: 48 } as const;
+/** One accent per community room, used for its tile and icon. Same in both themes; tiles use it at low opacity. */
+export const roomAccent: Record<string, string> = {
+  'heart-health': '#FF5A5F',
+  'kidney-health': '#3D8BFF',
+  diabetes: '#8B6CFF',
+  'gluten-free': '#F0A202',
+  'dairy-free': '#2BB3D9',
+  'liver-health': '#22B573',
+  'gut-health': '#FF7A33',
+  gout: '#E0457B',
+  'plant-based': '#3CB043',
+  'nut-allergy': '#B8763E',
+  'seafood-allergy': '#1AA6A6',
+};
+
+/** A hex colour at an opacity, for soft tints. */
+export function tint(hex: string, alpha: number): string {
+  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255)
+    .toString(16)
+    .padStart(2, '0');
+  return `${hex}${a}`;
+}
+
+export const space ={ xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32, huge: 48 } as const;
 export const gutter = space.xl;
 
 export const radius = { chip: 999, sm: 10, button: 16, md: 18, card: 24, sheet: 28 } as const;

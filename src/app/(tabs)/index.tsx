@@ -9,6 +9,7 @@ import { Icon, type IconName } from '@/components/Icon';
 import { RulesRing } from '@/components/RulesRing';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
+import { TogetherCard } from '@/components/together';
 import { Card, SectionLabel, Skeleton } from '@/components/ui';
 import { useProfile } from '@/lib/profile';
 import { restartSample, SAMPLE_ID, SAMPLE_PHOTO, useRecentScans, type RecentScan } from '@/lib/scan';
@@ -100,6 +101,10 @@ export default function HomeScreen() {
           <MiniStat index={2} icon="pill" label="Medicines" value={profile.medications.length} tint={c.okay} />
           <MiniStat index={3} icon="heart" label="Conditions" value={profile.conditions.length + profile.diets.length} tint={c.good} />
         </View>
+
+        <Animated.View entering={enterAt(4, reduced)} style={{ marginTop: space.md }}>
+          <TogetherCard />
+        </Animated.View>
 
         {reading.length > 0 ? (
           <Animated.View entering={enterAt(0, reduced)} style={[styles.reading, { backgroundColor: c.cardMuted }]}>

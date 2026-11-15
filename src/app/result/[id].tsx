@@ -28,6 +28,7 @@ import { MenuOverlay, ScanSweep } from '@/components/MenuOverlay';
 import { ProductResult } from '@/components/ProductResult';
 import { RestaurantCard } from '@/components/RestaurantCard';
 import { Sheet, type SheetHandle } from '@/components/Sheet';
+import { ShareCard } from '@/components/together';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { Button, Card, SectionLabel, Skeleton, VerdictDot } from '@/components/ui';
@@ -265,6 +266,12 @@ export default function ResultScreen() {
                       <QuestionRow key={q.id} q={q} item={itemsById.get(q.itemId)} divider={i > 0} onAnswer={(v) => answer(q.id, v)} />
                     ))}
                   </Card>
+                </Animated.View>
+              ) : null}
+
+              {view?.status === 'done' && view.items.length > 0 ? (
+                <Animated.View entering={FadeIn.delay(300)} style={{ marginTop: space.xxl }}>
+                  <ShareCard scanId={id} />
                 </Animated.View>
               ) : null}
 

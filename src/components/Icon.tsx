@@ -33,6 +33,18 @@ const ICONS = {
   fat: { ios: 'drop.fill', android: 'water_drop' },
   salt: { ios: 'aqi.medium', android: 'grain' },
   box: { ios: 'shippingbox.fill', android: 'inventory_2' },
+  people: { ios: 'person.2.fill', android: 'group' },
+  trophy: { ios: 'trophy.fill', android: 'emoji_events' },
+  chat: { ios: 'bubble.left.and.bubble.right.fill', android: 'forum' },
+  send: { ios: 'arrow.up', android: 'arrow_upward' },
+  drop: { ios: 'drop.fill', android: 'water_drop' },
+  chart: { ios: 'chart.line.uptrend.xyaxis', android: 'monitoring' },
+  bolt: { ios: 'bolt.heart.fill', android: 'bolt' },
+  calendar: { ios: 'calendar', android: 'calendar_today' },
+  lock: { ios: 'lock.fill', android: 'lock' },
+  share: { ios: 'square.and.arrow.up', android: 'ios_share' },
+  clock: { ios: 'clock.fill', android: 'schedule' },
+  more: { ios: 'ellipsis', android: 'more_horiz' },
 } as const;
 
 export type IconName = keyof typeof ICONS;
