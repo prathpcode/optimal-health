@@ -430,8 +430,10 @@ function noteLikes(posts: WhopPost[], userId: string | undefined) {
 
 /** Whether you liked a post and how many likes it has, the same on every screen. */
 export function useLike(post: Pick<Post, 'id' | 'likes'>): LikeView {
-  useSyncExternalStore(likes.subscribe, likes.version);
-  return likes.view(post.id, post.likes);
+  // Read through the subscription itself, never beside it: with the React Compiler on, a plain `likes.view(...)`
+  // call in a component is cached against its arguments, so a tap would not show until the next feed load changed
+  // `post.likes`. The store hands back the same object until the answer changes, as a snapshot must.
+  return useSyncExternalStore(likes.subscribe, () => likes.view(post.id, post.likes));
 }
 
 /** Like a post, or take the like back. Shows at once; undone if Whop says no. */

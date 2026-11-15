@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassButton } from '@/components/Glass';
@@ -14,7 +14,7 @@ import { Icon } from '@/components/Icon';
 import { RoomSelect } from '@/components/RoomSelect';
 import { Chip } from '@/components/ui';
 import { MEAL_POINTS } from '@engine/challenge';
-import type { Fit } from '@engine/types';
+import type { Fit, Item } from '@engine/types';
 import { celebrate } from '@/lib/celebrate';
 import { shareDish, useActiveChallenges, useLogMeal, useMealForScan, useMyRooms, type Reaction } from '@/lib/community';
 import { dishEmoji } from '@/lib/emoji';
@@ -40,14 +40,12 @@ export default function ShareSheet() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const dishes = (() => {
-    if (!view) return [];
-    const byId = new Map(view.items.map((i) => [i.id, i.name]));
-    const ranked = view.ranking.map((r) => byId.get(r.itemId)).filter((n): n is string => Boolean(n));
-    return [...new Set([...ranked, ...view.items.map((i) => i.name)])];
-  })();
+  // Everything the scan found, in the order it is printed. This screen only enumerates what was on the menu; how
+  // each dish fits is the result screen's job.
+  const dishes = useMemo(() => [...new Map((view?.items ?? []).map((i) => [i.name, i])).values()], [view?.items]);
 
-  const [dish, setDish] = useState<string | null>(null);
+  // What was ordered, by item id: a table often orders several things, so this is a multiple choice.
+  const [chosen, setChosen] = useState<string[] | null>(null);
   const [reaction, setReaction] = useState<Reaction | null>(null);
   const [note, setNote] = useState('');
   // Every post carries a photo: the scan's own (bundled sample photos, which are numbers, are never shared), or, when
@@ -62,36 +60,47 @@ export default function ShareSheet() {
   const [busy, setBusy] = useState(false);
   const [chosenRoom, setRoom] = useState(fromRoom);
   const room = chosenRoom ?? rooms[0]?.slug;
-  // Nothing is assumed: a dish is only preselected when you logged it before, or it is the only one.
-  const picked = dish ?? logged?.dishName ?? (dishes.length === 1 ? dishes[0] : undefined);
+  // Nothing is assumed: dishes are only preselected from what you logged before, or when the scan found one thing.
+  const ids = chosen ?? (logged?.length ? logged.map((m) => m.itemId) : dishes.length === 1 ? [dishes[0].id] : []);
+  const picked = ids.map((id) => dishes.find((d) => d.id === id)).filter((d): d is Item => Boolean(d));
+  const toggle = (id: string) => setChosen(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
   const accent = (room && roomAccent[room]) || c.text;
+
+  // Still reading the photo: the dishes land before the verdicts do, so this screen is usable long before the result is.
+  const reading = view === undefined || (dishes.length === 0 && view !== null && view.status !== 'failed' && view.status !== 'done');
 
   const canShare = Boolean(fromRoom) || (Boolean(account) && rooms.length > 0);
   const sharing = canShare && Boolean(reaction);
-  const ready = Boolean(picked) && (fromRoom ? sharing : true) && (!sharing || Boolean(room && photo));
+  const ready = picked.length > 0 && (fromRoom ? sharing : true) && (!sharing || Boolean(room && photo));
 
   const submit = async () => {
-    const scanned = view?.items.find((i) => i.name === picked);
-    if (!picked || !scanned) return;
+    if (!picked.length) return;
     setBusy(true);
-    let actual: Fit = view?.verdicts[scanned.id]?.fit ?? 'cant_tell';
-    const fit = actual;
-    const counted = await attempt(log(scanId, scanned.id, scanned.name, fit).then((f) => (actual = f)));
+    let fits: Fit[] = picked.map((p) => view?.verdicts[p.id]?.fit ?? 'cant_tell');
+    const counted = await attempt(
+      log(scanId, picked.map((p, i) => ({ itemId: p.id, dishName: p.name, fit: fits[i] }))).then((f) => (fits = f)),
+    );
     if (!counted) return setBusy(false);
+    const names = picked.map((p) => p.name).join(' + ');
     let posted = false;
     if (sharing && room && reaction && photo) {
-      // The dish's facts go with the post (never your verdict or rules), so others can open it in full.
-      const item = toSharedItem(scanned, view?.restaurant || undefined);
-      posted = await postWithWhop(() => shareDish(room, { name: picked, place: view?.restaurant || undefined, reaction, item }, note, photo));
+      // The dishes' facts go with the post (never your verdict or rules), so others can open them in full.
+      const item = toSharedItem(picked[0], view?.restaurant || undefined);
+      posted = await postWithWhop(() => shareDish(room, { name: names, place: view?.restaurant || undefined, reaction, item }, note, photo));
       // Logged but not posted: stay here so the post can be tried again.
       if (!posted) return setBusy(false);
     }
     setBusy(false);
-    const points = MEAL_POINTS[actual];
+    const points = fits.reduce((a, f) => a + MEAL_POINTS[f], 0);
+    const best: Fit = fits.includes('good') ? 'good' : fits.includes('okay') ? 'okay' : fits.includes('not_fit') ? 'not_fit' : 'cant_tell';
     celebrate(
       points > 0
-        ? { title: `+${points}`, subtitle: active.length ? 'in your points race' : PLAIN_FIT[actual === 'good' ? 'good' : 'okay'], tone: actual === 'good' ? 'great' : 'good' }
-        : { title: posted ? 'Shared' : 'Logged', subtitle: actual === 'not_fit' ? 'Doesn’t fit your diet this time' : 'We couldn’t tell for this one', tone: 'neutral' },
+        ? { title: `+${points}`, subtitle: active.length ? 'in your points race' : PLAIN_FIT[best === 'good' ? 'good' : 'okay'], tone: best === 'good' ? 'great' : 'good' }
+        : {
+            title: posted ? 'Shared' : 'Logged',
+            subtitle: view?.status !== 'done' ? 'Still checking how it fits' : best === 'not_fit' ? 'Doesn’t fit your diet this time' : 'We couldn’t tell for this one',
+            tone: 'neutral',
+          },
     );
     if (posted && room) router.replace({ pathname: '/community/[slug]', params: { slug: room } });
     else router.back();
@@ -108,17 +117,27 @@ export default function ShareSheet() {
         ) : null}
       </View>
 
-      {dishes.length > 1 ? (
-        <View style={styles.chips}>
-          {dishes.map((d) => (
-            <Chip key={d} label={`${dishEmoji(d)} ${d}`} selected={picked === d} onPress={() => setDish(d)} />
-          ))}
+      {reading ? (
+        <View style={styles.waiting}>
+          <ActivityIndicator color={c.textSecondary} />
+          <T tone="secondary">Reading your scan…</T>
         </View>
-      ) : picked ? (
-        <T variant="heading">
-          {dishEmoji(picked)} {picked}
-        </T>
-      ) : null}
+      ) : dishes.length ? (
+        <View style={{ gap: space.sm }}>
+          {dishes.length > 1 ? (
+            <T variant="caption" tone="secondary">
+              Pick everything you ordered.
+            </T>
+          ) : null}
+          <View style={styles.chips}>
+            {dishes.map((d) => (
+              <Chip key={d.id} label={`${dishEmoji(d.name)} ${d.name}`} selected={ids.includes(d.id)} onPress={() => toggle(d.id)} />
+            ))}
+          </View>
+        </View>
+      ) : (
+        <T tone="secondary">We couldn’t read anything to order from this scan.</T>
+      )}
 
       {canShare ? (
         <View style={{ gap: space.md }}>
@@ -178,6 +197,7 @@ export default function ShareSheet() {
 
 const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  waiting: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.md, overflow: 'hidden' },
   remove: { position: 'absolute', top: space.sm, right: space.sm },
   add: { height: 56, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },

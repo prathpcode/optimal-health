@@ -26,7 +26,7 @@ import { duration, onPhoto, radius, space, spring } from '@/theme';
 type Phase = 'live' | 'capturing' | 'uploading' | 'error';
 
 export default function ScanScreen() {
-  // Started from a room's "Share a meal": the result offers to share to that room.
+  // Started from a room's "Share a meal": the scan goes straight to picking what was ordered for that room.
   const { share } = useLocalSearchParams<{ share?: string }>();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -84,8 +84,10 @@ export default function ScanScreen() {
     setPhase('uploading');
     try {
       const id = await startScan(image, deviceId, lastLocation());
-      // Hand the local photo over so the result screen draws it before the record arrives.
-      router.replace({ pathname: '/result/[id]', params: { id, uri: image.uri, w: String(image.width), h: String(image.height), ...(share ? { share } : {}) } });
+      // Sharing a meal: go straight to picking what was ordered, which only needs the dish list. Otherwise the
+      // result screen, with the local photo handed over so it draws before the record arrives.
+      if (share) router.replace({ pathname: '/share/[scanId]', params: { scanId: id, room: share, fixed: '1' } });
+      else router.replace({ pathname: '/result/[id]', params: { id, uri: image.uri, w: String(image.width), h: String(image.height) } });
     } catch {
       fail();
     }
@@ -106,7 +108,8 @@ export default function ScanScreen() {
     try {
       const id = await startBarcode(data, deviceId);
       void shot?.then((photo) => photo && rememberPhoto(id, photo));
-      router.replace({ pathname: '/result/[id]', params: { id, ...(share ? { share } : {}) } });
+      if (share) router.replace({ pathname: '/share/[scanId]', params: { scanId: id, room: share, fixed: '1' } });
+      else router.replace({ pathname: '/result/[id]', params: { id } });
     } catch {
       barcodeSeen.current = false;
       fail();

@@ -1,6 +1,7 @@
 // Packaged products: turning a label reading or a food-database record into an Item. Pure.
 
 import supplementNamesJson from "../data/supplementNames.json";
+import { tidyName } from "./casing";
 import { containsTerm, literalTags, normalise } from "./tagMatch";
 import { isKnownTag, tagInfo } from "./tags";
 import type { Item, ItemTag, Nutrients, Sureness, TagId } from "./types";
@@ -197,7 +198,7 @@ export function itemFromProduct(facts: ProductFacts, modelTags: ModelTag[] = [],
   return {
     id,
     kind: facts.panel === "supplement" ? "supplement" : facts.panel === "otc" ? "otc" : "product",
-    name: facts.brand && !facts.name.toLowerCase().includes(facts.brand.toLowerCase()) ? `${facts.brand} ${facts.name}` : facts.name,
+    name: tidyName(facts.brand && !facts.name.toLowerCase().includes(facts.brand.toLowerCase()) ? `${facts.brand} ${facts.name}` : facts.name),
     ingredients,
     tags: [...tags.values()],
     ...(facts.nutrients ? { nutrients: facts.nutrients } : {}),

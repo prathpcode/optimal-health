@@ -1,6 +1,7 @@
 // Pure steps of the scan pipeline: everything between "a model said this" and "the scan record says this".
 // The network calls live in convex/; the decisions live here so they can be tested.
 
+import { tidyName, tidySentence } from "./casing";
 import { DEFAULT_THRESHOLDS, evaluate, withSecondOpinion, type Thresholds } from "./evaluate";
 import { applyRemembered, dishKey, type RememberedAnswer, type TextLine } from "./memory";
 import { withLabelFindings } from "./otc";
@@ -62,8 +63,10 @@ export function itemsFromReader(dishes: ReaderDish[], idPrefix = "d"): Item[] {
     return {
       id: `${idPrefix}${i + 1}`,
       kind: "dish" as const,
-      name: d.name.trim(),
-      ...(d.description.trim() ? { description: d.description.trim() } : {}),
+      // Shown as printed, except that a menu printed in capitals is tidied (engine/casing.ts); matching is done on
+      // normalised text, so this changes nothing but what is read on screen.
+      name: tidyName(d.name.trim()),
+      ...(d.description.trim() ? { description: tidySentence(d.description.trim()) } : {}),
       ingredients,
       tags: [...tags.values()],
       ...(Object.keys(levels).length ? { levels } : {}),

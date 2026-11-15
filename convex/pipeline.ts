@@ -10,6 +10,7 @@ import { internalAction, type ActionCtx } from "./_generated/server";
 import {
   applySecondOpinions, buildChecks, buildQuestions, buildRanking, buildVerdicts, earlyHints, hardRules, itemsFromReader, lineItems, type ReaderDish, type ReaderOpinion,
 } from "../engine/pipeline";
+import { tidyName } from "../engine/casing";
 import { applyRemembered, linesFor, restaurantId, type RememberedAnswer, type TextLine } from "../engine/memory";
 import { fromOpenFoodFacts, hasSubstance, itemFromProduct, mergeFacts, sanitiseNutrients, type ModelTag, type ProductFacts } from "../engine/product";
 import { hidesInTerms } from "../engine/tagMatch";
@@ -808,7 +809,7 @@ export const run = internalAction({
       };
       // Show the dish list straight away; tags and verdicts follow.
       await ctx.runMutation(internal.scans.patch, {
-        scanId, kind: "menu", items: placed(itemsFromReader(bare)), status: "judging", ...(read.restaurantName.trim() ? { restaurantName: read.restaurantName.trim() } : {}),
+        scanId, kind: "menu", items: placed(itemsFromReader(bare)), status: "judging", ...(read.restaurantName.trim() ? { restaurantName: tidyName(read.restaurantName.trim()) } : {}),
       });
       // 2. Tagging and the per-rule second pass run side by side; both work from the transcription alone.
       //    The judge then gives its own probability per dish and rule, if it is configured.

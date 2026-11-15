@@ -24,7 +24,9 @@ export default function ShareAMeal() {
   const rooms = useMyRooms();
   // You can only post to rooms you're in: start from the one asked for if you're in it, else your first room.
   const [slug, setSlug] = useState(rooms.some((r) => r.slug === initial) ? initial : rooms[0]?.slug);
-  const recent = (useRecentScans() ?? []).filter((s) => s.status === 'done' && s.itemCount > 0);
+  // Anything with something to pick from, including a scan still being checked: the dishes are there long before
+  // the verdicts are.
+  const recent = (useRecentScans() ?? []).filter((s) => s.status !== 'failed' && s.itemCount > 0);
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const { c } = useTheme();

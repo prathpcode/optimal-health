@@ -15,6 +15,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action, internalAction } from "./_generated/server";
+import { tidyName } from "../engine/casing";
 import { hardRules } from "../engine/pipeline";
 import { hasSubstance, type ProductFacts } from "../engine/product";
 import { blockSignature, matchProduct, searchTerms, shelfVerdict, textBlocks, type KnownProduct, type ShelfBox } from "../engine/shelf";
@@ -65,7 +66,7 @@ export const look = action({
     const boxes: ShelfBox[] = named.map(({ block, product }) => {
       if (!product) return { box: block.box, state: "unknown" };
       const f = facts.get(product.key)!;
-      return { box: block.box, key: product.key, name: [f.brand, f.name].filter(Boolean).join(" "), ...shelfVerdict(f, context.rules, opinions.get(product.key) ?? null) };
+      return { box: block.box, key: product.key, name: tidyName([f.brand, f.name].filter(Boolean).join(" ")), ...shelfVerdict(f, context.rules, opinions.get(product.key) ?? null) };
     });
 
     // In the background: read the ingredients of recognised products that have not been read for these rules yet,
