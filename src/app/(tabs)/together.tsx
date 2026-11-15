@@ -90,7 +90,6 @@ export default function TogetherScreen() {
 type Pick = ReturnType<typeof usePickedRooms>;
 
 function SignedOut({ pickable, pick }: { pickable: RoomView[]; pick: Pick }) {
-  const { c } = useTheme();
   const reduced = useReducedMotion();
   const signedIn = useSignedIn();
 
