@@ -15,6 +15,8 @@ import { convex, HAS_BACKEND } from './backend';
 const CLIENT_ID = process.env.EXPO_PUBLIC_WHOP_CLIENT_ID ?? 'app_rj4GAiFKxG1sTm';
 const API = 'https://api.whop.com';
 const REDIRECT = 'fitscanner://auth';
+/** Sign-in asks for profile plus reading and posting in Whop chat, so rooms run on Whop as the person themselves. */
+export const SCOPES = 'openid profile chat:read chat:message:create';
 const STORE_KEY = 'fit.whop';
 
 /**
@@ -33,6 +35,8 @@ export type WhopAccount = {
   expiresAt: number;
   /** Our backend's session for this account (live mode only). */
   session?: string;
+  /** What this sign-in was allowed to do; older sign-ins without chat sign in again. */
+  scopes?: string;
 };
 
 type State = { ready: boolean; account: WhopAccount | null };
@@ -50,7 +54,7 @@ function load() {
     .then((raw) => {
       const saved = raw ? (JSON.parse(raw) as WhopAccount) : null;
       // In live mode an account needs our server's session; one saved before then signs in again.
-      set({ ready: true, account: saved && (!TOGETHER_LIVE || saved.session) ? saved : null });
+      set({ ready: true, account: saved && saved.scopes === SCOPES && (!TOGETHER_LIVE || saved.session) ? saved : null });
     })
     .catch(() => set({ ready: true, account: null }));
   return loading;
@@ -60,6 +64,11 @@ function subscribe(l: () => void) {
   listeners.add(l);
   void load();
   return () => listeners.delete(l);
+}
+
+/** The signed-in account, outside React. */
+export function currentAccount(): WhopAccount | null {
+  return state.account;
 }
 
 /** The backend session of the signed-in account, for live calls. */
@@ -97,7 +106,7 @@ export async function signInWithWhop(): Promise<SignInResult> {
       response_type: 'code',
       client_id: CLIENT_ID,
       redirect_uri: REDIRECT,
-      scope: 'openid profile',
+      scope: SCOPES,
       state: st,
       nonce: randomString(16),
       code_challenge: challenge,
@@ -140,6 +149,7 @@ export async function signInWithWhop(): Promise<SignInResult> {
       refreshToken: token.refresh_token,
       expiresAt: Date.now() + (token.expires_in ?? 3600) * 1000,
       session,
+      scopes: SCOPES,
     };
     await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(account)).catch(() => {});
     set({ ready: true, account });
@@ -147,6 +157,44 @@ export async function signInWithWhop(): Promise<SignInResult> {
   } catch (e) {
     return { ok: false, cancelled: false, message: e instanceof Error ? e.message : 'Could not reach Whop.' };
   }
+}
+
+let refreshing: Promise<string | null> | null = null;
+
+/**
+ * A current Whop access token for the signed-in person, refreshed when it is about to expire (refresh tokens rotate,
+ * so the new one is saved each time). Null when signed out or when Whop no longer accepts the sign-in.
+ */
+export async function whopAccessToken(): Promise<string | null> {
+  const account = state.account;
+  if (!account) return null;
+  if (account.expiresAt - 60_000 > Date.now()) return account.accessToken;
+  if (!account.refreshToken) return null;
+  refreshing ??= (async () => {
+    try {
+      const token = await json<{ access_token: string; refresh_token?: string; expires_in?: number }>(
+        await fetch(`${API}/oauth/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ grant_type: 'refresh_token', refresh_token: account.refreshToken, client_id: CLIENT_ID }),
+        }),
+      );
+      const next: WhopAccount = {
+        ...account,
+        accessToken: token.access_token,
+        refreshToken: token.refresh_token ?? account.refreshToken,
+        expiresAt: Date.now() + (token.expires_in ?? 3600) * 1000,
+      };
+      await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(next)).catch(() => {});
+      set({ account: next });
+      return next.accessToken;
+    } catch {
+      return null;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
 }
 
 export async function signOutOfWhop() {

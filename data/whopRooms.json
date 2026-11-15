@@ -1,0 +1,72 @@
+{
+  "_access": {
+    "productId": "prod_GmhRE1nrK6k3v",
+    "variantId": "plan_ERpT9dAvYPxyO"
+  },
+  "heart-health": {
+    "productId": "prod_RCM7575Tdo7pr",
+    "variantId": "plan_94iBuqj5SMg7P",
+    "channelId": "chat_feed_1Ch5PNxhpLXfynsjJ6fJpG",
+    "experienceId": "exp_ZkIKezVKN3ODby"
+  },
+  "kidney-health": {
+    "productId": "prod_5uFaJKluVeO9k",
+    "variantId": "plan_0ZO8D3l1fe7CQ",
+    "channelId": "chat_feed_1Ch5PP2UHEn1E3DGJXXgGG",
+    "experienceId": "exp_tbtGfoFlAoOrx4"
+  },
+  "diabetes": {
+    "productId": "prod_4zERkLl9whuZ5",
+    "variantId": "plan_6g2B9gpaZoNOp",
+    "channelId": "chat_feed_1Ch5PP7BuTevkTsen12mP7",
+    "experienceId": "exp_L76QWVHSA8cbUB"
+  },
+  "gluten-free": {
+    "productId": "prod_1p1YW3yT6EnO8",
+    "variantId": "plan_OqaghFoxcogon",
+    "channelId": "chat_feed_1Ch5PPAr83pVhK5AezAeB8",
+    "experienceId": "exp_wxQiPZqUB0Domb"
+  },
+  "dairy-free": {
+    "productId": "prod_HvgKhOcu4hmvz",
+    "variantId": "plan_aD8rIOS5G53pq",
+    "channelId": "chat_feed_1Ch5PPDzhX6RVrW1miEFdT",
+    "experienceId": "exp_HVmOuTiIuqTn7f"
+  },
+  "liver-health": {
+    "productId": "prod_kdOPYKVCDqP6I",
+    "variantId": "plan_QVu2AAuYyUaNs",
+    "channelId": "chat_feed_1Ch5PPH1d8P7x6YbqE5UnB",
+    "experienceId": "exp_YA3wqwJut1Subl"
+  },
+  "gut-health": {
+    "productId": "prod_w8naJRJKW4OFC",
+    "variantId": "plan_GRJx9Ui1Me6AL",
+    "channelId": "chat_feed_1Ch5PPLKZ6rNZkPKS9Hh7a",
+    "experienceId": "exp_xZ3lELrPd1Sd9k"
+  },
+  "gout": {
+    "productId": "prod_6DgrGZLVxnjVU",
+    "variantId": "plan_yYTFoBXVzx0A3",
+    "channelId": "chat_feed_1Ch5PPPKf55UwYqhLBk6uS",
+    "experienceId": "exp_qKc9veAzeaG0U0"
+  },
+  "plant-based": {
+    "productId": "prod_eYKxP3ik8q5IX",
+    "variantId": "plan_kV3lAb24eydeb",
+    "channelId": "chat_feed_1Ch5PPSSaZc8msR5TTPe6s",
+    "experienceId": "exp_gLUn0ezgMk6pkg"
+  },
+  "nut-allergy": {
+    "productId": "prod_QVHMFEFiRnMhK",
+    "variantId": "plan_0Y2RieH5ztHxI",
+    "channelId": "chat_feed_1Ch5PPVaj1phQdYVnb7b1M",
+    "experienceId": "exp_ih26c50LTqv3dI"
+  },
+  "seafood-allergy": {
+    "productId": "prod_nyw8z78KYTkl1",
+    "variantId": "plan_Z4LTLSFEn14AE",
+    "channelId": "chat_feed_1Ch5PPYn3sRtdPhJM6kh6v",
+    "experienceId": "exp_ilXQz7SZO2HVkp"
+  }
+}

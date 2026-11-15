@@ -67,7 +67,7 @@ function Chat({ room, messages }: { room: RoomView; messages: Message[] }) {
   const rows = [...messages].reverse();
 
   const send = () => {
-    void attempt(sendMessage(slug, draft, account?.name ?? 'You'));
+    void attempt(sendMessage(slug, draft));
     setDraft('');
   };
 

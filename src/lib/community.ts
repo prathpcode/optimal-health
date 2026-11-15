@@ -9,7 +9,8 @@ import { COMMUNITY_GROUPS, communitiesFor, matchCommunities, type CommunityGroup
 import type { Fit } from '@engine/types';
 import { convex, useDeviceId } from './backend';
 import { useProfile } from './profile';
-import { currentSession, TOGETHER_LIVE, useWhopAccount } from './whop';
+import { currentAccount, currentSession, TOGETHER_LIVE, useWhopAccount } from './whop';
+import { postToRoom, type SharedDish } from './whopChat';
 
 /**
  * Together: community rooms, chat, meals and challenges between friends.
@@ -39,11 +40,7 @@ function useMinute(): number {
 
 // ── Local store (used until Together is live) ────────────────────────────────────────────────────────────────────
 
-/** How a shared dish went. */
-export type Reaction = 'loved' | 'okay' | 'nope';
-
-/** A dish someone shared from a scan: the dish, where, and how it went. Never their verdict or their rules. */
-export type SharedDish = { name: string; place?: string; reaction: Reaction };
+export type { Reaction, SharedDish } from './whopChat';
 
 export type Message = { id: string; room: string; author: string; avatarUrl?: string; text: string; at: number; mine?: boolean; dish?: SharedDish };
 
@@ -298,19 +295,20 @@ export function leaveRoom(slug: string): Promise<unknown> {
   return Promise.resolve();
 }
 
-export function sendMessage(room: string, text: string, author: string): Promise<unknown> {
-  const body = text.trim();
-  if (!body) return Promise.resolve();
-  if (TOGETHER_LIVE) return call((session) => convex!.mutation(api.together.send, { session, room, text: body }));
-  update((s) => ({ ...s, sent: [...s.sent, { id: `m_${Date.now()}`, room, author, text: body, at: Date.now(), mine: true }] }));
-  return Promise.resolve();
+function me() {
+  const a = currentAccount();
+  if (!a) throw new Error('Sign in with Whop first');
+  return { id: a.userId, name: a.name, avatarUrl: a.avatarUrl };
 }
 
-/** Post a dish from a scan to a room, with how it went and an optional note. Never the verdict or the person's rules. */
-export function shareDish(room: string, dish: SharedDish, note: string, author: string): Promise<unknown> {
-  if (TOGETHER_LIVE) return call((session) => convex!.mutation(api.together.send, { session, room, text: note, dish }));
-  update((s) => ({ ...s, sent: [...s.sent, { id: `m_${Date.now()}`, room, author, text: note.trim(), at: Date.now(), mine: true, dish }] }));
-  return Promise.resolve();
+/** Post text and/or a photo to a room's Whop chat as yourself. */
+export async function sendMessage(room: string, text: string, photoUri?: string): Promise<void> {
+  await postToRoom(room, { text, photoUri }, me());
+}
+
+/** Share a dish from a scan to a room's Whop chat: the dish, the place, how it went, an optional note and photo. Never a verdict or rule. */
+export async function shareDish(room: string, dish: SharedDish, note: string, photoUri?: string): Promise<void> {
+  await postToRoom(room, { dish, text: note, photoUri }, me());
 }
 
 /** Start a challenge. It begins at `startsAt` (the start of a day). Returns its id, for the invite link. */

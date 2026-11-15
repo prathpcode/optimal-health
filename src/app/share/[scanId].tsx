@@ -46,7 +46,7 @@ export default function ShareSheet() {
   const post = async () => {
     if (!room || !picked || !reaction) return;
     setBusy(true);
-    const ok = await attempt(shareDish(room, { name: picked, place: view?.restaurant || undefined, reaction }, note, account?.name ?? 'You'));
+    const ok = await attempt(shareDish(room, { name: picked, place: view?.restaurant || undefined, reaction }, note));
     setBusy(false);
     if (ok) router.replace({ pathname: '/community/[slug]', params: { slug: room } });
   };
