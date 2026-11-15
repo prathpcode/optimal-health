@@ -10,7 +10,7 @@ import profileJson from '../../fixtures/profile.json';
 import scanJson from '../../fixtures/scan.done.json';
 import { HAS_BACKEND, useDeviceId } from './backend';
 
-// The app talks to the backend only through the functions in PLAN.md 7.1. This file adapts them to what the
+// The app talks to the backend only through the public Convex functions. This file adapts them to what the
 // screens draw.
 
 /** A bundled image (require) or a local/remote URI. */

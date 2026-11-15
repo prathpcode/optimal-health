@@ -1,5 +1,5 @@
 // The contract between the app and the backend. Change only by agreement:
-// one pull request that updates this file, fixtures/ and PLAN.md section 7 together.
+// one pull request that updates this file and fixtures/ together.
 
 export type TagId = string; // must exist in data/tags.json
 export type Sureness = "certain" | "likely" | "unsure";

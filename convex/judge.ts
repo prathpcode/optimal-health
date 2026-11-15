@@ -1,6 +1,6 @@
 // The judge: Jev (TypeSafe), a decision model that answers narrow yes/no questions with a probability.
 // Optional at runtime. With no TYPESAFE_API_KEY, or if a call fails, it returns no opinions and the evaluator
-// decides on code and the reader alone (see PLAN.md 6.5, "judge has no opinion").
+// decides on code and the reader alone (a null judge result in engine/evaluate.ts).
 //
 // What Jev is given: one dish or product at a time, as text, plus our own "commonly hides in" notes. It judges that
 // state; it is not asked to supply food knowledge of its own, and it never sees the photo or the user's profile.
@@ -18,7 +18,7 @@ const CONCURRENCY = 12;
  * - With a key set, the judge gives the fast first pass: provisional verdicts shown while the careful check runs.
  * - Only with JUDGE_ENABLED=true does it also feed the FINAL verdict. That is off by default: on the first benchmark
  *   it caught nothing the per-rule second pass had not already caught, added a few needless flags, and its low
- *   probabilities were not safe to act on (real allergen cases scored as low as 0.02). See PLAN.md section 9.
+ *   probabilities were not safe to act on (real allergen cases scored as low as 0.02). See bench/reports/.
  */
 export function judgeAvailable(): boolean {
   return !!process.env.TYPESAFE_API_KEY;
