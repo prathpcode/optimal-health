@@ -1,0 +1,27 @@
+{
+  "relay": "https://coagent.codergaut.am",
+  "room": "16xjpqr0",
+  "defaultBranch": "main",
+  "shared": [
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "bun.lock",
+    "bun.lockb",
+    "Cargo.lock",
+    "go.sum",
+    "poetry.lock",
+    "uv.lock",
+    ".coagent/**",
+    ".claude/settings.json"
+  ],
+  "enforce": "warn",
+  "autoBranch": true,
+  "autoPush": true,
+  "isolate": true,
+  "copy": [
+    ".env",
+    ".env.*"
+  ]
+}

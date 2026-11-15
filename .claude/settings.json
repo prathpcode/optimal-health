@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_coagent_coagent__board",
+      "mcp__plugin_coagent_coagent__team",
+      "mcp__plugin_coagent_coagent__send",
+      "mcp__plugin_coagent_coagent__inbox",
+      "mcp__plugin_coagent_coagent__status",
+      "mcp__plugin_coagent_coagent__claim",
+      "mcp__plugin_coagent_coagent__release",
+      "mcp__plugin_coagent_coagent__sync",
+      "mcp__plugin_coagent_coagent__propose",
+      "mcp__plugin_coagent_coagent__proposal_respond",
+      "EnterWorktree"
+    ]
+  }
+}
