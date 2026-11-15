@@ -3,6 +3,11 @@
 A phone app that tells people with medications, conditions, allergies or dietary restrictions how a restaurant menu
 or grocery item fits them. Expo (React Native) app + Convex backend + a pure TypeScript rules engine.
 
+## Stay current
+
+Teammates and their agents push to `main` all the time. Run `git fetch` and `git pull` before you start implementing
+any change, and again before each further change in a long session, so you never build on a stale checkout.
+
 ## Layout and ownership
 
 | Side | Folders |
