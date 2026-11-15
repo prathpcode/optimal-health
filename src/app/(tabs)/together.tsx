@@ -121,7 +121,9 @@ function SignedIn() {
         <BigAction
           icon="fork"
           label="Share a meal"
-          onPress={() => (top ? router.push({ pathname: '/compose/[slug]', params: { slug: top } }) : router.push('/rooms'))}
+          hint={top ? undefined : 'Join a room first'}
+          disabled={!top}
+          onPress={() => top && router.push({ pathname: '/compose/[slug]', params: { slug: top } })}
         />
         <BigAction icon="trophy" label="Start a race" onPress={() => router.push('/challenge/new')} />
       </Animated.View>
@@ -170,15 +172,32 @@ function SignedIn() {
 }
 
 /** One of the page's two main actions: a big glass tile with an icon and a word or two. */
-function BigAction({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+function BigAction({ icon, label, hint, disabled, onPress }: { icon: IconName; label: string; hint?: string; disabled?: boolean; onPress: () => void }) {
   const { c } = useTheme();
   return (
-    <Tap accessibilityRole="button" accessibilityLabel={label} feedback="tap" scaleTo={0.96} onPress={onPress} style={{ flex: 1 }}>
+    <Tap
+      accessibilityRole="button"
+      accessibilityLabel={hint ? `${label}. ${hint}` : label}
+      accessibilityState={{ disabled }}
+      feedback="tap"
+      scaleTo={0.96}
+      onPress={onPress}
+      disabled={disabled}
+      style={{ flex: 1 }}>
       <GlassSurface tone="theme" interactive style={styles.bigAction}>
-        <View style={[styles.bigIcon, { backgroundColor: c.primary }]}>
-          <Icon name={icon} size={20} color={c.onPrimary} />
+        <View style={[styles.bigIcon, { backgroundColor: disabled ? c.cardMuted : c.primary }]}>
+          <Icon name={icon} size={20} color={disabled ? c.textTertiary : c.onPrimary} />
         </View>
-        <T variant="heading">{label}</T>
+        <View style={{ gap: 2 }}>
+          <T variant="heading" tone={disabled ? 'tertiary' : 'primary'}>
+            {label}
+          </T>
+          {hint ? (
+            <T variant="caption" tone="secondary">
+              {hint}
+            </T>
+          ) : null}
+        </View>
       </GlassSurface>
     </Tap>
   );

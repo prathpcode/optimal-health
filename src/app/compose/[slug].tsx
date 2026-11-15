@@ -22,8 +22,9 @@ import { enterAt, radius, space, useTheme } from '@/theme';
 export default function ShareAMeal() {
   const { slug: initial } = useLocalSearchParams<{ slug: string }>();
   const rooms = useMyRooms();
-  const [slug, setSlug] = useState(initial);
-  const { room } = useRoom(slug);
+  // You can only post to rooms you're in: start from the one asked for if you're in it, else your first room.
+  const [slug, setSlug] = useState(rooms.some((r) => r.slug === initial) ? initial : rooms[0]?.slug);
+  const { room } = useRoom(slug ?? '');
   const recent = (useRecentScans() ?? []).filter((s) => s.status === 'done' && s.itemCount > 0);
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
@@ -34,6 +35,17 @@ export default function ShareAMeal() {
     router.push({ pathname: '/scan', params: { share: slug } });
   };
   const pick = (scan: RecentScan) => router.replace({ pathname: '/share/[scanId]', params: { scanId: scan.id, room: slug } });
+
+  if (!slug) {
+    return (
+      <View style={{ padding: space.xxl, paddingBottom: insets.bottom + space.xxxl, gap: space.md, alignItems: 'center' }}>
+        <T variant="heading">Join a room first</T>
+        <T tone="secondary" style={{ textAlign: 'center' }}>
+          You can share meals in rooms you’re in.
+        </T>
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.xxl, paddingBottom: insets.bottom + space.xxxl, gap: space.xl }} showsVerticalScrollIndicator={false}>
