@@ -1,6 +1,9 @@
 import * as Location from 'expo-location';
 
-/** Where the phone is, for telling one restaurant from another (PLAN 6.5). Never more precise than the backend needs. */
+/**
+ * Where the phone is, for telling one restaurant from another (PLAN 6.5). Rounded on the phone to three decimal
+ * places, about 100 m, which is all the backend uses: the exact position never leaves the device.
+ */
 export type Where = { lat: number; lng: number };
 
 let last: Where | null = null;
@@ -10,7 +13,7 @@ const timeout = <T,>(ms: number) => new Promise<T | null>((resolve) => setTimeou
 async function read(): Promise<Where | null> {
   const known = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60_000 });
   const fix = known ?? (await Promise.race([Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), timeout<Location.LocationObject>(4000)]));
-  return fix ? { lat: fix.coords.latitude, lng: fix.coords.longitude } : null;
+  return fix ? { lat: Number(fix.coords.latitude.toFixed(3)), lng: Number(fix.coords.longitude.toFixed(3)) } : null;
 }
 
 /**

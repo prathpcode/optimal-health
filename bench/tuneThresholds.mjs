@@ -18,7 +18,7 @@ const report = JSON.parse(readFileSync(path, "utf8"));
 if (!report.judge) throw new Error("This report was run without the judge; there are no probabilities to tune on.");
 
 const cases = (dishes) =>
-  dishes.flatMap((r) => r.perTag.filter((t) => typeof t.judgeP === "number").map((t) => ({ dish: r.name, tag: t.tag, p: t.judgeP, real: !!r.truth[t.tag] })));
+  dishes.flatMap((r) => r.perTag.filter((t) => typeof t.judgeP === "number").map((t) => ({ dish: r.name, tag: t.tag, p: t.judgeP, real: !!r.truth[t.tag], code: t.code })));
 const tune = cases(report.results.filter((_, i) => i % 2 === 0));
 const held = cases(report.results.filter((_, i) => i % 2 === 1));
 
@@ -35,6 +35,8 @@ const precision = (set, x) => {
 };
 const high = grid.find((x) => x > low && precision(tune, x) >= 0.95) ?? 0.99;
 
+/** Real cases the provisional pass would show as a fit: the judge votes "no" and code finds nothing in the dish's words. */
+const shownAsFit = (set) => set.filter((c) => c.real && c.p <= 0.1 && c.code === "no_match").length;
 const pct = (a, b) => (b ? `${((100 * a) / b).toFixed(1)}%` : "n/a");
 const row = (name, band, set) => {
   const realNo = count(set, true, (p) => p <= band.low), freeNo = count(set, false, (p) => p <= band.low);
@@ -72,7 +74,7 @@ const out = [
   "",
   "## What follows from this",
   "",
-  `- With the bands in use, the judge votes "no" on ${pct(count(held, true, (p) => p <= before.low), total(held, true))} of the held-out dishes that really contain the allergen. On its own (the fast provisional pass) that shows them as a fit, with only the standing "confirm" reminder, until the careful check lands.`,
+  `- With the bands in use, the judge votes "no" on ${count(held, true, (p) => p <= before.low)} of the ${total(held, true)} held-out dish-and-allergen pairs that really contain the allergen (${pct(count(held, true, (p) => p <= before.low), total(held, true))}). The provisional pass also runs the code check on the dish's own words; here it finds something in ${count(held, true, (p) => p <= before.low) - shownAsFit(held)} of them. The remaining ${shownAsFit(held)} are shown as a fit, with only the standing "confirm" reminder, until the careful check lands.`,
   `- A "no" band that makes no such mistake is almost empty: at ${low} it covers ${pct(count(held, false, (p) => p <= low), total(held, false))} of the allergen-free cases. The judge's low scores do not separate the two groups, so it cannot serve as a "no" voter. Adopting that band means the provisional pass shows "Can't tell" for nearly every dish it does not block, and, were the judge ever switched into final verdicts, it would turn almost every cleared dish into a question.`,
   `- Raising high from ${before.high} to ${high} cuts wrong provisional "Not a fit" calls from ${pct(count(held, false, (p) => p >= before.high), total(held, false))} to ${pct(count(held, false, (p) => p >= high), total(held, false))} of allergen-free cases, and moves ${count(held, true, (p) => p >= before.high) - count(held, true, (p) => p >= high)} real cases from "Not a fit" to a question.`,
   "",

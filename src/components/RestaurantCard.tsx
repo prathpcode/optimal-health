@@ -17,7 +17,10 @@ import { duration, radius, space, useTheme } from '@/theme';
  */
 export function RestaurantCard({ scanId, name, restaurantId, setRestaurant }: { scanId: string; name?: string; restaurantId?: string; setRestaurant: SetRestaurant }) {
   const { c } = useTheme();
-  const known = useRestaurantConfirmed(restaurantId);
+  const remembered = useRestaurantConfirmed(restaurantId);
+  // Confirmed just now but with no location: there is no restaurant id to remember it by, so it holds for this screen.
+  const [confirmedHere, setConfirmedHere] = useState(false);
+  const known = remembered || confirmedHere;
   const [editing, setEditing] = useState(!name);
   const [draft, setDraft] = useState(name ?? '');
   const [busy, setBusy] = useState(false);
@@ -39,6 +42,7 @@ export function RestaurantCard({ scanId, name, restaurantId, setRestaurant }: { 
         setNoLocation(null);
         haptic.success();
       } else {
+        setConfirmedHere(true);
         setNoLocation((await locationBlocked()) ? 'blocked' : 'off');
       }
       setEditing(false);
@@ -97,7 +101,7 @@ export function RestaurantCard({ scanId, name, restaurantId, setRestaurant }: { 
       ) : known ? (
         <View style={styles.foot}>
           <T variant="caption" tone="secondary" style={{ flex: 1 }}>
-            What the staff tell you here is remembered for your next visit.
+            {remembered ? 'What the staff tell you here is remembered for your next visit.' : 'Your answers below apply to this scan.'}
           </T>
           <Tap accessibilityRole="button" accessibilityLabel="Change restaurant name" onPress={startEditing} hitSlop={8}>
             <T variant="caption" color={c.textSecondary} style={styles.link}>

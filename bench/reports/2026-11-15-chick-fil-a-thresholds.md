@@ -32,7 +32,7 @@
 
 ## What follows from this
 
-- With the bands in use, the judge votes "no" on 14.1% of the held-out dishes that really contain the allergen. On its own (the fast provisional pass) that shows them as a fit, with only the standing "confirm" reminder, until the careful check lands.
+- With the bands in use, the judge votes "no" on 14 of the 99 held-out dish-and-allergen pairs that really contain the allergen (14.1%). The provisional pass also runs the code check on the dish's own words; here it finds something in 0 of them. The remaining 14 are shown as a fit, with only the standing "confirm" reminder, until the careful check lands.
 - A "no" band that makes no such mistake is almost empty: at 0.01 it covers 0.0% of the allergen-free cases. The judge's low scores do not separate the two groups, so it cannot serve as a "no" voter. Adopting that band means the provisional pass shows "Can't tell" for nearly every dish it does not block, and, were the judge ever switched into final verdicts, it would turn almost every cleared dish into a question.
 - Raising high from 0.5 to 0.84 cuts wrong provisional "Not a fit" calls from 3.5% to 2.5% of allergen-free cases, and moves 10 real cases from "Not a fit" to a question.
 
