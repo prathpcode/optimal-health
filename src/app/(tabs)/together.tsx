@@ -5,14 +5,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChallengeRow, PointsKey } from '@/components/challenge';
 import { RoomIcon } from '@/components/community';
-import { joinRooms, RoomPicker } from '@/components/RoomPicker';
+import { JoinBar, joinRooms, RoomChecklist, usePickedRooms } from '@/components/RoomPicker';
 import { GlassButton, GlassSurface } from '@/components/Glass';
 import { Icon, type IconName } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { RoomStatus, SectionTitle, useSignedIn } from '@/components/together';
 import { Skeleton } from '@/components/ui';
-import { useTogether } from '@/lib/community';
+import { useTogether, type RoomView } from '@/lib/community';
 import { useLatestPosts } from '@/lib/whopForum';
 import { PostCard } from '@/components/post';
 import { signOutOfWhop, useWhopAccount } from '@/lib/whop';
@@ -23,6 +23,13 @@ export default function TogetherScreen() {
   const insets = useSafeAreaInsets();
   const bottom = Platform.OS === 'ios' ? insets.bottom : 0;
   const { ready, account } = useWhopAccount();
+  const together = useTogether();
+  const signedIn = useSignedIn();
+  const { all, mine, matched } = together;
+  // The rooms you can tick on this page: signed out, every room (matches first); signed in with no rooms, the same;
+  // otherwise any matching room you're not in yet.
+  const pickable = !account || !mine.length ? [...matched, ...all.filter((r) => !matched.some((m) => m.slug === r.slug))].filter((r) => !account || !r.joined) : matched.filter((r) => !r.joined);
+  const pick = usePickedRooms(pickable, matched.map((r) => r.slug));
 
   const accountMenu = () =>
     Alert.alert(account ? `@${account.username}` : 'Whop', 'Signed in with Whop', [
@@ -34,29 +41,42 @@ export default function TogetherScreen() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView
         contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={{ paddingTop: insets.top + titleTop, paddingHorizontal: gutter, paddingBottom: bottom + space.huge }}
+        contentContainerStyle={{ paddingTop: insets.top + titleTop, paddingHorizontal: gutter, paddingBottom: bottom + space.huge + (pick.picked.length ? 62 : 0) }}
         showsVerticalScrollIndicator={false}>
         <T variant="heroBold" accessibilityRole="header" style={styles.title}>
           Together
         </T>
-        {!ready ? null : account ? <SignedIn /> : <SignedOut />}
+        {!ready ? null : account ? <SignedIn pickable={pickable} pick={pick} /> : <SignedOut pickable={pickable} pick={pick} />}
       </ScrollView>
       {account ? (
         <View style={{ position: 'absolute', top: insets.top + topBar, right: gutter }}>
           <GlassButton tone="theme" icon="person" label="Account" onPress={accountMenu} />
         </View>
       ) : null}
+      {ready ? (
+        <JoinBar
+          picked={pick.picked}
+          hideWhenEmpty
+          verb={account ? 'Join' : 'Sign in and join'}
+          bottom={bottom + space.md}
+          onJoin={(slugs) =>
+            signedIn(async () => {
+              await joinRooms(slugs);
+            })
+          }
+        />
+      ) : null}
     </View>
   );
 }
 
 /** Signed out: everything is visible, and tapping anything asks you to sign in with Whop, then opens it. */
-function SignedOut() {
+type Pick = ReturnType<typeof usePickedRooms>;
+
+function SignedOut({ pickable, pick }: { pickable: RoomView[]; pick: Pick }) {
   const { c } = useTheme();
   const reduced = useReducedMotion();
-  const { all, matched } = useTogether();
   const signedIn = useSignedIn();
-  const rooms = [...matched, ...all.filter((r) => !matched.some((m) => m.slug === r.slug))];
 
   return (
     <View style={{ gap: space.xxxl }}>
@@ -68,16 +88,7 @@ function SignedOut() {
 
       <Animated.View entering={enterAt(1, reduced)}>
         <SectionTitle title="Pick your rooms" />
-        <RoomPicker
-          rooms={rooms}
-          initial={matched.map((r) => r.slug)}
-          verb="Sign in and join"
-          onJoin={(slugs) =>
-            signedIn(async () => {
-              await joinRooms(slugs);
-            })
-          }
-        />
+        <RoomChecklist rooms={pickable} picked={pick.picked} onToggle={pick.toggle} />
         <View style={[styles.privacy, { marginTop: space.lg }]}>
           <Icon name="lock" size={12} color={c.textTertiary} />
           <T variant="caption" tone="tertiary">
@@ -105,13 +116,11 @@ function SignedOut() {
 /**
  * Signed in, in the order people use it: the two things you can do, your rooms, what people shared, your races.
  */
-function SignedIn() {
+function SignedIn({ pickable, pick }: { pickable: RoomView[]; pick: Pick }) {
   const { c } = useTheme();
-  const { all, mine, matched, challenges, loading } = useTogether();
+  const { mine, challenges, loading } = useTogether();
   const reduced = useReducedMotion();
   const top = mine[0]?.slug;
-  // With no rooms yet, offer them all (matches first); otherwise any matching room you're not in.
-  const suggest = mine.length ? matched.filter((r) => !r.joined) : [...matched, ...all.filter((r) => !r.reasons.length)];
 
   if (loading) {
     return (
@@ -162,10 +171,10 @@ function SignedIn() {
         </ScrollView>
       </Animated.View>
 
-      {suggest.length ? (
+      {pickable.length ? (
         <Animated.View entering={enterAt(2, reduced)}>
           <SectionTitle title={mine.length ? 'Rooms for you' : 'Pick your rooms'} />
-          <RoomPicker rooms={suggest} initial={suggest.filter((r) => r.reasons.length).map((r) => r.slug)} onJoin={async (slugs) => void (await joinRooms(slugs))} />
+          <RoomChecklist rooms={pickable} picked={pick.picked} onToggle={pick.toggle} />
         </Animated.View>
       ) : null}
 
