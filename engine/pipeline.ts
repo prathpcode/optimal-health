@@ -1,7 +1,7 @@
 // Pure steps of the scan pipeline: everything between "a model said this" and "the scan record says this".
 // The network calls live in convex/; the decisions live here so they can be tested.
 
-import { evaluate, withSecondOpinion, type Thresholds } from "./evaluate";
+import { DEFAULT_THRESHOLDS, evaluate, withSecondOpinion, type Thresholds } from "./evaluate";
 import { applyRemembered, dishKey, type RememberedAnswer, type TextLine } from "./memory";
 import { withLabelFindings } from "./otc";
 import { codeCheck, containsTerm, literalTags, normalise } from "./tagMatch";
@@ -87,7 +87,14 @@ export type EarlyHint = { box: Box; fit: "not_fit" | "cant_tell" };
  */
 export function earlyHints(lines: TextLine[], rules: Rule[], judge: JudgeOpinion[] = []): EarlyHint[] {
   const items = lineItems(lines);
-  const verdicts = buildVerdicts(items, rules, buildChecks(items, rules, [], judge));
+  // Only a judge that thinks it likely counts here. Its in-between scores would turn a third of a menu's lines into
+  // "maybe" flags, which says nothing; on a single line of text, unsure is the normal state.
+  const levelOf = new Map(rules.map((r) => [r.id, r.level]));
+  const likely = judge.filter((j) => {
+    const level = levelOf.get(j.ruleId);
+    return (level === "never" || level === "avoid") && j.p >= DEFAULT_THRESHOLDS[level].high;
+  });
+  const verdicts = buildVerdicts(items, rules, buildChecks(items, rules, [], likely));
   return items.flatMap((item, i) => {
     const fit = verdicts[item.id].fit;
     return fit === "not_fit" || fit === "cant_tell" ? [{ box: lines[i].box, fit }] : [];

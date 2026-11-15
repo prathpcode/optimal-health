@@ -199,6 +199,9 @@ describe("earlyHints", () => {
     const hints = earlyHints(lines, [NUTS], [{ itemId: "l4", ruleId: "nuts", p: 0.9 }]);
     expect(hints.find((h) => h.box.top === 0.4)?.fit).toBe("not_fit");
   });
+  it("ignores a judge that is merely unsure", () => {
+    expect(earlyHints(lines, [NUTS], [{ itemId: "l4", ruleId: "nuts", p: 0.3 }, { itemId: "l1", ruleId: "nuts", p: 0.2 }])).toEqual(earlyHints(lines, [NUTS]));
+  });
   it("says nothing when no hard rule is switched on", () => {
     expect(earlyHints(lines, [{ ...NUTS, enabled: false }])).toEqual([]);
     expect(earlyHints(lines, [SODIUM])).toEqual([]);
