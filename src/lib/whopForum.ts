@@ -257,7 +257,9 @@ export function useRoomPhotos(slug: string): { photo: Photo; post: Post }[] {
 
 /** Photos shrink to at most 1600 px wide before upload. */
 async function uploadPhoto(uri: string): Promise<string> {
-  const small = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 1600 } }], { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG });
+  // A photo on this phone is shrunk first; one already online (a past scan's photo from the backend, which was
+  // compressed when it was taken) is sent as it is.
+  const small = uri.startsWith('http') ? { uri } : await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 1600 } }], { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG });
   const file = await whop<{ id: string; upload_url?: string; upload_headers?: Record<string, string> }>('/files', {
     method: 'POST',
     body: { filename: `fit-${Date.now()}.jpg`, visibility: 'public' },

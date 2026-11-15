@@ -90,14 +90,18 @@ export const list = query({
   args: { deviceId: v.string() },
   handler: async (ctx, { deviceId }) => {
     const rows = await ctx.db.query("scans").withIndex("by_deviceId", (q) => q.eq("deviceId", deviceId)).order("desc").take(30);
-    return rows.map((r) => ({
-      scanId: r._id,
-      createdAt: r._creationTime,
-      status: r.status,
-      kind: r.kind,
-      title: r.restaurantName ?? r.items[0]?.name ?? "Scan",
-      itemCount: r.items.length,
-    }));
+    return await Promise.all(
+      rows.map(async (r) => ({
+        scanId: r._id,
+        createdAt: r._creationTime,
+        status: r.status,
+        kind: r.kind,
+        title: r.restaurantName ?? r.items[0]?.name ?? "Scan",
+        itemCount: r.items.length,
+        // The scan's first photo, so past scans show it on any phone (the app prefers its own local copy).
+        photoUrl: r.imageIds[0] ? await ctx.storage.getUrl(r.imageIds[0]) : null,
+      })),
+    );
   },
 });
 

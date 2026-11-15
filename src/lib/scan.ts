@@ -348,7 +348,8 @@ function useRecentLive(): RecentScan[] | undefined {
         status: r.status,
         kind: r.kind,
         itemCount: r.itemCount,
-        photo: all[r.scanId] ? { uri: all[r.scanId].uri } : null,
+        // This phone's copy first; otherwise the photo the backend keeps for the scan.
+        photo: all[r.scanId] ? { uri: all[r.scanId].uri } : r.photoUrl ? { uri: r.photoUrl } : null,
       })),
     [rows, all],
   );

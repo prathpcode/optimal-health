@@ -12,7 +12,7 @@ import { RoomSelect } from '@/components/RoomSelect';
 import { Chip } from '@/components/ui';
 import { shareDish, useMyRooms, type Reaction } from '@/lib/community';
 import { dishEmoji, REACTION_EMOJI } from '@/lib/emoji';
-import { useScan } from '@/lib/scan';
+import { useRecentScans, useScan } from '@/lib/scan';
 import { radius, roomAccent, space, tint, type as typeScale, useTheme } from '@/theme';
 
 const REACTIONS: Reaction[] = ['loved', 'okay', 'nope'];
@@ -40,7 +40,10 @@ export default function ShareSheet() {
   const [reaction, setReaction] = useState<Reaction | null>(null);
   const [note, setNote] = useState('');
   // The scan's photo goes with the post unless removed; bundled sample photos (numbers) are never shared.
-  const scanPhoto = view?.photo && typeof view.photo === 'object' ? view.photo.uri : null;
+  const recent = useRecentScans();
+  const fromList = recent?.find((r) => r.id === scanId)?.photo;
+  const source = view?.photo ?? fromList;
+  const scanPhoto = source && typeof source === 'object' ? source.uri : null;
   const [removed, setRemoved] = useState(false);
   const photo = removed ? null : scanPhoto;
   const [busy, setBusy] = useState(false);
