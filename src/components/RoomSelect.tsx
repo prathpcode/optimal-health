@@ -5,14 +5,13 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import type { RoomView } from '@/lib/community';
 import { radius, space, useTheme } from '@/theme';
 import { RoomIcon } from './community';
-import { GlassSurface } from './Glass';
 import { Icon } from './Icon';
 import { T } from './T';
 import { Tap } from './Tap';
 
 /**
- * Where a post goes, as a compact dropdown (like picking a community before posting): the room's icon and name with
- * a chevron; tap to choose another of your rooms. `locked` shows the room without a choice.
+ * Where a post goes, as plain text with a small chevron (like picking a community before posting); tap to choose
+ * another of your rooms. `locked` shows the room without a choice.
  */
 export function RoomSelect({ rooms, value, onChange, locked }: { rooms: RoomView[]; value?: string; onChange: (slug: string) => void; locked?: boolean }) {
   const { c } = useTheme();
@@ -31,13 +30,12 @@ export function RoomSelect({ rooms, value, onChange, locked }: { rooms: RoomView
         feedback="select"
         scaleTo={0.97}
         onPress={() => setOpen((o) => !o)}>
-        <GlassSurface tone="theme" interactive={canChoose} style={styles.trigger}>
-          <RoomIcon icon={room.icon} slug={room.slug} size={26} />
+        <View style={styles.trigger}>
           <T variant="bodyStrong" numberOfLines={1}>
             {room.title}
           </T>
-          {canChoose ? <Icon name="down" size={13} color={c.textSecondary} weight="bold" /> : null}
-        </GlassSurface>
+          {canChoose ? <Icon name="down" size={12} color={c.textSecondary} weight="bold" /> : null}
+        </View>
       </Tap>
       {open && canChoose ? (
         <Animated.View entering={FadeIn.duration(120)} exiting={FadeOut.duration(100)} style={[styles.menu, { backgroundColor: c.card, borderColor: c.hairline }]}>
@@ -68,7 +66,7 @@ export function RoomSelect({ rooms, value, onChange, locked }: { rooms: RoomView
 }
 
 const styles = StyleSheet.create({
-  trigger: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.xs + 2, paddingLeft: space.xs + 2, paddingRight: space.md, borderRadius: radius.chip },
-  menu: { position: 'absolute', top: 46, left: 0, minWidth: 240, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+  trigger: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, paddingVertical: space.xs },
+  menu: { position: 'absolute', top: 30, left: 0, minWidth: 240, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
   item: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, paddingHorizontal: space.md, paddingVertical: space.sm + 2 },
 });
