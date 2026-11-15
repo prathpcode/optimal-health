@@ -1,0 +1,97 @@
+{
+  "about": "Community rooms. Each condition group lists condition keys from data/rules/conditions.json; every key belongs to exactly one group (engine/communityMatch.test.ts checks this). People are placed in condition groups automatically once they agree; optional rooms are joined by hand. Diet and allergy matches on a condition group only add people who opted into automatic placement.",
+  "groups": [
+    {
+      "slug": "heart-health",
+      "title": "Heart health",
+      "blurb": "Blood pressure, heart failure and cholesterol. Eating out with less salt and saturated fat.",
+      "icon": "heart",
+      "auto": true,
+      "conditions": ["hypertension", "heart_failure", "high_cholesterol"]
+    },
+    {
+      "slug": "kidney-health",
+      "title": "Kidney health",
+      "blurb": "Kidney disease and kidney stones. Potassium, phosphorus, sodium and oxalate around food.",
+      "icon": "drop",
+      "auto": true,
+      "conditions": ["ckd", "kidney_stones"]
+    },
+    {
+      "slug": "diabetes",
+      "title": "Diabetes",
+      "blurb": "Finding carbs and sugar on a menu before you order.",
+      "icon": "chart",
+      "auto": true,
+      "conditions": ["diabetes"]
+    },
+    {
+      "slug": "gluten-free",
+      "title": "Gluten-free living",
+      "blurb": "Celiac and gluten-free. Cross-contact, hidden wheat and places that get it right.",
+      "icon": "leaf",
+      "auto": true,
+      "conditions": ["celiac"],
+      "diets": ["gluten_free"],
+      "allergies": ["gluten", "wheat"]
+    },
+    {
+      "slug": "dairy-free",
+      "title": "Dairy-free",
+      "blurb": "Lactose intolerance and dairy allergy. Butter, cream and whey where you would not expect them.",
+      "icon": "drop",
+      "auto": true,
+      "conditions": ["lactose_intolerance"],
+      "diets": ["dairy_free"],
+      "allergies": ["dairy"]
+    },
+    {
+      "slug": "liver-health",
+      "title": "Liver health",
+      "blurb": "Cirrhosis and fatty liver. Salt, alcohol and sugar when eating out.",
+      "icon": "shield",
+      "auto": true,
+      "conditions": ["cirrhosis", "fatty_liver"]
+    },
+    {
+      "slug": "gut-health",
+      "title": "Gut health",
+      "blurb": "Reflux and ulcerative colitis. Spice, fat and the dishes that sit well.",
+      "icon": "flame",
+      "auto": true,
+      "conditions": ["ulcerative_colitis", "gerd"]
+    },
+    {
+      "slug": "gout",
+      "title": "Gout",
+      "blurb": "Purines, alcohol and sugary drinks on a menu.",
+      "icon": "bolt",
+      "auto": true,
+      "conditions": ["gout"]
+    },
+    {
+      "slug": "plant-based",
+      "title": "Plant-based",
+      "blurb": "Vegan and vegetarian. Spotting gelatin, fish sauce and stock.",
+      "icon": "leaf",
+      "auto": false,
+      "diets": ["vegan", "vegetarian"]
+    },
+    {
+      "slug": "nut-allergy",
+      "title": "Nut allergy",
+      "blurb": "Peanuts and tree nuts. Sauces, desserts and shared fryers.",
+      "icon": "shield",
+      "auto": false,
+      "allergies": ["peanuts", "tree_nuts"]
+    },
+    {
+      "slug": "seafood-allergy",
+      "title": "Seafood allergy",
+      "blurb": "Fish, shellfish and molluscs. Stocks, sauces and dressings.",
+      "icon": "shield",
+      "auto": false,
+      "allergies": ["fish", "shellfish", "mollusc"]
+    }
+  ]
+}
