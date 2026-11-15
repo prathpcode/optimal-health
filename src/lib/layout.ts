@@ -26,6 +26,36 @@ export function coverRect(container: { width: number; height: number }, image: {
   return { x: (container.width - width) / 2, y: (container.height - height) / 2, width, height };
 }
 
+/**
+ * Grow each block of text toward the size of the package it is printed on. The words sit in the upper middle of a
+ * package's front, so a box drawn tightly round them looks small and is hard to see; this pushes each side out by a
+ * share of the block's own size (more below than above), but never past halfway to a neighbouring block, so two
+ * packages standing side by side keep separate boxes.
+ */
+export function packageRects(blocks: Rect[], grow = { side: 0.32, top: 0.4, bottom: 0.95 }): Rect[] {
+  const overlap = (a0: number, a1: number, b0: number, b1: number) => Math.min(a1, b1) - Math.max(a0, b0) > 0;
+  return blocks.map((r, i) => {
+    let left = r.width * grow.side, right = r.width * grow.side, top = r.height * grow.top, bottom = r.height * grow.bottom;
+    blocks.forEach((o, j) => {
+      if (j === i) return;
+      if (overlap(r.y, r.y + r.height, o.y, o.y + o.height)) {
+        if (o.x >= r.x + r.width) right = Math.min(right, (o.x - (r.x + r.width)) / 2);
+        if (o.x + o.width <= r.x) left = Math.min(left, (r.x - (o.x + o.width)) / 2);
+      }
+      if (overlap(r.x, r.x + r.width, o.x, o.x + o.width)) {
+        if (o.y >= r.y + r.height) bottom = Math.min(bottom, (o.y - (r.y + r.height)) / 2);
+        if (o.y + o.height <= r.y) top = Math.min(top, (r.y - (o.y + o.height)) / 2);
+      }
+    });
+    // Always a little room round the words, even between tightly packed packages.
+    left = Math.max(left, 3);
+    right = Math.max(right, 3);
+    top = Math.max(top, 3);
+    bottom = Math.max(bottom, 3);
+    return { x: r.x - left, y: r.y - top, width: r.width + left + right, height: r.height + top + bottom };
+  });
+}
+
 export function boxToRect(box: Box, photo: Rect): Rect {
   return {
     x: photo.x + box.left * photo.width,

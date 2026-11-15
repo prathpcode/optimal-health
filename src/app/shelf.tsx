@@ -12,7 +12,7 @@ import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { useDeviceId } from '@/lib/backend';
 import { haptic } from '@/lib/haptics';
-import { boxToRect, coverRect, type Rect } from '@/lib/layout';
+import { boxToRect, coverRect, packageRects, type Rect } from '@/lib/layout';
 import { goBack } from '@/lib/nav';
 import { shelfStill, useShelfLook, type ShelfBox, type ShelfState } from '@/lib/shelf';
 import { useStartBarcode } from '@/lib/upload';
@@ -108,6 +108,8 @@ export default function ShelfScreen() {
 
   // The preview fills the screen, so the still it was taken from is mapped onto the screen the same way.
   const view: Rect | null = useMemo(() => (frame ? coverRect({ width, height }, frame) : null), [frame, width, height]);
+  // Each block of words, grown toward the package it is printed on (without running into its neighbours).
+  const rects = useMemo(() => (view ? packageRects(boxes.map((b) => boxToRect(b.box, view))) : []), [boxes, view]);
   const counts = useMemo(() => ({ out: boxes.filter((b) => b.state === 'not_fit').length, ask: boxes.filter((b) => b.state === 'cant_tell').length, known: boxes.filter((b) => b.state !== 'unknown').length }), [boxes]);
 
   const pick = (box: ShelfBox) => {
@@ -175,7 +177,7 @@ export default function ShelfScreen() {
       {view ? (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
           {boxes.map((b, i) => (
-            <Mark key={`${i}-${b.key ?? 'x'}`} box={b} view={view} reduced={!!reduced} picked={picked === b} dimmed={picked !== null && picked !== b} onPress={() => pick(b)} />
+            <Mark key={`${i}-${b.key ?? 'x'}`} box={b} rect={rects[i]} reduced={!!reduced} picked={picked === b} dimmed={picked !== null && picked !== b} onPress={() => pick(b)} />
           ))}
         </View>
       ) : null}
@@ -248,28 +250,43 @@ export default function ShelfScreen() {
   );
 }
 
-function Mark({ box, view, reduced, picked, dimmed, onPress }: { box: ShelfBox; view: Rect; reduced: boolean; picked: boolean; dimmed: boolean; onPress: () => void }) {
-  // The words sit in the middle of a package's front: grow the box toward the package's own size.
-  const text = boxToRect(box.box, view);
-  const padX = text.width * 0.16, padY = text.height * 0.3;
+/** The few words under a flagged package: what it is flagged for ("Gluten"), without the rest of the sentence. */
+const shortReason = (reason?: string) => reason?.split(' (')[0].replace(/\.$/, '').trim() ?? '';
+
+function Mark({ box, rect, reduced, picked, dimmed, onPress }: { box: ShelfBox; rect: Rect | undefined; reduced: boolean; picked: boolean; dimmed: boolean; onPress: () => void }) {
+  if (!rect) return null;
   const col = colour(box.state);
   const flagged = box.state === 'not_fit' || box.state === 'cant_tell';
   const unknown = box.state === 'unknown';
+  const label = flagged && rect.width >= 64 ? shortReason(box.reason) : '';
   return (
-    <Animated.View
-      entering={reduced ? undefined : FadeIn.duration(duration.fast)}
-      style={{ position: 'absolute', left: text.x - padX, top: text.y - padY, width: text.width + padX * 2, height: text.height + padY * 2, opacity: dimmed ? 0.35 : 1 }}>
+    <Animated.View entering={reduced ? undefined : FadeIn.duration(duration.fast)} style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height, opacity: dimmed ? 0.3 : 1 }}>
       <Tap accessibilityRole="button" accessibilityLabel={`${box.name ?? 'Unrecognised product'}, ${STATE_TEXT[box.state]}`} feedback="select" hitSlop={4} scaleTo={0.97} onPress={onPress} style={StyleSheet.absoluteFill}>
-        <View
-          style={{
-            flex: 1,
-            borderRadius: radius.sm,
-            borderColor: unknown ? 'rgba(255,255,255,0.6)' : col,
-            borderWidth: picked ? 3.5 : flagged ? 3 : unknown ? 1 : 2,
-            borderStyle: unknown || box.checking ? 'dashed' : 'solid',
-            backgroundColor: flagged ? `${col}40` : box.state === 'okay' ? `${col}26` : unknown ? 'transparent' : 'rgba(255,255,255,0.12)',
-          }}
-        />
+        {/* A dark line outside the coloured one, so the box shows on a pale package as well as a dark one. */}
+        <View style={[styles.halo, { borderRadius: radius.sm + 2 }]}>
+          <View
+            style={{
+              flex: 1,
+              borderRadius: radius.sm,
+              borderColor: unknown ? 'rgba(255,255,255,0.9)' : col,
+              borderWidth: picked ? 5 : flagged ? 4.5 : unknown ? 2 : 3.5,
+              borderStyle: unknown || box.checking ? 'dashed' : 'solid',
+              backgroundColor: flagged ? `${col}59` : box.state === 'okay' ? `${col}40` : unknown ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)',
+            }}
+          />
+        </View>
+        {flagged ? (
+          <View style={[styles.badge, { backgroundColor: col }]}>
+            <Icon name={box.state === 'not_fit' ? 'block' : 'question'} size={13} color={onPhoto.text} weight="bold" />
+          </View>
+        ) : null}
+        {label ? (
+          <View style={[styles.tag, { backgroundColor: col }]}>
+            <T variant="caption" color={onPhoto.text} numberOfLines={1} style={{ fontWeight: '700' }}>
+              {label}
+            </T>
+          </View>
+        ) : null}
       </Tap>
     </Animated.View>
   );
@@ -285,5 +302,8 @@ const styles = StyleSheet.create({
   hintPill: { paddingHorizontal: space.lg, paddingVertical: space.sm + 2, borderRadius: radius.md, maxWidth: 320 },
   card: { borderRadius: radius.card, padding: space.xl, gap: space.sm },
   dot: { width: 9, height: 9, borderRadius: 5 },
+  halo: { flex: 1, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.55)' },
+  badge: { position: 'absolute', top: -9, left: -9, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: onPhoto.text },
+  tag: { position: 'absolute', left: 6, right: 6, bottom: 6, borderRadius: 7, paddingHorizontal: 6, paddingVertical: 2, alignItems: 'center' },
   action: { flex: 1, height: 48, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center' },
 });
