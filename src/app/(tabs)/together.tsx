@@ -25,11 +25,14 @@ export default function TogetherScreen() {
   const { ready, account } = useWhopAccount();
   const together = useTogether();
   const signedIn = useSignedIn();
-  const { all, mine, matched } = together;
+  const { all, mine } = together;
   // The rooms you can tick on this page: signed out, every room (matches first); signed in with no rooms, the same;
   // otherwise any matching room you're not in yet.
-  const pickable = !account || !mine.length ? [...matched, ...all.filter((r) => !matched.some((m) => m.slug === r.slug))].filter((r) => !account || !r.joined) : matched.filter((r) => !r.joined);
-  const pick = usePickedRooms(pickable, matched.map((r) => r.slug));
+  const recommended = (r: RoomView) => r.reasons.length > 0;
+  const pickable = (!account || !mine.length ? all.filter((r) => !account || !r.joined) : all.filter((r) => recommended(r) && !r.joined))
+    // Recommended rooms (matching an allergy, condition or diet) first, best match first.
+    .sort((a, b) => b.reasons.length - a.reasons.length);
+  const pick = usePickedRooms(pickable, pickable.filter(recommended).map((r) => r.slug));
 
   const accountMenu = () =>
     Alert.alert(account ? `@${account.username}` : 'Whop', 'Signed in with Whop', [
@@ -144,32 +147,34 @@ function SignedIn({ pickable, pick }: { pickable: RoomView[]; pick: Pick }) {
         <BigAction icon="trophy" label="Start a race" onPress={() => router.push('/challenge/new')} />
       </Animated.View>
 
-      <Animated.View entering={enterAt(1, reduced)}>
-        <SectionTitle title="Your rooms" />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roomStrip} style={styles.stripBleed}>
-          {mine.map((r) => (
-            <Tap key={r.slug} accessibilityRole="button" accessibilityLabel={r.title} scaleTo={0.96} onPress={() => router.push({ pathname: '/community/[slug]', params: { slug: r.slug } })}>
-              <GlassSurface tone="theme" interactive style={styles.roomChip}>
-                <RoomIcon icon={r.icon} slug={r.slug} size={32} />
-                <View>
-                  <T variant="bodyStrong" numberOfLines={1}>
-                    {r.title}
-                  </T>
-                  <RoomStatus room={r} />
-                </View>
-              </GlassSurface>
+      {mine.length ? (
+        <Animated.View entering={enterAt(1, reduced)}>
+          <SectionTitle title="Your rooms" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roomStrip} style={styles.stripBleed}>
+            {mine.map((r) => (
+              <Tap key={r.slug} accessibilityRole="button" accessibilityLabel={r.title} scaleTo={0.96} onPress={() => router.push({ pathname: '/community/[slug]', params: { slug: r.slug } })}>
+                <GlassSurface tone="theme" interactive style={styles.roomChip}>
+                  <RoomIcon icon={r.icon} slug={r.slug} size={32} />
+                  <View>
+                    <T variant="bodyStrong" numberOfLines={1}>
+                      {r.title}
+                    </T>
+                    <RoomStatus room={r} />
+                  </View>
+                </GlassSurface>
+              </Tap>
+            ))}
+            <Tap accessibilityRole="button" accessibilityLabel="Find more rooms" scaleTo={0.96} onPress={() => router.push('/rooms')}>
+              <View style={[styles.moreChip, { borderColor: c.hairline }]}>
+                <Icon name="plus" size={16} color={c.textSecondary} weight="bold" />
+                <T variant="bodyStrong" tone="secondary">
+                  More
+                </T>
+              </View>
             </Tap>
-          ))}
-          <Tap accessibilityRole="button" accessibilityLabel="Find more rooms" scaleTo={0.96} onPress={() => router.push('/rooms')}>
-            <View style={[styles.moreChip, { borderColor: c.hairline }]}>
-              <Icon name="plus" size={16} color={c.textSecondary} weight="bold" />
-              <T variant="bodyStrong" tone="secondary">
-                More
-              </T>
-            </View>
-          </Tap>
-        </ScrollView>
-      </Animated.View>
+          </ScrollView>
+        </Animated.View>
+      ) : null}
 
       {pickable.length ? (
         <Animated.View entering={enterAt(2, reduced)}>
