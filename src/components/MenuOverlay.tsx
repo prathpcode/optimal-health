@@ -174,7 +174,8 @@ function DishMarker({
         pointerEvents="none"
         style={[
           styles.outline,
-          { left: outline.x - 4, top: outline.y - 4, width: outline.width + 8, height: outline.height + 8, borderColor: col },
+          // A light wash of the verdict's colour inside the box, so a dish reads at a glance even without a label.
+          { left: outline.x - 4, top: outline.y - 4, width: outline.width + 8, height: outline.height + 8, borderColor: col, backgroundColor: fit ? `${col}26` : 'transparent' },
           outlineStyle,
         ]}
       />

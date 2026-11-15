@@ -32,7 +32,7 @@ import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { Button, Card, SectionLabel, Skeleton, VerdictDot } from '@/components/ui';
 import { haptic } from '@/lib/haptics';
-import { containRect } from '@/lib/layout';
+import { containRect, unionBox, zoomRect } from '@/lib/layout';
 import { SAMPLE_ID, useScan, useSetRestaurant, type Answer, type ScanView } from '@/lib/scan';
 import { fitColor, SECTION_FIT, SECTION_LABEL } from '@/lib/verdict';
 import { duration, ease, enterAt, onPhoto, radius, space, spring, useTheme } from '@/theme';
@@ -87,6 +87,20 @@ export default function ResultScreen() {
     return { ...r, x: r.x + space.lg, y: r.y + area.top };
   }, [image?.width, image?.height, width, area]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Once the dishes have positions, the photo moves in on the part that holds them: a menu photographed from a
+  // step back would otherwise be too small to read the boxes on.
+  const dishBoxes = useMemo(() => (view?.items ?? []).flatMap((i) => i.position ?? []), [view?.items]);
+  const closeUp = useMemo(() => {
+    if (!image || dishBoxes.length === 0) return null;
+    return zoomRect({ x: space.lg, y: area.top, width: width - space.lg * 2, height: area.height }, image, unionBox(dishBoxes));
+  }, [image?.width, image?.height, dishBoxes, width, area]); // eslint-disable-line react-hooks/exhaustive-deps
+  const zoom = useSharedValue(0);
+  useEffect(() => {
+    zoom.value = closeUp ? (reduced ? withTiming(1, { duration: duration.base }) : withSpring(1, { ...spring.gentle, damping: 26 })) : 0;
+  }, [closeUp, reduced, zoom]);
+  // Where the photo ends up, for laying the boxes over it.
+  const shown = closeUp ?? target;
+
   const settle = useSharedValue(0);
   useEffect(() => {
     if (!target) return;
@@ -95,14 +109,22 @@ export default function ResultScreen() {
 
   const photoStyle = useAnimatedStyle(() => {
     if (!full || !target) return {};
-    const s = 1 + (target.width / full.width - 1) * settle.value;
-    const tx = (target.x + target.width / 2 - (full.x + full.width / 2)) * settle.value;
-    const ty = (target.y + target.height / 2 - (full.y + full.height / 2)) * settle.value;
+    // First from full screen to the space above the sheet, then (if there is a close-up) in on the dishes.
+    const end = closeUp ?? target;
+    const z = closeUp ? zoom.value : 0;
+    const w = target.width + (end.width - target.width) * z;
+    const cx = target.x + target.width / 2 + (end.x + end.width / 2 - (target.x + target.width / 2)) * z;
+    const cy = target.y + target.height / 2 + (end.y + end.height / 2 - (target.y + target.height / 2)) * z;
+    const s = 1 + (w / full.width - 1) * settle.value;
+    const tx = (cx - (full.x + full.width / 2)) * settle.value;
+    const ty = (cy - (full.y + full.height / 2)) * settle.value;
     return { transform: [{ translateX: tx }, { translateY: ty }, { scale: s }] };
   });
 
   // Chips are laid out for the settled photo, so they appear only once it has arrived there.
-  const overlayStyle = useAnimatedStyle(() => ({ opacity: interpolate(settle.value, [0.9, 1], [0, 1], Extrapolation.CLAMP) }));
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(settle.value, [0.9, 1], [0, 1], Extrapolation.CLAMP) * (closeUp ? interpolate(zoom.value, [0.85, 1], [0, 1], Extrapolation.CLAMP) : 1),
+  }));
 
   // ---- Haptics as the result lands
   const status = view?.status;
@@ -176,10 +198,10 @@ export default function ResultScreen() {
       )}
 
       {/* Verdict chips over the dishes */}
-      {view && target && !failed && !isProduct ? (
+      {view && target && shown && !failed && !isProduct ? (
         <Animated.View style={[StyleSheet.absoluteFill, overlayStyle]} pointerEvents="box-none">
           {view.items.some((i) => i.position?.length) ? (
-            <MenuOverlay photo={target} bounds={{ width, height: area.top + area.height }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={selectDish} />
+            <MenuOverlay photo={shown} bounds={{ width, height: area.top + area.height }} items={view.items} verdicts={view.verdicts} rules={view.rules} provisional={view.provisional} selectedId={selected} onSelect={selectDish} />
           ) : (
             // No dish positions (text recognition is off, or found nothing to match): the text that was found, if
             // any, as faint outlines, and verdict chips in a row over the photo.

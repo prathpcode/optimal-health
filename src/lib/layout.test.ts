@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { containRect, estimateChipWidth, placeChips, type ChipInput } from './layout';
+import { boxToRect, containRect, estimateChipWidth, placeChips, unionBox, zoomRect, type ChipInput } from './layout';
 
 describe('containRect', () => {
   it('letterboxes a tall photo in a wide box', () => {
@@ -64,6 +64,37 @@ describe('placeChips', () => {
   it('keeps a chip near the right edge on screen', () => {
     const [p] = placeChips([chip('a', 0.95, 0.5)], photo, bounds);
     expect(p.x + p.width).toBeLessThanOrEqual(390);
+  });
+});
+
+describe('unionBox', () => {
+  it('covers a dish name and the description lines under it', () => {
+    expect(unionBox([{ top: 0.2, left: 0.1, bottom: 0.22, right: 0.3 }, { top: 0.22, left: 0.1, bottom: 0.25, right: 0.7 }])).toEqual({ top: 0.2, left: 0.1, bottom: 0.25, right: 0.7 });
+  });
+});
+
+describe('zoomRect', () => {
+  const container = { x: 20, y: 100, width: 360, height: 400 };
+  const image = { width: 900, height: 1600 };
+  it('draws the photo so the menu region fills the container, centred', () => {
+    const region = { left: 0.25, right: 0.75, top: 0.3, bottom: 0.6 };
+    const photo = zoomRect(container, image, region, { pad: 0, maxZoom: 10 })!;
+    const shown = boxToRect(region, photo);
+    expect(shown.width).toBeCloseTo(360);
+    expect(shown.x).toBeCloseTo(20);
+    expect(shown.y + shown.height / 2).toBeCloseTo(300); // vertically centred in the container
+    expect(shown.height).toBeLessThanOrEqual(400);
+  });
+  it('does not enlarge beyond the limit however small the region', () => {
+    const fit = Math.min(360 / 900, 400 / 1600);
+    const photo = zoomRect(container, image, { left: 0.45, right: 0.5, top: 0.45, bottom: 0.5 }, { maxZoom: 3 })!;
+    expect(photo.width / image.width).toBeCloseTo(fit * 3);
+  });
+  it('leaves a photo alone when the menu already fills it', () => {
+    expect(zoomRect(container, image, { left: 0.02, right: 0.98, top: 0.02, bottom: 0.98 })).toBeNull();
+  });
+  it('is nothing before layout', () => {
+    expect(zoomRect({ x: 0, y: 0, width: 0, height: 0 }, image, { left: 0, right: 1, top: 0, bottom: 1 })).toBeNull();
   });
 });
 
