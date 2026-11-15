@@ -6,14 +6,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { api } from '@convex/_generated/api';
 import { allergyOptions, conditionOptions, dietOptions } from '@engine/compileRules';
-import { tagLabel } from '@engine/tags';
-import type { Rule } from '@engine/types';
+import { checkCustomRule, customLevelsFor } from '@engine/customRules';
+import { TAGS, tagLabel } from '@engine/tags';
+import type { Rule, RuleLevel } from '@engine/types';
 import { Icon, type IconName } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { Card, Chip, SectionLabel } from '@/components/ui';
 import { HAS_BACKEND } from '@/lib/backend';
-import { useProfile, type MedStatus } from '@/lib/profile';
+import { useProfile, type MedStatus, type ProfileRule } from '@/lib/profile';
 import { LEVEL_LABEL } from '@/lib/verdict';
 import { duration, enterAt, gutter, radius, space, useTheme, type Colors } from '@/theme';
 
@@ -30,7 +31,7 @@ export default function MeScreen() {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-  const { profile, rules, meds, update, setRuleEnabled, saved } = useProfile();
+  const { profile, rules, meds, update, setRuleEnabled, addRule, removeRule, saved } = useProfile();
 
   const addMedication = (name: string) =>
     update((p) => (p.medications.some((m) => m.name.toLowerCase() === name.toLowerCase()) ? p : { ...p, medications: [...p.medications, { name }] }));
@@ -121,11 +122,12 @@ export default function MeScreen() {
               exiting={FadeOut.duration(duration.fast)}
               layout={reduced ? undefined : LinearTransition.springify().damping(22)}>
               {i > 0 ? <View style={[styles.divider, { backgroundColor: c.hairline }]} /> : null}
-              <RuleRow rule={r} onToggle={(on) => setRuleEnabled(r.id, on)} />
+              <RuleRow rule={r} onToggle={(on) => setRuleEnabled(r.id, on)} onRemove={r.custom ? () => removeRule(r.id) : undefined} />
             </Animated.View>
           ))}
         </Card>
       )}
+      <AddRule rules={rules} onAdd={addRule} />
       <T variant="caption" tone="tertiary" style={{ marginTop: space.md }}>
         Fit is a reference tool. It never tells you to take, stop or change a medicine.
       </T>
@@ -274,7 +276,151 @@ const STATUS_TEXT: Record<Rule['status'], string> = {
   unverified: 'unverified',
 };
 
-function RuleRow({ rule, onToggle }: { rule: Rule; onToggle: (on: boolean) => void }) {
+const describe = (r: Rule) => `${LEVEL_LABEL[r.level]} ${tagLabel(r.tag)} (${r.from.label})`;
+
+/**
+ * Add a rule of the person's own (rules.addCustom): pick a food or ingredient from the fixed tag list, then how
+ * strict. A custom rule replaces whatever rule is already on that tag, so the form says what it would replace, and
+ * will not swap a stronger rule from the profile (an allergy, a medicine's label) for a weaker one.
+ */
+function AddRule({ rules, onAdd }: { rules: ProfileRule[]; onAdd: (tag: string, level: RuleLevel) => void }) {
+  const { c } = useTheme();
+  const [open, setOpen] = useState(false);
+  const [term, setTerm] = useState('');
+  const [tag, setTag] = useState<string | null>(null);
+  const [level, setLevel] = useState<RuleLevel | null>(null);
+
+  const reset = () => {
+    setOpen(false);
+    setTerm('');
+    setTag(null);
+    setLevel(null);
+  };
+
+  if (!open) {
+    return (
+      <Tap accessibilityRole="button" accessibilityLabel="Add your own rule" feedback="tap" scaleTo={0.98} onPress={() => setOpen(true)} style={[styles.addRule, { borderColor: c.hairline }]}>
+        <Icon name="plus" size={15} color={c.textSecondary} />
+        <T variant="bodyStrong" tone="secondary">
+          Add your own rule
+        </T>
+      </Tap>
+    );
+  }
+
+  const q = term.trim().toLowerCase();
+  const matches = q.length < 2 ? [] : TAGS.filter((t) => t.label.toLowerCase().includes(q) || t.id.replace(/_/g, ' ').includes(q)).slice(0, 6);
+  const levels = tag ? customLevelsFor(tag) : [];
+  const check = tag && level ? checkCustomRule(rules, tag, level) : null;
+
+  return (
+    <Animated.View entering={FadeIn.duration(duration.fast)} style={{ marginTop: space.md, gap: space.md }}>
+      {tag ? (
+        <View style={styles.picked}>
+          <T variant="bodyStrong" style={{ flex: 1 }}>
+            {capital(tagLabel(tag))}
+          </T>
+          <Tap
+            accessibilityRole="button"
+            accessibilityLabel="Choose something else"
+            feedback="tap"
+            onPress={() => {
+              setTag(null);
+              setLevel(null);
+            }}
+            hitSlop={10}
+            style={[styles.remove, { backgroundColor: c.cardMuted }]}>
+            <Icon name="close" size={11} color={c.textSecondary} weight="bold" />
+          </Tap>
+        </View>
+      ) : (
+        <View>
+          <View style={[styles.search, { backgroundColor: c.card, borderColor: c.hairline }]}>
+            <Icon name="plus" size={15} color={c.textSecondary} />
+            <TextInput
+              value={term}
+              onChangeText={setTerm}
+              placeholder="A food or ingredient, such as pork"
+              placeholderTextColor={c.textTertiary}
+              autoCorrect={false}
+              autoCapitalize="none"
+              autoFocus
+              returnKeyType="done"
+              style={[styles.input, { color: c.text }]}
+              accessibilityLabel="Food or ingredient for your rule"
+            />
+          </View>
+          {matches.length > 0 ? (
+            <View style={[styles.results, { backgroundColor: c.card, borderColor: c.hairline }]}>
+              {matches.map((t, i) => (
+                <Tap
+                  key={t.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Choose ${t.label}`}
+                  feedback="select"
+                  scaleTo={0.98}
+                  onPress={() => {
+                    const allowed = customLevelsFor(t.id);
+                    setTag(t.id);
+                    setLevel(allowed.length === 1 ? allowed[0] : null);
+                  }}
+                  style={[styles.result, i > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.hairline } : null]}>
+                  <T variant="body">{capital(t.label)}</T>
+                  <Icon name="chevron" size={13} color={c.textTertiary} />
+                </Tap>
+              ))}
+            </View>
+          ) : q.length >= 2 ? (
+            <T variant="caption" tone="tertiary" style={{ marginTop: space.sm }}>
+              Nothing by that name yet. Rules can only be about foods and ingredients Fit knows how to look for.
+            </T>
+          ) : null}
+        </View>
+      )}
+
+      {tag ? (
+        <View style={styles.chips}>
+          {levels.map((l) => (
+            <Chip key={l} label={LEVEL_LABEL[l]} selected={level === l} onPress={() => setLevel(l)} />
+          ))}
+        </View>
+      ) : null}
+
+      {check?.weakens ? (
+        <T variant="caption" color={c.okay}>
+          You already have a stronger rule: {describe(check.weakens)}. If you no longer need it, switch it off in the list above.
+        </T>
+      ) : check?.replaces.length ? (
+        <T variant="caption" tone="secondary">
+          This replaces {check.replaces.map(describe).join(' and ')}.
+        </T>
+      ) : null}
+
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <Tap accessibilityRole="button" accessibilityLabel="Cancel" feedback="tap" onPress={reset} style={[styles.formButton, { backgroundColor: c.card, borderWidth: 1.5, borderColor: c.hairline }]}>
+          <T variant="bodyStrong">Cancel</T>
+        </Tap>
+        <Tap
+          accessibilityRole="button"
+          accessibilityLabel="Add rule"
+          feedback="tap"
+          disabled={!check || !!check.weakens}
+          onPress={() => {
+            if (!tag || !level) return;
+            onAdd(tag, level);
+            reset();
+          }}
+          style={[styles.formButton, { backgroundColor: c.primary, opacity: !check || check.weakens ? 0.4 : 1 }]}>
+          <T variant="bodyStrong" color={c.onPrimary}>
+            Add rule
+          </T>
+        </Tap>
+      </View>
+    </Animated.View>
+  );
+}
+
+function RuleRow({ rule, onToggle, onRemove }: { rule: Rule; onToggle: (on: boolean) => void; onRemove?: () => void }) {
   const { c } = useTheme();
   const col = levelColor(rule.level, c);
   const name = tagLabel(rule.tag);
@@ -303,6 +449,11 @@ function RuleRow({ rule, onToggle }: { rule: Rule; onToggle: (on: boolean) => vo
           ) : null}
         </View>
       </View>
+      {onRemove ? (
+        <Tap accessibilityRole="button" accessibilityLabel={`Remove your rule about ${name}`} feedback="tap" onPress={onRemove} hitSlop={10} style={[styles.remove, { backgroundColor: c.cardMuted }]}>
+          <Icon name="close" size={11} color={c.textSecondary} weight="bold" />
+        </Tap>
+      ) : null}
       <Switch
         value={rule.enabled}
         onValueChange={onToggle}
@@ -330,4 +481,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 16, height: '100%' },
   results: { marginTop: space.sm, borderRadius: radius.button, borderWidth: 1.5, overflow: 'hidden' },
   result: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg, paddingVertical: space.md + 2 },
+  addRule: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, height: 48, borderRadius: radius.button, borderWidth: 1.5, borderStyle: 'dashed', marginTop: space.md },
+  picked: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  formButton: { flex: 1, height: 48, borderRadius: radius.button, alignItems: 'center', justifyContent: 'center' },
 });
