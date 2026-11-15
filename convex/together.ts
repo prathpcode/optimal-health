@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { DURATION_OPTIONS_DAYS, minMeals, scoreMeals, type Meal } from "../engine/challenge";
+import { DURATION_OPTIONS_DAYS, scoreMeals, type Meal, type MealScore } from "../engine/challenge";
 import { COMMUNITY_GROUPS, communitiesFor, diffMemberships, matchCommunities } from "../engine/communityMatch";
 import type { Fit, Profile } from "../engine/types";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -10,7 +10,7 @@ import { memberFor, requireMember } from "./members";
  * Together: community rooms, chat and group challenges. Real, shared data.
  * - Rooms are data/communities.json. People are placed in condition rooms from their profile (engine/communityMatch)
  *   once they agree; they can join optional rooms and leave any room (leaving sticks).
- * - Challenge points are computed here from each player's own scans and check-ins (engine/challenge), never stored.
+ * - Challenge points (the points race) are computed here from each player's own scans and check-ins (engine/challenge), never stored.
  * - Paid entry needs Whop checkout; until MONEY_CHALLENGES=on, only free challenges can be created.
  */
 
@@ -73,21 +73,14 @@ export async function syncRoomsForDevice(ctx: MutationCtx, deviceId: string) {
 
 // ── Challenge scoring ─────────────────────────────────────────────────────────────────────────────────────────────
 
-type PlayerScore = {
+type PlayerScore = MealScore & {
   memberId: Id<"members">;
   name: string;
   avatarUrl: string | null;
   joinedAt: number;
-  meals: number;
-  good: number;
-  okay: number;
-  notFit: number;
-  score: number | null;
-  qualified: boolean;
-  perDay: Record<string, Fit[]>;
 };
 
-/** A device's meals in a time window, each with the fit its scan shows now. */
+/** A device's meals in a time window, each with its dish name and the fit its scan shows now. */
 async function mealsOf(ctx: QueryCtx, deviceId: string, from: number, to: number): Promise<Meal[]> {
   const rows = await ctx.db
     .query("meals")
@@ -96,7 +89,7 @@ async function mealsOf(ctx: QueryCtx, deviceId: string, from: number, to: number
   const out: Meal[] = [];
   for (const m of rows) {
     const scan = await ctx.db.get("scans", m.scanId);
-    out.push({ at: m.at, fit: scan?.verdicts[m.itemId]?.fit ?? "cant_tell" });
+    out.push({ at: m.at, dish: m.dishName, fit: scan?.verdicts[m.itemId]?.fit ?? "cant_tell" });
   }
   return out;
 }
@@ -116,7 +109,7 @@ async function scorePlayers(ctx: QueryCtx, ch: Doc<"challenges">): Promise<Playe
 }
 
 function challengeSummary(ch: Doc<"challenges">) {
-  return { id: ch._id, days: ch.days, startsAt: ch.startsAt, tzOffsetMinutes: ch.tzOffsetMinutes, playerCount: ch.playerCount, needed: minMeals(ch.days) };
+  return { id: ch._id, days: ch.days, startsAt: ch.startsAt, tzOffsetMinutes: ch.tzOffsetMinutes, playerCount: ch.playerCount };
 }
 
 /** How many of a room's members had the app open within ONLINE_MS of `now`. */

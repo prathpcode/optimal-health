@@ -4,8 +4,10 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { MEAL_POINTS } from '@engine/challenge';
 import type { Fit } from '@engine/types';
 import { CelebrationLayer } from '@/components/Celebration';
+import { PLAIN_FIT } from '@/components/challenge';
 import { RoomIcon } from '@/components/community';
 import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
@@ -20,9 +22,9 @@ import { useWhopAccount } from '@/lib/whop';
 import { enterAt, radius, roomAccent, space, tint, useTheme } from '@/theme';
 
 const CHEER: Record<Fit, { title: string; subtitle: string; tone: 'great' | 'good' | 'neutral' }> = {
-  good: { title: '+2', subtitle: 'Good fit', tone: 'great' },
-  okay: { title: '+1', subtitle: 'Okay, with notes', tone: 'good' },
-  not_fit: { title: 'Logged', subtitle: 'Not a fit this time', tone: 'neutral' },
+  good: { title: `+${MEAL_POINTS.good}`, subtitle: PLAIN_FIT.good, tone: 'great' },
+  okay: { title: `+${MEAL_POINTS.okay}`, subtitle: PLAIN_FIT.okay, tone: 'good' },
+  not_fit: { title: 'Logged', subtitle: 'Doesn’t fit your diet this time', tone: 'neutral' },
   cant_tell: { title: 'Logged', subtitle: 'We couldn’t tell for this one', tone: 'neutral' },
 };
 
@@ -57,7 +59,7 @@ export default function AteSheet() {
     setBusy(null);
     if (!ok) return;
     const cheer = CHEER[actual];
-    celebrate({ ...cheer, subtitle: active.length ? `${cheer.subtitle} · Eat what fits` : cheer.subtitle });
+    celebrate({ ...cheer, subtitle: active.length ? `+${MEAL_POINTS[actual]} in your points race` : cheer.subtitle });
     setDone(itemId);
   };
 

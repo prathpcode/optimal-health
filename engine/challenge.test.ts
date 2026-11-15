@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { challengeDays, dayKey, defaultShares, minMeals, rankPlayers, scoreMeals, settle, type Meal, type SettleEntry } from "./challenge";
+import { challengeDays, dayKey, defaultShares, maxPoints, rankPlayers, scoreMeals, settle, type Meal, type SettleEntry } from "./challenge";
 
 const START = Date.UTC(2026, 10, 2, 8); // 2 Nov 2026, 08:00 UTC
 const H = 3_600_000;
@@ -18,39 +18,43 @@ describe("days", () => {
 
 describe("scoreMeals", () => {
   const window = { startsAt: START, days: 7, tzOffsetMinutes: 0 };
-  const meal = (h: number, fit: Meal["fit"]) => ({ at: START + h * H, fit });
+  const meal = (h: number, fit: Meal["fit"], dish = "Dish") => ({ at: START + h * H, fit, dish });
 
-  it("scores the share of meals that fit: good is full, okay half, not a fit nothing", () => {
+  it("adds up points: good 3, okay 1, not a fit 0", () => {
     const s = scoreMeals([meal(1, "good"), meal(5, "okay"), meal(30, "not_fit"), meal(50, "good")], window);
-    expect(s).toMatchObject({ meals: 4, good: 2, okay: 1, notFit: 1, score: 63, qualified: true });
+    expect(s).toMatchObject({ points: 7, meals: 4, good: 2, okay: 1, notFit: 1 });
+    expect(s.perDay).toMatchObject({ "2026-11-02": 4, "2026-11-03": 0, "2026-11-04": 3 });
   });
-  it("rewards ordering well, not scanning more", () => {
-    const few = scoreMeals([meal(1, "good"), meal(25, "good"), meal(49, "good"), meal(73, "good")], window);
-    const many = scoreMeals([...[1, 2, 25, 26, 49, 50, 73, 74].map((h) => meal(h, "good")), meal(97, "not_fit"), meal(98, "not_fit")], window);
-    expect(few.score).toBeGreaterThan(many.score!);
+  it("lists each dish with what it scored, oldest first", () => {
+    const s = scoreMeals([meal(5, "okay", "Tikka"), meal(1, "good", "Salmon bowl")], window);
+    expect(s.plays.map((p) => [p.dish, p.points])).toEqual([["Salmon bowl", 3], ["Tikka", 1]]);
   });
-  it("leaves out can't-tell meals, meals outside the challenge, and a fourth meal in a day", () => {
-    const s = scoreMeals([meal(-2, "good"), meal(1, "cant_tell"), meal(1, "good"), meal(2, "good"), meal(3, "good"), meal(4, "not_fit"), meal(24 * 8, "not_fit")], window);
+  it("counts at most three dishes a day; a can't-tell dish scores nothing and takes no slot", () => {
+    const s = scoreMeals([meal(1, "cant_tell"), meal(2, "good"), meal(3, "good"), meal(4, "okay"), meal(5, "good")], window);
+    expect(s.points).toBe(7);
     expect(s.meals).toBe(3);
-    expect(s.score).toBe(100);
+    expect(s.plays.map((p) => p.skipped)).toEqual(["cant_tell", undefined, undefined, undefined, "daily_limit"]);
   });
-  it("needs about one meal every other day to qualify", () => {
-    expect(minMeals(3)).toBe(3);
-    expect(minMeals(7)).toBe(4);
-    expect(minMeals(14)).toBe(7);
-    expect(scoreMeals([meal(1, "good")], window)).toMatchObject({ score: 100, qualified: false });
-    expect(scoreMeals([], window).score).toBeNull();
+  it("leaves out dishes outside the race", () => {
+    const s = scoreMeals([meal(-10, "good"), meal(1, "good"), meal(24 * 8, "good")], window);
+    expect(s.points).toBe(3);
+    expect(s.plays).toHaveLength(1);
+  });
+  it("starts at zero", () => {
+    expect(scoreMeals([], window)).toMatchObject({ points: 0, meals: 0, plays: [] });
+  });
+  it("knows the most a player can score", () => {
+    expect(maxPoints(7)).toBe(63);
   });
 });
 
 describe("rankPlayers", () => {
-  const p = (id: string, score: number | null, meals: number, qualified: boolean, joinedAt = 0) => ({ id, score, meals, qualified, joinedAt });
-  it("puts qualified players first, then by score, then by more meals", () => {
-    const ranks = rankPlayers([p("a", 100, 2, false), p("b", 80, 5, true), p("c", 80, 7, true), p("d", null, 0, false)]);
-    expect(ranks).toEqual({ c: 1, b: 2, a: 3, d: 4 });
+  const p = (id: string, points: number, good: number, joinedAt = 0) => ({ id, points, good, joinedAt });
+  it("ranks by points, then by more Good fits", () => {
+    expect(rankPlayers([p("a", 6, 1), p("b", 9, 3), p("c", 6, 2), p("d", 0, 0)])).toEqual({ b: 1, c: 2, a: 3, d: 4 });
   });
-  it("lets players level on everything share a rank", () => {
-    expect(rankPlayers([p("a", 90, 4, true, 1), p("b", 90, 4, true, 2), p("c", 50, 4, true)])).toEqual({ a: 1, b: 1, c: 3 });
+  it("lets players level on both share a rank", () => {
+    expect(rankPlayers([p("a", 9, 3, 1), p("b", 9, 3, 2), p("c", 4, 1)])).toEqual({ a: 1, b: 1, c: 3 });
   });
 });
 

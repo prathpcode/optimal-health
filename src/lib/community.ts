@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 
 import { api } from '@convex/_generated/api';
 import type { Id } from '@convex/_generated/dataModel';
-import { CHALLENGE_NAME, challengeDays, dayKey, minMeals, rankPlayers, scoreMeals, type MealScore } from '@engine/challenge';
+import { CHALLENGE_NAME, challengeDays, dayKey, rankPlayers, scoreMeals, type MealScore } from '@engine/challenge';
 import { COMMUNITY_GROUPS, communitiesFor, matchCommunities, type CommunityGroup } from '@engine/communityMatch';
 import type { Fit } from '@engine/types';
 import { convex, useDeviceId } from './backend';
@@ -110,8 +110,6 @@ export type ChallengeView = {
   status: ChallengeStatus;
   /** Challenge day number today, 1-based, clamped to the challenge. */
   dayNumber: number;
-  /** Meals needed to qualify. */
-  needed: number;
   joined: boolean;
   /** Everyone, best first. */
   standings: Standing[];
@@ -122,7 +120,7 @@ type PlayerIn = MealScore & { id: string; name: string; avatarUrl?: string; me: 
 
 function buildChallenge(c: { id: string; days: number; startsAt: number; tzOffsetMinutes: number }, players: PlayerIn[], now: number): ChallengeView {
   const endsAt = c.startsAt + c.days * DAY;
-  const ranks = rankPlayers(players.map((p) => ({ id: p.id, score: p.score, meals: p.meals, qualified: p.qualified, joinedAt: p.joinedAt })));
+  const ranks = rankPlayers(players.map((p) => ({ id: p.id, points: p.points, good: p.good, joinedAt: p.joinedAt })));
   const standings = players.map((p) => ({ ...p, rank: ranks[p.id] })).sort((a, b) => a.rank - b.rank || Number(b.me) - Number(a.me));
   const me = standings.find((p) => p.me);
   return {
@@ -134,7 +132,6 @@ function buildChallenge(c: { id: string; days: number; startsAt: number; tzOffse
     tzOffsetMinutes: c.tzOffsetMinutes,
     status: now < c.startsAt ? 'upcoming' : now >= endsAt ? 'ended' : 'live',
     dayNumber: Math.max(0, Math.min(c.days, Math.floor((now - c.startsAt) / DAY) + 1)),
-    needed: minMeals(c.days),
     joined: Boolean(me),
     standings,
     me,
@@ -171,7 +168,7 @@ function useTogetherLocal() {
     const rooms = roomViews(profile, joined, new Map());
     const challenges = s.challenges
       .map((c) => {
-        const score = scoreMeals(s.meals, c);
+        const score = scoreMeals(s.meals.map((m) => ({ at: m.at, fit: m.fit, dish: m.dishName })), c);
         return buildChallenge(c, [{ id: 'me', name: account?.name ?? 'You', avatarUrl: account?.avatarUrl, me: true, joinedAt: c.joinedAt, ...score }], now);
       })
       .filter((c) => c.endsAt + 3 * DAY > now)

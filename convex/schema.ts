@@ -98,7 +98,7 @@ export default defineSchema({
   // A room someone left; automatic placement never re-adds it.
   roomOptOuts: defineTable({ memberId: v.id("members"), room: v.string() }).index("by_memberId_and_room", ["memberId", "room"]),
 
-  // A challenge between friends ("Eat what fits", engine/challenge.ts). Joined by invite link.
+  // A challenge between friends (the points race, engine/challenge.ts). Joined by invite link.
   challenges: defineTable({
     days: v.number(),
     startsAt: v.number(),
