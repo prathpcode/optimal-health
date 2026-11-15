@@ -7,12 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassButton } from '@/components/Glass';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { GlassAction, postWithWhop, REACTION_LABEL } from '@/components/together';
+import { GlassAction, pickPhoto, postWithWhop, REACTION_LABEL } from '@/components/together';
+import { Icon } from '@/components/Icon';
 import { RoomSelect } from '@/components/RoomSelect';
 import { Chip } from '@/components/ui';
 import { shareDish, useMyRooms, type Reaction } from '@/lib/community';
 import { dishEmoji, REACTION_EMOJI } from '@/lib/emoji';
 import { useRecentScans, useScan } from '@/lib/scan';
+import { toSharedItem } from '@/lib/sharedItem';
 import { radius, roomAccent, space, tint, type as typeScale, useTheme } from '@/theme';
 
 const REACTIONS: Reaction[] = ['loved', 'okay', 'nope'];
@@ -39,13 +41,15 @@ export default function ShareSheet() {
   const [dish, setDish] = useState<string | null>(null);
   const [reaction, setReaction] = useState<Reaction | null>(null);
   const [note, setNote] = useState('');
-  // The scan's photo goes with the post unless removed; bundled sample photos (numbers) are never shared.
+  // Every post carries a photo: the scan's own (bundled sample photos, which are numbers, are never shared), or, when
+  // the scan has none (a barcode-only product), one you add.
   const recent = useRecentScans();
   const fromList = recent?.find((r) => r.id === scanId)?.photo;
   const source = view?.photo ?? fromList;
   const scanPhoto = source && typeof source === 'object' ? source.uri : null;
-  const [removed, setRemoved] = useState(false);
-  const photo = removed ? null : scanPhoto;
+  const [added, setAdded] = useState<string | null>(null);
+  const photo = added ?? scanPhoto;
+  const addPhoto = async () => setAdded((await pickPhoto()) ?? added);
   const [busy, setBusy] = useState(false);
   const [room, setRoom] = useState(initialRoom ?? rooms[0]?.slug);
   const picked = dish ?? dishes[0];
@@ -54,7 +58,11 @@ export default function ShareSheet() {
   const post = async () => {
     if (!room || !picked || !reaction) return;
     setBusy(true);
-    const ok = await postWithWhop(() => shareDish(room, { name: picked, place: view?.restaurant || undefined, reaction }, note, photo ?? undefined));
+    if (!photo) return;
+    // The dish's facts go with the post (never your verdict or rules), so others can open it in full.
+    const scanned = view?.items.find((i) => i.name === picked);
+    const item = scanned ? toSharedItem(scanned, view?.restaurant || undefined) : undefined;
+    const ok = await postWithWhop(() => shareDish(room, { name: picked, place: view?.restaurant || undefined, reaction, item }, note, photo));
     setBusy(false);
     if (ok) router.replace({ pathname: '/community/[slug]', params: { slug: room } });
   };
@@ -111,11 +119,22 @@ export default function ShareSheet() {
       {photo ? (
         <View style={styles.photo}>
           <Image source={{ uri: photo }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          <View style={styles.remove}>
-            <GlassButton icon="close" label="Don’t include the photo" size={36} onPress={() => setRemoved(true)} />
-          </View>
+          {added ? (
+            <View style={styles.remove}>
+              <GlassButton icon="close" label="Remove photo" size={36} onPress={() => setAdded(null)} />
+            </View>
+          ) : null}
         </View>
-      ) : null}
+      ) : (
+        <Tap accessibilityRole="button" accessibilityLabel="Add a photo" feedback="tap" scaleTo={0.98} onPress={addPhoto}>
+          <View style={[styles.add, { borderColor: c.hairline }]}>
+            <Icon name="camera" size={18} color={c.textSecondary} />
+            <T variant="bodyStrong" tone="secondary">
+              Add a photo to post
+            </T>
+          </View>
+        </Tap>
+      )}
 
       <TextInput
         value={note}
@@ -128,7 +147,7 @@ export default function ShareSheet() {
         accessibilityLabel="Note"
       />
 
-      <GlassAction label="Share" icon="send" onPress={post} loading={busy} disabled={!reaction || !picked || !room} />
+      <GlassAction label="Share" icon="send" onPress={post} loading={busy} disabled={!reaction || !picked || !room || !photo} />
     </ScrollView>
   );
 }
@@ -140,5 +159,6 @@ const styles = StyleSheet.create({
   photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.md, overflow: 'hidden' },
   remove: { position: 'absolute', top: space.sm, right: space.sm },
   reactionEmoji: { fontSize: 28, lineHeight: 34 },
+  add: { height: 56, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
   note: { minHeight: 52, maxHeight: 120, borderRadius: radius.md, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.md },
 });

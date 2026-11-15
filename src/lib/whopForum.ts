@@ -4,6 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 
 import whopRooms from '../../data/whopRooms.json';
+import { itemLink, readItemLink, type SharedItem } from './sharedItem';
 import { currentAccount, useWhopAccount, whopAccessToken } from './whop';
 
 /**
@@ -45,14 +46,15 @@ async function whop<T>(path: string, init?: { method?: string; body?: unknown })
 // ── Shared dishes ────────────────────────────────────────────────────────────────────────────────────────────────
 
 export type Reaction = 'loved' | 'okay' | 'nope';
-export type SharedDish = { name: string; place?: string; reaction: Reaction };
+/** A dish or product shared from a scan. `item` carries its facts (never the poster's verdict or rules). */
+export type SharedDish = { name: string; place?: string; reaction: Reaction; item?: SharedItem };
 
 export const REACTION_LINE: Record<Reaction, string> = { loved: 'Loved it', okay: 'It was okay', nope: 'Wouldn’t order again' };
 
 /** A shared dish is an ordinary forum post (the dish as title, place and verdict-free reaction first), so it reads well on Whop too. */
 function dishBody(dish: SharedDish, note: string): { title: string; content: string } {
   const line = [dish.place, REACTION_LINE[dish.reaction]].filter(Boolean).join(' · ');
-  return { title: dish.name.slice(0, 120), content: [line, note.trim()].filter(Boolean).join('\n\n') };
+  return { title: dish.name.slice(0, 120), content: [line, note.trim(), dish.item ? itemLink(dish.item) : ''].filter(Boolean).join('\n\n') };
 }
 
 function parseDish(title: string | null, content: string): { dish: SharedDish; note: string } | null {
@@ -120,8 +122,10 @@ const MD_IMAGE = /!\[[^\]]*\]\((https:\/\/[^)\s]+)\)/g;
 function toPost(p: WhopPost, meId: string | undefined): Post {
   const raw = p.content ?? '';
   const inline = [...raw.matchAll(MD_IMAGE)].map((m) => ({ url: m[1] }));
-  const content = raw.replace(MD_IMAGE, '').replace(/^\s+/, '');
+  const linked = readItemLink(raw.replace(MD_IMAGE, '').replace(/^\s+/, ''));
+  const content = linked.text;
   const parsed = parseDish(p.title, content);
+  if (parsed && linked.item) parsed.dish.item = linked.item;
   const authorId = p.user?.id ?? '';
   return {
     id: p.id,

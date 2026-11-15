@@ -1,12 +1,13 @@
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, LinearTransition, useReducedMotion } from 'react-native-reanimated';
 
-import type { Item, Nutrients } from '@engine/types';
+import type { Item } from '@engine/types';
 import type { Answer, ScanView } from '@/lib/scan';
 import { duration, enterAt, radius, space, useTheme } from '@/theme';
 import { AnswerButtons } from './AnswerButtons';
 import { FindingList } from './Findings';
-import { Icon, type IconName } from './Icon';
+import { NutritionTiles } from './ItemFacts';
+import { Icon } from './Icon';
 import { T } from './T';
 import { Card, SectionLabel, Skeleton, VerdictPill } from './ui';
 
@@ -117,43 +118,6 @@ export function ProductResult({ view, onAnswer }: { view: ScanView; onAnswer: (q
   );
 }
 
-function NutritionTiles({ nutrients }: { nutrients: Nutrients }) {
-  const { c } = useTheme();
-  const reduced = useReducedMotion();
-  const sugar = nutrients.addedSugarG ?? nutrients.sugarG;
-  const tiles: { icon: IconName; label: string; value?: number; unit: string; tint: string }[] = [
-    { icon: 'flame', label: 'Calories', value: nutrients.kcal, unit: '', tint: c.notFit },
-    { icon: 'sugar', label: nutrients.addedSugarG !== undefined ? 'Added sugar' : 'Sugar', value: sugar, unit: 'g', tint: c.okay },
-    { icon: 'fat', label: 'Saturated fat', value: nutrients.satFatG, unit: 'g', tint: c.cantTell },
-    { icon: 'salt', label: 'Sodium', value: nutrients.sodiumMg, unit: 'mg', tint: c.good },
-  ];
-  const shown = tiles.filter((t) => typeof t.value === 'number');
-  if (shown.length === 0) return null;
-  return (
-    <Animated.View entering={enterAt(2, reduced)} style={{ gap: space.sm }}>
-      <SectionLabel>{nutrients.per === 'serving' ? 'Per serving' : 'Per 100 g'}</SectionLabel>
-      <View style={styles.tiles}>
-        {shown.map((t) => (
-          <Card key={t.label} style={styles.tile}>
-            <View style={[styles.tileIcon, { backgroundColor: c.cardMuted }]}>
-              <Icon name={t.icon} size={15} color={t.tint} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <T variant="caption" tone="secondary" numberOfLines={1}>
-                {t.label}
-              </T>
-              <T variant="headline" style={{ fontVariant: ['tabular-nums'] }}>
-                {Math.round((t.value as number) * 10) / 10}
-                {t.unit ? ` ${t.unit}` : ''}
-              </T>
-            </View>
-          </Card>
-        ))}
-      </View>
-    </Animated.View>
-  );
-}
-
 const styles = StyleSheet.create({
   kindRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   kindIcon: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
@@ -161,7 +125,4 @@ const styles = StyleSheet.create({
   banner: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderRadius: radius.md, padding: space.md },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
-  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
-  tile: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.md + 2, flexBasis: '47%', flexGrow: 1 },
-  tileIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
 });

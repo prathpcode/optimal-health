@@ -1,20 +1,20 @@
 import { useLocalSearchParams } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnswerButtons } from '@/components/AnswerButtons';
 import { FindingList } from '@/components/Findings';
+import { ItemFacts } from '@/components/ItemFacts';
 import { T } from '@/components/T';
 import { SectionLabel, Skeleton, VerdictPill } from '@/components/ui';
 import { useScan } from '@/lib/scan';
-import { duration, enterAt, radius, space, useTheme } from '@/theme';
+import { duration, enterAt, space } from '@/theme';
 
 
 export default function DishSheet() {
   const { scanId, itemId } = useLocalSearchParams<{ scanId: string; itemId: string }>();
   const { view, answer } = useScan(scanId);
-  const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
 
@@ -32,8 +32,6 @@ export default function DishSheet() {
     );
   }
 
-  const stated = item.ingredients.filter((i) => i.origin !== 'inferred');
-  const guessed = item.ingredients.filter((i) => i.origin === 'inferred');
 
   return (
     <ScrollView contentContainerStyle={{ padding: space.xxl, paddingBottom: insets.bottom + space.xxxl, gap: space.xxl }} showsVerticalScrollIndicator={false}>
@@ -72,37 +70,9 @@ export default function DishSheet() {
         </Animated.View>
       ) : null}
 
-      {item.ingredients.length > 0 ? (
-        <Animated.View entering={enterAt(3, reduced)} style={{ gap: space.sm }}>
-          <SectionLabel>What’s in it</SectionLabel>
-          <View style={styles.ingredients}>
-            {stated.map((i) => (
-              <View key={`s-${i.name}`} style={[styles.ingredient, { backgroundColor: c.cardMuted }]}>
-                <T variant="caption">{i.name}</T>
-              </View>
-            ))}
-            {guessed.map((i) => (
-              <View key={`g-${i.name}`} style={[styles.ingredient, styles.guessed, { borderColor: c.textTertiary }]}>
-                <T variant="caption" tone="secondary">
-                  {i.name}
-                </T>
-              </View>
-            ))}
-          </View>
-          {guessed.length > 0 ? (
-            <T variant="caption" tone="tertiary">
-              Dashed items are guesses from the dish name. The menu does not list them.
-            </T>
-          ) : null}
-        </Animated.View>
-      ) : null}
+      <ItemFacts ingredients={item.ingredients.map((i) => (i.origin === 'inferred' ? { name: i.name, guess: true } : { name: i.name }))} nutrients={item.nutrients} />
 
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  ingredients: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  ingredient: { borderRadius: radius.chip, paddingHorizontal: space.md, paddingVertical: 6 },
-  guessed: { borderWidth: 1.2, borderStyle: 'dashed' },
-});

@@ -109,7 +109,16 @@ export function PostCard({ post, slug, full }: { post: Post; slug: string; full?
         {post.pinned ? <Icon name="pin" size={13} color={c.textTertiary} /> : null}
       </View>
       {post.title ? <T variant="heading">{post.title}</T> : null}
-      {post.dish ? <DishCard post={post} slug={slug} /> : null}
+      {post.dish ? (
+        post.dish.item ? (
+          // A shared dish or product with its facts opens in full.
+          <Tap accessibilityRole="button" accessibilityLabel={`Open ${post.dish.name}`} scaleTo={0.98} onPress={() => router.push({ pathname: '/item/[slug]/[id]', params: { slug, id: post.id } })}>
+            <DishCard post={post} slug={slug} />
+          </Tap>
+        ) : (
+          <DishCard post={post} slug={slug} />
+        )
+      ) : null}
       {post.text ? <T numberOfLines={full ? undefined : 6}>{post.text}</T> : null}
       {post.photos.length ? (
         <View style={{ gap: space.sm }}>
