@@ -31,8 +31,9 @@ export function RoomSelect({ rooms, value, onChange, locked }: { rooms: RoomView
         scaleTo={0.97}
         onPress={() => setOpen((o) => !o)}>
         <View style={styles.trigger}>
-          <T variant="bodyStrong" numberOfLines={1}>
-            {room.title}
+          <T variant="body" tone="secondary" numberOfLines={1}>
+            to{' '}
+            <T variant="bodyStrong">{room.title}</T>
           </T>
           {canChoose ? <Icon name="down" size={12} color={c.textSecondary} weight="bold" /> : null}
         </View>
