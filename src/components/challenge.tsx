@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import { Share, StyleSheet, View } from 'react-native';
+import { Alert, Share, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { MEAL_POINTS, MEALS_PER_DAY, type Play } from '@engine/challenge';
 import type { Fit } from '@engine/types';
-import { countdown, daysOf, todayKey, type ChallengeView, type Standing } from '@/lib/community';
+import { countdown, daysOf, leaveChallenge, todayKey, type ChallengeView, type Standing } from '@/lib/community';
+import { haptic } from '@/lib/haptics';
 import { dishEmoji } from '@/lib/emoji';
 import { fitColor } from '@/lib/verdict';
 import { radius, space, spring, useTheme } from '@/theme';
@@ -292,6 +293,21 @@ export function Rank({ rank, size = 26 }: { rank: number; size?: number }) {
 }
 
 /** A challenge as a glass row on the Together tab: your points, place and time left. */
+/** Ask once, then leave the race. `after` runs once you've left (e.g. go back). */
+export function confirmLeave(ch: Pick<ChallengeView, 'id'>, after?: () => void) {
+  Alert.alert('Leave this race?', 'Your points leave with you.', [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: 'Leave',
+      style: 'destructive',
+      onPress: () =>
+        void leaveChallenge(ch.id)
+          .then(() => after?.())
+          .catch((e: unknown) => Alert.alert('Couldn’t leave', e instanceof Error ? e.message.replace(/^.*Uncaught Error: /, '') : 'Try again in a moment.')),
+    },
+  ]);
+}
+
 export function ChallengeRow({ ch }: { ch: ChallengeView }) {
   const { c } = useTheme();
   const me = ch.me;
@@ -300,7 +316,16 @@ export function ChallengeRow({ ch }: { ch: ChallengeView }) {
     <Tap
       accessibilityRole="button"
       accessibilityLabel={`${ch.title}, ${pts(me?.points ?? 0)}, ${countdown(ch)}`}
+      accessibilityHint={ch.joined && ch.status !== 'ended' ? 'Long-press to leave' : undefined}
       onPress={() => router.push({ pathname: '/challenge/[id]', params: { id: ch.id } })}
+      onLongPress={
+        ch.joined && ch.status !== 'ended'
+          ? () => {
+              haptic.select();
+              confirmLeave(ch);
+            }
+          : undefined
+      }
       scaleTo={0.98}>
       <GlassSurface tone="theme" interactive style={styles.row}>
         <View style={[styles.score, { backgroundColor: me?.points ? c.goodSoft : c.cardMuted }]}>

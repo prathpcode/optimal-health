@@ -137,13 +137,7 @@ function SignedIn({ pickable, pick }: { pickable: RoomView[]; pick: Pick }) {
   return (
     <View style={{ gap: space.xxxl }}>
       <Animated.View entering={enterAt(0, reduced)} style={styles.actions}>
-        <BigAction
-          icon="fork"
-          label="Share a meal"
-          hint={top ? undefined : 'Join a room first'}
-          disabled={!top}
-          onPress={() => top && router.push({ pathname: '/compose/[slug]', params: { slug: top } })}
-        />
+        {top ? <BigAction icon="fork" label="Share a meal" onPress={() => router.push({ pathname: '/compose/[slug]', params: { slug: top } })} /> : null}
         <BigAction icon="trophy" label="Start a race" onPress={() => router.push('/challenge/new')} />
       </Animated.View>
 
@@ -200,32 +194,15 @@ function SignedIn({ pickable, pick }: { pickable: RoomView[]; pick: Pick }) {
 }
 
 /** One of the page's two main actions: a big glass tile with an icon and a word or two. */
-function BigAction({ icon, label, hint, disabled, onPress }: { icon: IconName; label: string; hint?: string; disabled?: boolean; onPress: () => void }) {
+function BigAction({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   const { c } = useTheme();
   return (
-    <Tap
-      accessibilityRole="button"
-      accessibilityLabel={hint ? `${label}. ${hint}` : label}
-      accessibilityState={{ disabled }}
-      feedback="tap"
-      scaleTo={0.96}
-      onPress={onPress}
-      disabled={disabled}
-      style={{ flex: 1 }}>
+    <Tap accessibilityRole="button" accessibilityLabel={label} feedback="tap" scaleTo={0.96} onPress={onPress} style={{ flex: 1 }}>
       <GlassSurface tone="theme" interactive style={styles.bigAction}>
-        <View style={[styles.bigIcon, { backgroundColor: disabled ? c.cardMuted : c.primary }]}>
-          <Icon name={icon} size={20} color={disabled ? c.textTertiary : c.onPrimary} />
+        <View style={[styles.bigIcon, { backgroundColor: c.primary }]}>
+          <Icon name={icon} size={20} color={c.onPrimary} />
         </View>
-        <View style={{ gap: 2 }}>
-          <T variant="heading" tone={disabled ? 'tertiary' : 'primary'}>
-            {label}
-          </T>
-          {hint ? (
-            <T variant="caption" tone="secondary">
-              {hint}
-            </T>
-          ) : null}
-        </View>
+        <T variant="heading">{label}</T>
       </GlassSurface>
     </Tap>
   );

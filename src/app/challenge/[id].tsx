@@ -4,14 +4,15 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HowToWin, inviteToChallenge, ordinalShort, PlayFeed, RaceBoard } from '@/components/challenge';
+import { confirmLeave, HowToWin, inviteToChallenge, ordinalShort, PlayFeed, RaceBoard } from '@/components/challenge';
 import { GlassButton } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
+import { Podium } from '@/components/Podium';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
 import { attempt, GlassAction, SectionTitle } from '@/components/together';
 import { celebrate } from '@/lib/celebrate';
-import { countdown, joinChallenge, leaveChallenge, PREVIEW, useChallenge, type ChallengeView } from '@/lib/community';
+import { countdown, joinChallenge, PREVIEW, useChallenge, type ChallengeView } from '@/lib/community';
 import { goBack } from '@/lib/nav';
 import { enterAt, gutter, radius, space, useTheme } from '@/theme';
 
@@ -49,10 +50,11 @@ export default function ChallengeScreen() {
     setBusy(false);
     if (ok) celebrate({ title: 'You’re in', subtitle: 'Every dish that fits scores', tone: 'great' });
   };
-  const leave = () =>
-    Alert.alert('Leave this race?', 'Your points leave with you.', [
+  const canLeave = ch.joined && ch.status !== 'ended';
+  const options = () =>
+    Alert.alert(`${ch.days}-day ${ch.title.toLowerCase()}`, undefined, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: () => void attempt(leaveChallenge(ch.id)).then((ok) => ok && goBack()) },
+      { text: 'Leave race', style: 'destructive', onPress: () => confirmLeave(ch, goBack) },
     ]);
 
   const sub = ch.status === 'live' ? `Day ${ch.dayNumber} of ${ch.days} · ${countdown(ch)}` : countdown(ch);
@@ -66,7 +68,10 @@ export default function ChallengeScreen() {
         <View style={{ gap: space.xl }}>
           <View style={styles.topBar}>
             <GlassButton tone="theme" icon="back" label="Back" onPress={goBack} />
-            {ch.status !== 'ended' ? <GlassButton tone="theme" icon="share" label="Invite friends" onPress={invite} /> : null}
+            <View style={styles.topActions}>
+              {ch.status !== 'ended' ? <GlassButton tone="theme" icon="share" label="Invite friends" onPress={invite} /> : null}
+              {canLeave ? <GlassButton tone="theme" icon="more" label="Race options" onPress={options} /> : null}
+            </View>
           </View>
           <View style={{ gap: space.xs }}>
             <T variant="heroBold">
@@ -89,6 +94,7 @@ export default function ChallengeScreen() {
         <Animated.View entering={enterAt(1, reduced)}>
           <SectionTitle title={ch.status === 'ended' ? 'Final standings' : 'Standings'} />
           <View style={{ gap: space.sm }}>
+            {ch.status !== 'upcoming' && ch.standings.length ? <Podium standings={ch.standings} /> : null}
             <RaceBoard ch={ch} />
             {alone ? (
               <Tap accessibilityRole="button" accessibilityLabel="Invite a friend" onPress={invite} scaleTo={0.98}>
@@ -110,13 +116,6 @@ export default function ChallengeScreen() {
           </Animated.View>
         ) : null}
 
-        {ch.joined && ch.status !== 'ended' ? (
-          <Tap accessibilityRole="button" accessibilityLabel="Leave race" onPress={leave} style={styles.leave} feedback="tap">
-            <T variant="caption" tone="tertiary">
-              Leave race
-            </T>
-          </Tap>
-        ) : null}
       </ScrollView>
 
       {ch.status !== 'ended' ? (
@@ -168,6 +167,7 @@ function Total({ ch }: { ch: ChallengeView }) {
 }
 
 const styles = StyleSheet.create({
+  topActions: { flexDirection: 'row', gap: space.sm },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   totalRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
   big: { fontSize: 72, lineHeight: 78, letterSpacing: -2, fontVariant: ['tabular-nums'] },
