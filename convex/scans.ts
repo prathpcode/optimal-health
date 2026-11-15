@@ -104,7 +104,9 @@ export const answer = mutation({
   handler: async (ctx, { scanId, questionId, value }) => {
     const row = await ctx.db.get("scans", scanId);
     if (!row) throw new Error("Scan not found");
-    const next = afterAnswer(row, row.rulesUsed, questionId, value, new Date().toISOString());
+    // One timestamp for the scan's own record and the remembered copy, so the two can be matched up later.
+    const at = new Date().toISOString();
+    const next = afterAnswer(row, row.rulesUsed, questionId, value, at);
     if (!next) throw new Error("Question not found");
     await ctx.db.patch("scans", scanId, next);
     // Remember what the restaurant said, so the next scan of this menu starts from it.
@@ -112,7 +114,7 @@ export const answer = mutation({
     const dish = row.items.find((i) => i.id === question?.itemId);
     const rule = row.rulesUsed.find((r) => r.id === question?.ruleId);
     if (row.restaurantId && dish && rule && value !== "skipped") {
-      await ctx.db.insert("answers", { restaurantId: row.restaurantId, dishKey: dishKey(dish), tag: rule.tag, value, deviceId: row.deviceId, at: new Date().toISOString() });
+      await ctx.db.insert("answers", { restaurantId: row.restaurantId, dishKey: dishKey(dish), tag: rule.tag, value, deviceId: row.deviceId, at });
     }
     return null;
   },
@@ -219,7 +221,9 @@ export const setRestaurant = mutation({
     if (row.restaurantId && mine.length) {
       const elsewhere = await ctx.db.query("answers").withIndex("by_restaurantId", (q) => q.eq("restaurantId", row.restaurantId!)).order("desc").take(500);
       for (const a of elsewhere) {
-        if (a.deviceId === row.deviceId && mine.some((m) => m.dishKey === a.dishKey && m.tag === a.tag && m.at === a.at)) await ctx.db.delete("answers", a._id);
+        // Matched on dish, allergen and answer, within a minute: older rows were stamped a moment after the scan's own record.
+        const same = (m: (typeof mine)[number]) => m.dishKey === a.dishKey && m.tag === a.tag && m.value === a.value && Math.abs(Date.parse(m.at) - Date.parse(a.at)) < 60_000;
+        if (a.deviceId === row.deviceId && mine.some(same)) await ctx.db.delete("answers", a._id);
       }
     }
     for (const a of mine) await ctx.db.insert("answers", { restaurantId: id, deviceId: row.deviceId, ...a });
