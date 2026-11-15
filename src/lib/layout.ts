@@ -13,6 +13,19 @@ export function containRect(container: { width: number; height: number }, image:
   return { x: (container.width - width) / 2, y: (container.height - height) / 2, width, height };
 }
 
+/**
+ * Where an image drawn to FILL its container actually lands: it is scaled until it covers, so it runs past two of
+ * the container's edges. A camera preview is drawn this way, so a still's coordinates map onto the preview through
+ * this rect.
+ */
+export function coverRect(container: { width: number; height: number }, image: { width: number; height: number }): Rect {
+  if (!container.width || !container.height || !image.width || !image.height) return { x: 0, y: 0, width: 0, height: 0 };
+  const scale = Math.max(container.width / image.width, container.height / image.height);
+  const width = image.width * scale;
+  const height = image.height * scale;
+  return { x: (container.width - width) / 2, y: (container.height - height) / 2, width, height };
+}
+
 export function boxToRect(box: Box, photo: Rect): Rect {
   return {
     x: photo.x + box.left * photo.width,

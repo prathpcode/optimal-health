@@ -273,7 +273,7 @@ export default function ScanScreen() {
               )}
             </View>
           </Tap>
-          <View style={{ width: 50 }} />
+          <GlassButton icon="box" label="Look along a shelf" onPress={() => router.replace('/shelf')} size={50} />
         </View>
 
         <T variant="caption" color={onPhoto.textSecondary}>

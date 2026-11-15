@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boxToRect, containRect, estimateChipWidth, placeChips, tiltedRect, unionBox, zoomRect, type ChipInput } from './layout';
+import { boxToRect, containRect, coverRect, estimateChipWidth, placeChips, tiltedRect, unionBox, zoomRect, type ChipInput } from './layout';
 
 describe('containRect', () => {
   it('letterboxes a tall photo in a wide box', () => {
@@ -10,6 +10,19 @@ describe('containRect', () => {
   });
   it('is empty before layout', () => {
     expect(containRect({ width: 0, height: 0 }, { width: 10, height: 10 }).width).toBe(0);
+  });
+});
+
+describe('coverRect', () => {
+  it('fills a tall screen with a 3:4 still, cropping its sides evenly', () => {
+    const r = coverRect({ width: 390, height: 844 }, { width: 900, height: 1200 });
+    expect(r.height).toBeCloseTo(844);
+    expect(r.width).toBeCloseTo(633);
+    expect(r.x).toBeCloseTo(-121.5);
+    expect(r.y).toBeCloseTo(0);
+  });
+  it('is empty before layout', () => {
+    expect(coverRect({ width: 0, height: 0 }, { width: 10, height: 10 }).width).toBe(0);
   });
 });
 
