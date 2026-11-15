@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +10,8 @@ import { GlassSurface } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { useRoom } from '@/lib/community';
+import { useMyRooms, useRoom } from '@/lib/community';
+import { Chip } from '@/components/ui';
 import { useRecentScans, type RecentScan } from '@/lib/scan';
 import { enterAt, radius, space, useTheme } from '@/theme';
 
@@ -18,7 +20,9 @@ import { enterAt, radius, space, useTheme } from '@/theme';
  * The post carries the dish, the place and the scan's photo, so people see what you actually ate.
  */
 export default function ShareAMeal() {
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { slug: initial } = useLocalSearchParams<{ slug: string }>();
+  const rooms = useMyRooms();
+  const [slug, setSlug] = useState(initial);
   const { room } = useRoom(slug);
   const recent = (useRecentScans() ?? []).filter((s) => s.status === 'done' && s.itemCount > 0);
   const insets = useSafeAreaInsets();
@@ -44,6 +48,14 @@ export default function ShareAMeal() {
           ) : null}
         </View>
       </View>
+
+      {rooms.length > 1 ? (
+        <View style={styles.chips}>
+          {rooms.map((r) => (
+            <Chip key={r.slug} label={r.title} selected={slug === r.slug} onPress={() => setSlug(r.slug)} />
+          ))}
+        </View>
+      ) : null}
 
       <Tap accessibilityRole="button" accessibilityLabel="Scan something new" feedback="tap" onPress={newScan} scaleTo={0.98}>
         <GlassSurface tone="theme" interactive style={styles.row}>
@@ -109,6 +121,7 @@ function when(ms: number): string {
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, paddingRight: space.lg, borderRadius: radius.card },
   newIcon: { width: 52, height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   thumb: { width: 52, height: 52, borderRadius: radius.md, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },

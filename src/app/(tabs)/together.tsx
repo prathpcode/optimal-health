@@ -4,12 +4,12 @@ import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChallengeRow, PointsKey } from '@/components/challenge';
-import { RoomRow } from '@/components/community';
+import { RoomIcon, RoomRow } from '@/components/community';
 import { GlassButton, GlassSurface } from '@/components/Glass';
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
 import { T } from '@/components/T';
 import { Tap } from '@/components/Tap';
-import { GlassAction, RoomStatus, SectionTitle, useSignedIn } from '@/components/together';
+import { RoomStatus, SectionTitle, useSignedIn } from '@/components/together';
 import { Skeleton } from '@/components/ui';
 import { useTogether } from '@/lib/community';
 import { useLatestPosts } from '@/lib/whopForum';
@@ -33,7 +33,7 @@ export default function TogetherScreen() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView
         contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={{ paddingTop: insets.top + titleTop, paddingHorizontal: gutter, paddingBottom: bottom + 62 + space.huge }}
+        contentContainerStyle={{ paddingTop: insets.top + titleTop, paddingHorizontal: gutter, paddingBottom: bottom + space.huge }}
         showsVerticalScrollIndicator={false}>
         <T variant="heroBold" accessibilityRole="header" style={styles.title}>
           Together
@@ -43,11 +43,6 @@ export default function TogetherScreen() {
       {account ? (
         <View style={{ position: 'absolute', top: insets.top + topBar, right: gutter }}>
           <GlassButton tone="theme" icon="person" label="Account" onPress={accountMenu} />
-        </View>
-      ) : null}
-      {ready && account ? (
-        <View style={[styles.cta, { bottom: bottom + space.md }]}>
-          <GlassAction label="New challenge" icon="trophy" onPress={() => router.push('/challenge/new')} />
         </View>
       ) : null}
     </View>
@@ -102,15 +97,19 @@ function SignedOut() {
   );
 }
 
+/**
+ * Signed in, in the order people use it: the two things you can do, your rooms, what people shared, your races.
+ */
 function SignedIn() {
   const { c } = useTheme();
   const { mine, challenges, loading } = useTogether();
   const reduced = useReducedMotion();
+  const top = mine[0]?.slug;
 
   if (loading) {
     return (
       <View style={{ gap: space.sm + 2 }}>
-        <Skeleton width="100%" height={76} />
+        <Skeleton width="100%" height={96} />
         <Skeleton width="100%" height={76} />
       </View>
     );
@@ -118,52 +117,78 @@ function SignedIn() {
 
   return (
     <View style={{ gap: space.xxxl }}>
-      <LatestPosts slugs={mine.map((r) => r.slug)} />
-
-      <Animated.View entering={enterAt(0, reduced)}>
-        <SectionTitle title="Your rooms" />
-        <View style={{ gap: space.sm + 2 }}>
-          {mine.map((r) => (
-            <RoomRow key={r.slug} room={r} detail={<RoomStatus room={r} />} />
-          ))}
-          <Tap accessibilityRole="button" accessibilityLabel="More rooms" onPress={() => router.push('/rooms')} scaleTo={0.98}>
-            <View style={[styles.more, { borderColor: c.hairline }]}>
-              <Icon name="plus" size={16} color={c.textSecondary} weight="bold" />
-              <T variant="bodyStrong" tone="secondary">
-                More rooms
-              </T>
-            </View>
-          </Tap>
-        </View>
+      <Animated.View entering={enterAt(0, reduced)} style={styles.actions}>
+        <BigAction
+          icon="fork"
+          label="Share a meal"
+          onPress={() => (top ? router.push({ pathname: '/compose/[slug]', params: { slug: top } }) : router.push('/rooms'))}
+        />
+        <BigAction icon="trophy" label="Start a race" onPress={() => router.push('/challenge/new')} />
       </Animated.View>
 
       <Animated.View entering={enterAt(1, reduced)}>
-        <SectionTitle title="Challenges" />
-        {challenges.length ? (
+        <SectionTitle title="Your rooms" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roomStrip} style={styles.stripBleed}>
+          {mine.map((r) => (
+            <Tap key={r.slug} accessibilityRole="button" accessibilityLabel={r.title} scaleTo={0.96} onPress={() => router.push({ pathname: '/community/[slug]', params: { slug: r.slug } })}>
+              <GlassSurface tone="theme" interactive style={styles.roomChip}>
+                <RoomIcon icon={r.icon} slug={r.slug} size={32} />
+                <View>
+                  <T variant="bodyStrong" numberOfLines={1}>
+                    {r.title}
+                  </T>
+                  <RoomStatus room={r} />
+                </View>
+              </GlassSurface>
+            </Tap>
+          ))}
+          <Tap accessibilityRole="button" accessibilityLabel="Find more rooms" scaleTo={0.96} onPress={() => router.push('/rooms')}>
+            <View style={[styles.moreChip, { borderColor: c.hairline }]}>
+              <Icon name="plus" size={16} color={c.textSecondary} weight="bold" />
+              <T variant="bodyStrong" tone="secondary">
+                More
+              </T>
+            </View>
+          </Tap>
+        </ScrollView>
+      </Animated.View>
+
+      <LatestPosts slugs={mine.map((r) => r.slug)} />
+
+      {challenges.length ? (
+        <Animated.View entering={enterAt(3, reduced)}>
+          <SectionTitle title="Your races" />
           <View style={{ gap: space.sm + 2 }}>
             {challenges.map((ch) => (
               <ChallengeRow key={ch.id} ch={ch} />
             ))}
           </View>
-        ) : (
-          <GlassSurface tone="theme" style={styles.empty}>
-            <T variant="headline">Race your friends</T>
-            <T variant="caption" tone="secondary">
-              Every dish you order scores by how well it fits you. Most points wins.
-            </T>
-            <PointsKey />
-          </GlassSurface>
-        )}
-      </Animated.View>
+        </Animated.View>
+      ) : null}
     </View>
+  );
+}
+
+/** One of the page's two main actions: a big glass tile with an icon and a word or two. */
+function BigAction({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  const { c } = useTheme();
+  return (
+    <Tap accessibilityRole="button" accessibilityLabel={label} feedback="tap" scaleTo={0.96} onPress={onPress} style={{ flex: 1 }}>
+      <GlassSurface tone="theme" interactive style={styles.bigAction}>
+        <View style={[styles.bigIcon, { backgroundColor: c.primary }]}>
+          <Icon name={icon} size={20} color={c.onPrimary} />
+        </View>
+        <T variant="heading">{label}</T>
+      </GlassSurface>
+    </Tap>
   );
 }
 
 /** The newest real posts from your rooms on Whop. Hidden until there are some; never filled in. */
 function LatestPosts({ slugs }: { slugs: string[] }) {
-  const { items } = useLatestPosts(slugs, 5);
+  const { items, loaded } = useLatestPosts(slugs, 5);
   const reduced = useReducedMotion();
-  if (!items.length) return null;
+  if (!loaded || !items.length) return null;
   return (
     <Animated.View entering={enterAt(0, reduced)}>
       <SectionTitle title="Latest" />
@@ -177,10 +202,15 @@ function LatestPosts({ slugs }: { slugs: string[] }) {
 }
 
 const styles = StyleSheet.create({
+  actions: { flexDirection: 'row', gap: space.sm + 2 },
+  bigAction: { borderRadius: radius.card, padding: space.lg, gap: space.md, minHeight: 112, justifyContent: 'space-between' },
+  bigIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  stripBleed: { marginHorizontal: -gutter },
+  roomStrip: { paddingHorizontal: gutter, gap: space.sm },
+  roomChip: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, paddingVertical: space.sm + 2, paddingLeft: space.sm + 2, paddingRight: space.lg, borderRadius: radius.chip },
+  moreChip: { flexDirection: 'row', alignItems: 'center', gap: space.xs, height: 52, paddingHorizontal: space.lg, borderRadius: radius.chip, borderWidth: 1.5, borderStyle: 'dashed' },
   title: { textAlign: 'center', marginBottom: space.xxl },
   lede: { textAlign: 'center' },
   privacy: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs },
-  more: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, height: 52, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed' },
   empty: { borderRadius: radius.card, padding: space.lg, gap: space.sm },
-  cta: { position: 'absolute', left: gutter, right: gutter },
 });
