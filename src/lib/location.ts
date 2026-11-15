@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 
 /**
- * Where the phone is, for telling one restaurant from another (PLAN 6.5). Rounded on the phone to three decimal
+ * Where the phone is, for telling one restaurant from another. Rounded on the phone to three decimal
  * places, about 100 m, which is all the backend uses: the exact position never leaves the device.
  */
 export type Where = { lat: number; lng: number };

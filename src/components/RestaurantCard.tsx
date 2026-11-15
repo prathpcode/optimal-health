@@ -11,7 +11,7 @@ import { confirmRestaurant, useRestaurantConfirmed, type SetRestaurant } from '@
 import { duration, radius, space, useTheme } from '@/theme';
 
 /**
- * Which restaurant this menu is from (PLAN 6.5). The name read off the menu is confirmed once; with the phone's
+ * Which restaurant this menu is from. The name read off the menu is confirmed once; with the phone's
  * location it identifies the place, and what its staff say about a dish is then remembered for the next scan there.
  * Without a location the answers still work, for this scan only, and the card says so.
  */
