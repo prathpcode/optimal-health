@@ -8,6 +8,19 @@ or grocery item fits them. Expo (React Native) app + Convex backend + a pure Typ
 Teammates and their agents push to `main` all the time. Run `git fetch` and `git pull` before you start implementing
 any change, and again before each further change in a long session, so you never build on a stale checkout.
 
+## A new worktree
+
+`.env.local` is git-ignored, so a fresh worktree has no Convex address and the app silently falls back to the
+bundled sample (`HAS_BACKEND` false). Whenever you create a worktree, copy the env file over from the main checkout
+before you run or test anything:
+
+```sh
+cp <main checkout>/.env.local .env.local    # e.g. cp ~/code/optimal-health/.env.local .env.local
+```
+
+If the main checkout has no `.env.local`, say so and ask for the shared development address; never commit the file
+and never paste its contents into a message.
+
 ## Layout and ownership
 
 | Side | Folders |
@@ -122,7 +135,7 @@ Use `bunx` instead of `npx` if the project uses bun (`bun.lock` present).
 
 ```bash
 npx expo install <package>  # ALWAYS use instead of npm/yarn/pnpm/bun add — resolves SDK-compatible versions
-npx expo start              # start the dev server
+npx expo start --tunnel     # start the dev server — ALWAYS pass --tunnel (see below)
 npx expo lint               # lint
 npx tsc --noEmit            # typecheck
 npx expo-doctor             # diagnose dependency and config issues
@@ -144,6 +157,9 @@ Docs: https://docs.expo.dev/eas/index.md
 
 ## Rules
 
+- Always start Expo with `--tunnel` (`npm start`, or `npx expo start --tunnel`). A worktree's dev server is often not
+  on the same network as the phone, and the LAN URL then never connects; the tunnel always does. The same goes for
+  the platform shortcuts: `npx expo start --tunnel --ios`, `--android`.
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md

@@ -44,6 +44,21 @@ const SEEDED_KEY = 'fit.profileSeeded';
 
 const isEmpty = (p: Profile) => p.allergies.length + p.diets.length + p.medications.length + p.conditions.length === 0;
 
+const LEVEL_ORDER = { never: 0, avoid: 1, limit: 2, keep_steady: 3 } as const;
+
+/**
+ * The same merge the backend does in `recompileRules`: rules compiled from the profile, minus any tag the person's
+ * own rule owns, plus the rules only the backend can make (read from medication labels) and the person's own ones.
+ * `kept` are those rules; `off` are the ids switched off. Same engine and same data as the backend, so the list it
+ * produces for an edited profile is the list that comes back from the save.
+ */
+function mergeRules(profile: Profile, kept: ProfileRule[], off: Set<string>): ProfileRule[] {
+  const owned = new Set(kept.filter((r) => r.custom || r.from.type === 'user').map((r) => r.tag));
+  return [...compileRules(profile).filter((r) => !owned.has(r.tag)), ...kept]
+    .map((r) => ({ ...r, enabled: !off.has(r.id) }))
+    .sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level] || a.tag.localeCompare(b.tag));
+}
+
 function useProfileLive(): ProfileState {
   const deviceId = useDeviceId();
   const args = deviceId ? { deviceId } : 'skip';
@@ -74,7 +89,15 @@ function useProfileLive(): ProfileState {
   }, [deviceId, remote, save]);
 
   const profile = draft ?? remote ?? EMPTY;
-  const rules = useMemo(() => (remoteRules ?? []) as ProfileRule[], [remoteRules]);
+  const stored = useMemo(() => (remoteRules ?? []) as ProfileRule[], [remoteRules]);
+  // While an edit is held locally, compile its rules here too. Without this the list only changes when the debounced
+  // save comes back about a second after the tap, and the screen resizes under the person's finger out of nowhere.
+  const rules = useMemo(() => {
+    if (draft === null) return stored;
+    const kept = stored.filter((r) => r.custom || r.from.type === 'medication');
+    const off = new Set(stored.filter((r) => !r.enabled).map((r) => r.id));
+    return mergeRules(draft, kept, off);
+  }, [stored, draft]);
   const meds = useMemo(() => remoteMeds ?? [], [remoteMeds]);
 
   const flashSaved = useCallback(() => {
@@ -143,16 +166,7 @@ function useProfileLive(): ProfileState {
 
 // Without a backend the profile lives in memory for the session, shared by every screen. Rules come from the engine
 // (allergies, diets, conditions); medication rules need the backend's FDA label reading.
-const LEVEL_ORDER = { never: 0, avoid: 1, limit: 2, keep_steady: 3 } as const;
-
-/** The same merge the backend does: a rule the person wrote wins over a profile rule on the same tag. */
-function localRules(profile: Profile, off: string[], custom: ProfileRule[]): ProfileRule[] {
-  const mine = new Set(custom.map((r) => r.tag));
-  const compiled: ProfileRule[] = compileRules(profile).filter((r) => !mine.has(r.tag));
-  return [...compiled, ...custom]
-    .map((r) => ({ ...r, enabled: !off.includes(r.id) }))
-    .sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level] || a.tag.localeCompare(b.tag));
-}
+const localRules = (profile: Profile, off: string[], custom: ProfileRule[]) => mergeRules(profile, custom, new Set(off));
 
 let local = { profile: STARTER_PROFILE, off: [] as string[], custom: [] as ProfileRule[], rules: localRules(STARTER_PROFILE, [], []) };
 const localListeners = new Set<() => void>();

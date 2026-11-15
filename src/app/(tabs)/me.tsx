@@ -86,18 +86,22 @@ export default function MeScreen() {
         <T variant="heading">Rules</T>
       </View>
       {rules.length === 0 ? null : (
-        <Card style={{ padding: 0, overflow: 'hidden' }}>
-          {rules.map((r, i) => (
-            <Animated.View
-              key={r.id}
-              entering={reduced ? FadeIn : FadeIn.duration(duration.base)}
-              exiting={FadeOut.duration(duration.fast)}
-              layout={reduced ? undefined : LinearTransition.springify().damping(22)}>
-              {i > 0 ? <View style={[styles.divider, { backgroundColor: c.hairline }]} /> : null}
-              <RuleRow rule={r} onToggle={(on) => setRuleEnabled(r.id, on)} onRemove={r.custom ? () => removeRule(r.id) : undefined} />
-            </Animated.View>
-          ))}
-        </Card>
+        // The card grows and shrinks with its rows; without this its height snaps in one frame while the rows inside
+        // it animate, and everything below jumps.
+        <Animated.View layout={reduced ? undefined : LinearTransition.duration(duration.base)}>
+          <Card style={{ padding: 0, overflow: 'hidden' }}>
+            {rules.map((r, i) => (
+              <Animated.View
+                key={r.id}
+                entering={reduced ? FadeIn : FadeIn.duration(duration.base)}
+                exiting={FadeOut.duration(duration.fast)}
+                layout={reduced ? undefined : LinearTransition.duration(duration.base)}>
+                {i > 0 ? <View style={[styles.divider, { backgroundColor: c.hairline }]} /> : null}
+                <RuleRow rule={r} onToggle={(on) => setRuleEnabled(r.id, on)} onRemove={r.custom ? () => removeRule(r.id) : undefined} />
+              </Animated.View>
+            ))}
+          </Card>
+        </Animated.View>
       )}
       <AddRule rules={rules} onAdd={addRule} />
     </ScrollView>
