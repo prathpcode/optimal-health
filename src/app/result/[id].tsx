@@ -624,7 +624,7 @@ function FailedCard({ message }: { message?: string }) {
       <View style={[styles.banner, { backgroundColor: c.cardMuted }]}>
         <Icon name="note" size={16} color={c.textSecondary} />
         <T variant="caption" tone="secondary" style={{ flex: 1 }}>
-          Fit never guesses at a menu it can’t read. Flat, well lit photos work best.
+          Second Look never guesses at a menu it can’t read. Flat, well lit photos work best.
         </T>
       </View>
     </Animated.View>

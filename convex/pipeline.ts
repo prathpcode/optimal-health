@@ -356,7 +356,7 @@ async function fetchProduct(barcode: string): Promise<ProductFacts | null> {
   const code = barcode.replace(/\D/g, "");
   if (!code) return null;
   const fields = "product_name,brands,ingredients_text,ingredients_text_en,allergens_tags,traces_tags,nutriments";
-  const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`, { headers: { "User-Agent": "fit-scanner/0.1" } });
+  const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`, { headers: { "User-Agent": "second-look/0.1" } });
   if (!res.ok) return null;
   return fromOpenFoodFacts(await res.json());
 }

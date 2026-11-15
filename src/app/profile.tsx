@@ -41,7 +41,7 @@ export default function ProfileScreen() {
         </View>
       </View>
       <T variant="caption" tone="tertiary" style={{ textAlign: 'center' }}>
-        Fit {Constants.expoConfig?.version}
+        Second Look {Constants.expoConfig?.version}
       </T>
     </View>
   );

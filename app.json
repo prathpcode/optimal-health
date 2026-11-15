@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Fit",
-    "slug": "fit-scanner",
+    "name": "Second Look",
+    "slug": "second-look",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "fitscanner",
+    "scheme": "secondlook",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -38,20 +38,20 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Fit uses the camera to read the menu you point it at.",
+          "cameraPermission": "Second Look uses the camera to read the menu you point it at.",
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Fit reads a menu photo you choose from your library."
+          "photosPermission": "Second Look reads a menu photo you choose from your library."
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Fit uses your location to recognise the restaurant you are in, so answers from its staff are remembered for next time."
+          "locationWhenInUsePermission": "Second Look uses your location to recognise the restaurant you are in, so answers from its staff are remembered for next time."
         }
       ]
     ],

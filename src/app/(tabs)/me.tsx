@@ -373,7 +373,7 @@ function AddRule({ rules, onAdd }: { rules: ProfileRule[]; onAdd: (tag: string, 
             </View>
           ) : q.length >= 2 ? (
             <T variant="caption" tone="tertiary" style={{ marginTop: space.sm }}>
-              Nothing by that name yet. Rules can only be about foods and ingredients Fit knows how to look for.
+              Nothing by that name yet. Rules can only be about foods and ingredients Second Look knows how to look for.
             </T>
           ) : null}
         </View>
