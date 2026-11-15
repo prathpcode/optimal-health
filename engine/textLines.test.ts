@@ -28,6 +28,23 @@ describe("linesFromVision", () => {
     expect(linesFromVision(null)).toEqual([]);
     expect(linesFromVision({})).toEqual([]);
   });
+  it("gives each line its four corners, following the text when the photo is tilted", () => {
+    // Two words on a line that climbs 100 px over 400: each word's corners are turned the same way.
+    const tilted = (text: string, x: number, y: number, brk?: string) => {
+      const w = word(text, 0, 0, 0, 0, brk);
+      const a = Math.atan2(100, 400), cos = Math.cos(a), sin = Math.sin(a);
+      const at = (u: number, v: number) => ({ x: Math.round(x + u * cos - v * sin), y: Math.round(y + u * sin + v * cos) });
+      w.boundingBox.vertices = [at(0, 0), at(180, 0), at(180, 40), at(0, 40)];
+      return w;
+    };
+    const [l] = linesFromVision(page([[tilted("Pesto", 100, 400, "SPACE"), tilted("pasta", 294, 449, "LINE_BREAK")]]));
+    expect(l.quad).toHaveLength(4);
+    const [tl, tr, , bl] = l.quad!.map((p) => ({ x: p.x * 1000, y: p.y * 2000 }));
+    // The top edge runs along the text, and the box is as tall as the text, not as tall as its upright shadow.
+    expect(Math.atan2(tr.y - tl.y, tr.x - tl.x)).toBeCloseTo(Math.atan2(100, 400), 1);
+    expect(Math.hypot(bl.x - tl.x, bl.y - tl.y)).toBeLessThan(50);
+    expect((l.box.bottom - l.box.top) * 2000).toBeGreaterThan(100);
+  });
   it("produces lines that the dish matcher can place", () => {
     const lines = linesFromVision(page([
       [word("MAINS", 400, 100, 200, 50, "LINE_BREAK")],

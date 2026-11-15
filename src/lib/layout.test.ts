@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boxToRect, containRect, estimateChipWidth, placeChips, unionBox, zoomRect, type ChipInput } from './layout';
+import { boxToRect, containRect, estimateChipWidth, placeChips, tiltedRect, unionBox, zoomRect, type ChipInput } from './layout';
 
 describe('containRect', () => {
   it('letterboxes a tall photo in a wide box', () => {
@@ -70,6 +70,36 @@ describe('placeChips', () => {
 describe('unionBox', () => {
   it('covers a dish name and the description lines under it', () => {
     expect(unionBox([{ top: 0.2, left: 0.1, bottom: 0.22, right: 0.3 }, { top: 0.22, left: 0.1, bottom: 0.25, right: 0.7 }])).toEqual({ top: 0.2, left: 0.1, bottom: 0.25, right: 0.7 });
+  });
+});
+
+describe('tiltedRect', () => {
+  const photo = { x: 0, y: 0, width: 1000, height: 1000 };
+  /** A 400 x 40 line whose top-left is at (x, y), turned by `deg` about that corner, as fractions of the photo. */
+  const line = (x: number, y: number, deg: number, w = 400, h = 40) => {
+    const a = (deg * Math.PI) / 180, cos = Math.cos(a), sin = Math.sin(a);
+    const at = (u: number, v: number) => ({ x: (x + u * cos - v * sin) / 1000, y: (y + u * sin + v * cos) / 1000 });
+    return [at(0, 0), at(w, 0), at(w, h), at(0, h)];
+  };
+  it('is the plain box when the text is level', () => {
+    const r = tiltedRect([line(100, 200, 0), line(100, 240, 0, 300)], photo)!;
+    expect(r.angle).toBeCloseTo(0);
+    expect(r.width).toBeCloseTo(400);
+    expect(r.height).toBeCloseTo(80);
+    expect(r.cx).toBeCloseTo(300);
+    expect(r.cy).toBeCloseTo(240);
+  });
+  it('turns with the text and stays the size of the text, not of its upright shadow', () => {
+    const r = tiltedRect([line(100, 200, 10)], photo)!;
+    expect((r.angle * 180) / Math.PI).toBeCloseTo(10);
+    expect(r.width).toBeCloseTo(400);
+    expect(r.height).toBeCloseTo(40);
+    // The upright box around the same line would be far taller than the line itself.
+    expect(400 * Math.sin((10 * Math.PI) / 180) + 40).toBeGreaterThan(100);
+  });
+  it('is nothing without corners', () => {
+    expect(tiltedRect([], photo)).toBeNull();
+    expect(tiltedRect([[{ x: 0, y: 0 }]], photo)).toBeNull();
   });
 });
 

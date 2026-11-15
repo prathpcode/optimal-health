@@ -59,7 +59,8 @@ export function RestaurantCard({ scanId, name, restaurantId, setRestaurant }: { 
   };
 
   return (
-    <Animated.View entering={FadeIn.duration(duration.base)} style={[styles.card, { backgroundColor: c.cardMuted }]}>
+    <Animated.View entering={FadeIn.duration(duration.base)} style={{ marginTop: space.lg }}>
+      <GlassSurface tone="theme" style={styles.card}>
       <View style={styles.head}>
         {editing ? (
           <T variant="heading" style={{ flex: 1 }}>
@@ -149,12 +150,13 @@ export function RestaurantCard({ scanId, name, restaurantId, setRestaurant }: { 
           Couldn’t save that. Check your connection and try again.
         </T>
       ) : null}
+      </GlassSurface>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: radius.card, padding: space.lg, gap: space.sm, marginTop: space.md },
+  card: { borderRadius: radius.card, padding: space.xl, gap: space.sm },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   input: { flex: 1, height: 44, borderRadius: radius.button, borderWidth: 1.5, paddingHorizontal: space.lg, fontSize: 16 },

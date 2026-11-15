@@ -31,6 +31,13 @@ export type Nutrients = {
 };
 
 export type Box = { top: number; left: number; bottom: number; right: number }; // fractions of the photo
+/** A point on the photo, as fractions of its width and height. */
+export type Point = { x: number; y: number };
+/**
+ * The four corners of a line of text, in reading order from its top-left: top-left, top-right, bottom-right,
+ * bottom-left. Unlike a Box it follows the text when the photo was taken at an angle.
+ */
+export type Quad = Point[];
 
 export type Item = {
   id: string;
@@ -43,6 +50,8 @@ export type Item = {
   /** Rough levels when no numbers exist (menu dishes). Keys are nutrient tag ids. */
   levels?: Record<string, "low" | "medium" | "high">;
   position?: Box[];
+  /** The same lines as `position`, as tilted outlines. Present when text recognition gave the lines' corners. */
+  quads?: Quad[];
   /** True when the source could not be read in full (part of a label was blurry or cut off), so "nothing found" proves nothing. */
   incomplete?: boolean;
 };

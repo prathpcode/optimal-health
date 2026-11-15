@@ -2,7 +2,7 @@
 
 import { normalise } from "./tagMatch";
 import { tagSatisfies } from "./tags";
-import type { Box, HardCheck, Item, Rule } from "./types";
+import type { Box, HardCheck, Item, Quad, Rule } from "./types";
 
 /** How long a person's own "no" stands before the question is asked again. */
 export const NO_ANSWER_DAYS = 30;
@@ -51,7 +51,7 @@ export function applyRemembered(checks: HardCheck[], items: Item[], rules: Rule[
 
 // ---- Where each dish is on the photo ----
 
-export type TextLine = { text: string; box: Box };
+export type TextLine = { text: string; box: Box; quad?: Quad };
 
 /**
  * Find each dish on the photo from the text lines the phone recognised. A line belongs to a dish when it holds the
@@ -59,6 +59,11 @@ export type TextLine = { text: string; box: Box };
  * so a box can only ever be where that dish's own words are.
  */
 export function positionsFor(dishes: Pick<Item, "name" | "description">[], lines: TextLine[]): (Box[] | undefined)[] {
+  return linesFor(dishes, lines).map((mine) => mine?.map((l) => l.box));
+}
+
+/** The recognised lines that make up each dish (its name line and the description lines under it), or undefined. */
+export function linesFor(dishes: Pick<Item, "name" | "description">[], lines: TextLine[]): (TextLine[] | undefined)[] {
   const norm = lines.map((l) => normalise(l.text));
   const used = new Set<number>();
   return dishes.map((d) => {
@@ -72,7 +77,7 @@ export function positionsFor(dishes: Pick<Item, "name" | "description">[], lines
     if (at < 0) at = norm.findIndex((t, i) => !used.has(i) && t.length > 1 && (t.includes(name) || (name.includes(t) && t.split(" ").length >= 2)));
     if (at < 0) at = norm.findIndex((t, i) => !used.has(i) && t.length > 1 && name.split(" ").filter((w) => w.length > 2 && t.split(" ").includes(w)).length >= Math.max(1, Math.ceil(name.split(" ").filter((w) => w.length > 2).length * 0.7)));
     if (at < 0) return undefined;
-    const boxes = [lines[at].box];
+    const boxes = [lines[at]];
     used.add(at);
     const desc = normalise(d.description ?? "");
     for (let i = at + 1; i < lines.length && i <= at + 4; i++) {
@@ -81,7 +86,7 @@ export function positionsFor(dishes: Pick<Item, "name" | "description">[], lines
       const hits = words.filter((w) => desc.includes(w)).length;
       const partOfName = name.includes(norm[i]) && norm[i].length > 2;
       if (!(partOfName || (desc && words.length && hits / words.length >= 0.6))) break;
-      boxes.push(lines[i].box);
+      boxes.push(lines[i]);
       used.add(i);
     }
     return boxes;

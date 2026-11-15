@@ -1,4 +1,4 @@
-import type { Box } from '@engine/types';
+import type { Box, Quad } from '@engine/types';
 
 // Pure geometry for the photo overlay. Kept free of React so it can be tested.
 
@@ -55,6 +55,31 @@ export function zoomRect(container: Rect, image: { width: number; height: number
     width: image.width * scale,
     height: image.height * scale,
   };
+}
+
+/** A rectangle that may be turned: its centre, its size, and its angle in radians (clockwise on screen). */
+export type Tilted = { cx: number; cy: number; width: number; height: number; angle: number };
+
+/**
+ * One rectangle around all of a dish's lines, turned to the angle the text runs at. On a menu photographed at a
+ * slant an upright box has to grow to cover the slanted lines and ends up overlapping its neighbours; this one hugs
+ * the dish. Worked out in screen points, because a tilt only means something where both axes have the same scale.
+ */
+export function tiltedRect(quads: Quad[], photo: Rect): Tilted | null {
+  const lines = quads.filter((q) => q.length === 4).map((q) => q.map((p) => ({ x: photo.x + p.x * photo.width, y: photo.y + p.y * photo.height })));
+  if (!lines.length) return null;
+  // The text's direction: the top edges of all the lines, added up (so longer lines count for more).
+  const dx = lines.reduce((s, q) => s + (q[1].x - q[0].x), 0);
+  const dy = lines.reduce((s, q) => s + (q[1].y - q[0].y), 0);
+  const angle = Math.atan2(dy, dx);
+  if (!Number.isFinite(angle)) return null;
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  const pts = lines.flat();
+  const us = pts.map((p) => p.x * cos + p.y * sin);
+  const vs = pts.map((p) => -p.x * sin + p.y * cos);
+  const u0 = Math.min(...us), u1 = Math.max(...us), v0 = Math.min(...vs), v1 = Math.max(...vs);
+  const u = (u0 + u1) / 2, v = (v0 + v1) / 2;
+  return { cx: u * cos - v * sin, cy: u * sin + v * cos, width: u1 - u0, height: v1 - v0, angle };
 }
 
 export type ChipInput = {

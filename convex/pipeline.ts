@@ -10,7 +10,7 @@ import { internalAction, type ActionCtx } from "./_generated/server";
 import {
   applySecondOpinions, buildChecks, buildQuestions, buildRanking, buildVerdicts, earlyHints, hardRules, itemsFromReader, lineItems, type ReaderDish, type ReaderOpinion,
 } from "../engine/pipeline";
-import { applyRemembered, positionsFor, restaurantId, type RememberedAnswer, type TextLine } from "../engine/memory";
+import { applyRemembered, linesFor, restaurantId, type RememberedAnswer, type TextLine } from "../engine/memory";
 import { fromOpenFoodFacts, hasSubstance, itemFromProduct, mergeFacts, sanitiseNutrients, type ModelTag, type ProductFacts } from "../engine/product";
 import { hidesInTerms } from "../engine/tagMatch";
 import { linesFromVision, type VisionText } from "../engine/textLines";
@@ -408,7 +408,9 @@ const RANK_SYSTEM = `${WORDING_LIMITS}
 
 Return:
 - summary: two or three sentences for the top of the result: what looks best and why, what is out, what to ask.
-- ranking: for dishes with fit "good", "okay" or "cant_tell" only, best choice first for this person.
+  Talk about the food. The person is choosing what to eat: name dishes, and leave drinks out unless one of them is
+  out or needs a question.
+- ranking: for dishes with fit "good", "okay" or "cant_tell" only, best choice first for this person. Food before drinks.
   line = one short reason (under 60 characters), written as a plain phrase. Do not start it with the verdict
   ("Good fit:", "Okay:", "Check:"); the app already shows that. modification = a concrete, optional way to order it that helps with one
   of their LIMIT rules ("ask for the dressing on the side"), or "" if there is none worth suggesting.
@@ -692,9 +694,14 @@ export const run = internalAction({
       // Where each dish is on the photo (first photo only), from its own printed words. Worked out once, here, and
       // put on every version of the items from now on, so the outlines are there as soon as the names are.
       const lines = await linesReady;
-      const positions = lines?.length ? positionsFor(printed, lines) : [];
+      const positions = lines?.length ? linesFor(printed, lines) : [];
       const placed = (list: Item[]): Item[] => {
-        positions.forEach((boxes, i) => boxes && list[i] && (list[i].position = boxes));
+        positions.forEach((mine, i) => {
+          if (!mine || !list[i]) return;
+          list[i].position = mine.map((l) => l.box);
+          // Tilted outlines too, when every one of the dish's lines came with its corners.
+          if (mine.every((l) => l.quad?.length === 4)) list[i].quads = mine.map((l) => l.quad!);
+        });
         return list;
       };
       // Show the dish list straight away; tags and verdicts follow.

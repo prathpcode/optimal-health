@@ -104,6 +104,9 @@ export const type = {
   hero: { fontFamily: 'Geist-Regular', fontSize: 34, lineHeight: 42, letterSpacing: -0.8 },
   heroBold: { fontFamily: 'Geist-SemiBold', fontSize: 34, lineHeight: 42, letterSpacing: -0.8 },
   heading: { fontFamily: 'Geist-SemiBold', fontSize: 20, lineHeight: 26, letterSpacing: -0.3 },
+  /** A sentence that opens a screen or sheet: the hero's regular weight at reading size, with `leadBold` for the phrase that matters. */
+  lead: { fontFamily: 'Geist-Regular', fontSize: 22, lineHeight: 30, letterSpacing: -0.4 },
+  leadBold: { fontFamily: 'Geist-SemiBold', fontSize: 22, lineHeight: 30, letterSpacing: -0.4 },
   display: { fontSize: 34, lineHeight: 40, fontWeight: '700', letterSpacing: -0.6, ...tabular },
   title: { fontSize: 22, lineHeight: 28, fontWeight: '600', letterSpacing: -0.3 },
   headline: { fontSize: 17, lineHeight: 22, fontWeight: '600', letterSpacing: -0.2 },

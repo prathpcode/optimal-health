@@ -30,6 +30,10 @@ export const nutrients = v.object({
 
 export const box = v.object({ top: v.number(), left: v.number(), bottom: v.number(), right: v.number() });
 
+const point = v.object({ x: v.number(), y: v.number() });
+/** Four corners of a line of text (engine/types.ts Quad). */
+export const quad = v.array(point);
+
 export const item = v.object({
   id: v.string(),
   kind: v.union(v.literal("dish"), v.literal("product"), v.literal("supplement"), v.literal("otc")),
@@ -40,6 +44,7 @@ export const item = v.object({
   nutrients: v.optional(nutrients),
   levels: v.optional(v.record(v.string(), level3)),
   position: v.optional(v.array(box)),
+  quads: v.optional(v.array(quad)),
   incomplete: v.optional(v.boolean()),
 });
 
@@ -117,7 +122,7 @@ export const scanKind = v.union(v.literal("menu"), v.literal("product"), v.liter
 
 export const location = v.object({ lat: v.number(), lng: v.number() });
 /** A line of text the phone recognised on the photo, with where it is (fractions of the photo). */
-export const textLine = v.object({ text: v.string(), box });
+export const textLine = v.object({ text: v.string(), box, quad: v.optional(quad) });
 
 /** A line of the photo flagged early, from the recognised text alone (engine/pipeline.ts earlyHints). */
 export const earlyHint = v.object({ box, fit: v.union(v.literal("not_fit"), v.literal("cant_tell")) });
