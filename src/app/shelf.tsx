@@ -179,7 +179,7 @@ export default function ShelfScreen() {
       {view ? (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
           {boxes.map((b, i) => (
-            <Mark key={`${i}-${b.key ?? 'x'}`} box={b} rect={rects[i]} reduced={!!reduced} picked={picked === b} dimmed={picked !== null && picked !== b} onPress={() => pick(b)} />
+            <Mark key={`${i}-${b.key ?? 'x'}`} box={b} rect={rects[i]} reduced={!!reduced} picked={picked === b} onPress={() => pick(b)} />
           ))}
         </View>
       ) : null}
@@ -254,13 +254,13 @@ export default function ShelfScreen() {
   );
 }
 
-function Mark({ box, rect, reduced, picked, dimmed, onPress }: { box: ShelfBox; rect: Rect | undefined; reduced: boolean; picked: boolean; dimmed: boolean; onPress: () => void }) {
+function Mark({ box, rect, reduced, picked, onPress }: { box: ShelfBox; rect: Rect | undefined; reduced: boolean; picked: boolean; onPress: () => void }) {
   if (!rect) return null;
   const col = colour(box.state);
   const flagged = box.state === 'not_fit' || box.state === 'cant_tell';
   const unknown = box.state === 'unknown';
   return (
-    <Animated.View entering={reduced ? undefined : FadeIn.duration(duration.fast)} style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height, opacity: dimmed ? 0.3 : 1 }}>
+    <Animated.View entering={reduced ? undefined : FadeIn.duration(duration.fast)} style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.width, height: rect.height }}>
       <Tap accessibilityRole="button" accessibilityLabel={`${box.name ?? 'Unrecognised product'}, ${STATE_TEXT[box.state]}`} feedback="select" hitSlop={4} scaleTo={0.97} onPress={onPress} style={StyleSheet.absoluteFill}>
         {/* A dark line outside the coloured one, so the box shows on a pale package as well as a dark one. */}
         <View style={[styles.halo, { borderRadius: radius.sm + 2 }]}>
@@ -269,8 +269,9 @@ function Mark({ box, rect, reduced, picked, dimmed, onPress }: { box: ShelfBox; 
               flex: 1,
               borderRadius: radius.sm,
               borderColor: unknown ? 'rgba(255,255,255,0.9)' : col,
-              borderWidth: picked ? 5 : flagged ? 4.5 : unknown ? 2 : 3.5,
-              borderStyle: unknown || box.checking ? 'dashed' : 'solid',
+              // The picked box is marked by its heavier line alone; the others stay as they were.
+              borderWidth: picked ? 7 : flagged ? 4.5 : unknown ? 2 : 3.5,
+              borderStyle: (unknown || box.checking) && !picked ? 'dashed' : 'solid',
               backgroundColor: flagged ? `${col}59` : box.state === 'okay' || box.state === 'good' ? `${col}40` : unknown ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)',
             }}
           />
