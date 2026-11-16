@@ -20,10 +20,10 @@ export const SCOPES = 'openid profile forum:read forum:post:create';
 const STORE_KEY = 'fit.whop';
 
 /**
- * Together runs on the shared backend once its functions are deployed there (convex/members.ts, convex/together.ts).
- * Set EXPO_PUBLIC_TOGETHER_LIVE=1 after deploying; until then rooms run as a local preview.
+ * Together runs on the shared backend (convex/members.ts, convex/together.ts) whenever the app has a backend at
+ * all. It is not a setting: only a build with no backend address falls back to the on-phone preview.
  */
-export const TOGETHER_LIVE = HAS_BACKEND && process.env.EXPO_PUBLIC_TOGETHER_LIVE === '1';
+export const TOGETHER_LIVE = HAS_BACKEND;
 
 export type WhopAccount = {
   userId: string;

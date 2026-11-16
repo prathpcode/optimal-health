@@ -19,8 +19,8 @@ import { commentOn, postToRoom, type SharedDish } from './whopForum';
  *
  * Nothing here is invented. Which rooms you belong to comes from your profile (engine/communityMatch); challenge
  * scores come from the dishes you logged as ordered and the verdicts your scans gave them (engine/challenge).
- * With TOGETHER_LIVE off (the backend's Together functions not deployed yet) everything stays on this phone: rooms
- * have only you in them and challenges have only you, until it goes live and friends can join.
+ * With TOGETHER_LIVE off (a build with no backend address) everything stays on this phone: rooms have only you in
+ * them and challenges have only you.
  */
 export const PREVIEW = !TOGETHER_LIVE;
 
