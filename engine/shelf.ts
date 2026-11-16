@@ -275,6 +275,27 @@ export function frontItems(fronts: string[]) {
 }
 
 /**
+ * Which unidentified fronts to ask about on one still, when a detector has outlined a whole shelf and there are
+ * more than can be asked about in time. Packages with the same words on them (a row of one product) are asked
+ * about once and share the answer; the biggest packages, which are the nearest, go first. `fronts` runs parallel
+ * to the packages in the picture; one with no text (nothing read off it, or already recognised) is skipped.
+ * Returns each wording to ask about with the indexes of the packages that carry it.
+ */
+export function frontsToAsk(fronts: { text: string; box: Box }[], max: number): { text: string; at: number[] }[] {
+  const groups = new Map<string, { text: string; at: number[]; size: number }>();
+  fronts.forEach((f, i) => {
+    const text = f.text.trim();
+    if (!text) return;
+    const key = blockSignature(text) || text.toLowerCase();
+    const g = groups.get(key) ?? { text, at: [], size: 0 };
+    g.at.push(i);
+    g.size = Math.max(g.size, area(f.box));
+    groups.set(key, g);
+  });
+  return [...groups.values()].sort((a, b) => b.size - a.size).slice(0, max).map(({ text, at }) => ({ text, at }));
+}
+
+/**
  * What can be said about a package from the words on its front alone, before anyone knows which product it is.
  * Code's own reading of the words ("almond" printed on the front) and the judge's opinion of what such a product
  * commonly contains ("Snickers": peanuts) can raise a flag; nothing here can call a package fine, so a front with

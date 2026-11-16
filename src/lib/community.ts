@@ -11,7 +11,7 @@ import { COMMUNITY_GROUPS, communitiesFor, matchCommunities, type CommunityGroup
 import type { Fit } from '@engine/types';
 import { convex, useDeviceId } from './backend';
 import { useProfile } from './profile';
-import { currentAccount, currentSession, TOGETHER_LIVE, useWhopAccount } from './whop';
+import { currentAccount, currentSession, renewSession, TOGETHER_LIVE, useWhopAccount } from './whop';
 import { commentOn, postToRoom, type SharedDish } from './whopForum';
 
 /**
@@ -210,7 +210,13 @@ function useHomeLive() {
   const now = useMinute();
   const session = account?.session;
   const data = useQuery(api.together.home, session ? { session, now } : 'skip');
-  return { data, now, session };
+  // `null` is the backend saying it does not know this session (the app was pointed at another backend, say).
+  // Get a new one from it; until then nothing else is asked with the old one, since those calls would be refused.
+  const unknown = !!session && data === null;
+  useEffect(() => {
+    if (unknown) void renewSession();
+  }, [unknown, session]);
+  return { data, now, session: data ? session : undefined };
 }
 
 type LivePlayer = MealScore & { memberId: string; name: string; avatarUrl: string | null; joinedAt: number };
@@ -374,8 +380,7 @@ export function leaveChallenge(id: string): Promise<unknown> {
 export type Person = { id: string; name: string; username: string; avatarUrl?: string; state: 'in' | 'invited' | null };
 
 function usePeopleLive(challengeId: string, q: string): Person[] | undefined {
-  const { account } = useWhopAccount();
-  const session = account?.session;
+  const { session } = useHomeLive();
   const data = useQuery(api.invites.people, session ? { session, id: challengeId as Id<'challenges'>, q } : 'skip');
   return useMemo(() => data?.map((p) => ({ ...p, avatarUrl: p.avatarUrl ?? undefined })), [data]);
 }

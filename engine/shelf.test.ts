@@ -3,7 +3,7 @@ import menu from "../bench/data/menu-lines.json";
 import sample from "../bench/data/shelf-lines.json";
 import type { TextLine } from "./memory";
 import type { ProductFacts } from "./product";
-import { blockSignature, frontHints, looksLikeShelf, matchProduct, packageFronts, packageOutlines, searchTerms, shelfVerdict, textBlocks, type KnownProduct } from "./shelf";
+import { blockSignature, frontHints, frontsToAsk, looksLikeShelf, matchProduct, packageFronts, packageOutlines, searchTerms, shelfVerdict, textBlocks, type KnownProduct } from "./shelf";
 import type { Rule } from "./types";
 
 const KNOWN: KnownProduct[] = [
@@ -171,5 +171,37 @@ describe("frontHints", () => {
   });
   it("has nothing to say when no hard rule is in play", () => {
     expect(frontHints(["Skippy Creamy Peanut Butter"], [])).toEqual([null]);
+  });
+});
+
+describe("frontsToAsk", () => {
+  const at = (left: number, size: number) => ({ top: 0.1, left, bottom: 0.1 + size, right: left + size });
+
+  it("asks once about a row of the same product, and skips packages with nothing read off them", () => {
+    const asked = frontsToAsk(
+      [
+        { text: "Skippy Creamy Peanut Butter", box: at(0.1, 0.1) },
+        { text: "", box: at(0.3, 0.1) },
+        { text: "peanut butter SKIPPY creamy", box: at(0.5, 0.1) },
+        { text: "Coca-Cola Original Taste", box: at(0.7, 0.1) },
+      ],
+      10,
+    );
+    expect(asked).toEqual([
+      { text: "Skippy Creamy Peanut Butter", at: [0, 2] },
+      { text: "Coca-Cola Original Taste", at: [3] },
+    ]);
+  });
+
+  it("keeps the nearest packages when there are more than can be asked about", () => {
+    const asked = frontsToAsk(
+      [
+        { text: "Far Away Crackers", box: at(0.1, 0.05) },
+        { text: "Right Here Granola", box: at(0.3, 0.3) },
+        { text: "Middle Shelf Soup", box: at(0.7, 0.15) },
+      ],
+      2,
+    );
+    expect(asked.map((a) => a.at)).toEqual([[1], [2]]);
   });
 });

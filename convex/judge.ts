@@ -81,7 +81,7 @@ async function judgeOne(item: Item, rules: Rule[], key: string): Promise<JudgeOp
 }
 
 /** One request per item, one yes/no question per hard rule. Items whose call fails simply get no opinion. */
-export async function judgeItems(items: Item[], hard: Rule[]): Promise<JudgeOpinion[]> {
+export async function judgeItems(items: Item[], hard: Rule[], atOnce = CONCURRENCY): Promise<JudgeOpinion[]> {
   const key = process.env.TYPESAFE_API_KEY;
   if (!key || !hard.length || !items.length) return [];
   const out: JudgeOpinion[] = [];
@@ -97,7 +97,7 @@ export async function judgeItems(items: Item[], hard: Rule[]): Promise<JudgeOpin
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, items.length) }, worker));
+  await Promise.all(Array.from({ length: Math.min(atOnce, items.length) }, worker));
   return out;
 }
 

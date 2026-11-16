@@ -197,6 +197,39 @@ export async function whopAccessToken(): Promise<string | null> {
   return refreshing;
 }
 
+let renewing: Promise<void> | null = null;
+
+/**
+ * The backend does not know the saved session: the app was pointed at another backend, or the session was removed
+ * there. Whop still knows the person, so get a new session from this backend with their Whop token, quietly. If
+ * that cannot be done (Whop no longer accepts the sign-in, or the backend refuses), the saved account is dropped
+ * and the person is asked to sign in again, rather than left on screens that cannot load.
+ */
+export function renewSession(): Promise<void> {
+  renewing ??= (async () => {
+    const stale = state.account?.session;
+    try {
+      const accessToken = await whopAccessToken();
+      if (!accessToken || !convex) throw new Error('no sign-in to renew');
+      const deviceId = (await SecureStore.getItemAsync('fit.deviceId').catch(() => null)) ?? 'unknown';
+      const { session } = await convex.action(api.members.signIn, { deviceId, accessToken });
+      // Signed out, or signed in afresh, while this was on its way: leave that as it is.
+      if (!state.account || state.account.session !== stale) return;
+      const next: WhopAccount = { ...state.account, session };
+      await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(next)).catch(() => {});
+      set({ account: next });
+    } catch {
+      if (state.account?.session === stale) {
+        set({ account: null });
+        await SecureStore.deleteItemAsync(STORE_KEY).catch(() => {});
+      }
+    } finally {
+      renewing = null;
+    }
+  })();
+  return renewing;
+}
+
 export async function signOutOfWhop() {
   const account = state.account;
   set({ account: null });

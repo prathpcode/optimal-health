@@ -20,7 +20,7 @@ import { action, internalAction } from "./_generated/server";
 import { tidyName } from "../engine/casing";
 import { hardRules } from "../engine/pipeline";
 import { hasSubstance, type ProductFacts } from "../engine/product";
-import { blockSignature, frontHints, frontItems, looksLikeShelf, matchProduct, packageFronts, packageOutlines, searchTerms, shelfVerdict, textBlocks, type KnownProduct, type ShelfBox } from "../engine/shelf";
+import { blockSignature, frontHints, frontItems, frontsToAsk, looksLikeShelf, matchProduct, packageFronts, packageOutlines, searchTerms, shelfVerdict, textBlocks, type KnownProduct, type ShelfBox } from "../engine/shelf";
 import type { Box } from "../engine/types";
 import { findProduct } from "./identify";
 import { judgeItems, judgeScene } from "./judge";
@@ -29,6 +29,9 @@ import { answerCache, detectObjects, lookUpProduct, Memo, productOpinions, readP
 /** A still is small on purpose (about 1300 px a side); anything much bigger is not from the app. */
 const MAX_IMAGE_CHARS = 2_500_000;
 const MINUTE = 60_000;
+/** How many distinct package fronts the judge is asked about on one still, and how many of those calls run at once. */
+const FIRST_COLOUR_MAX = 60;
+const FIRST_COLOUR_AT_ONCE = 30;
 
 type Seen = { box: Box; text: string; whole?: boolean };
 
@@ -111,12 +114,16 @@ export const look = action({
     // 4. Everything else gets a first colour straight away: the judge is asked, of the words on each front, what
     //    such a product commonly contains. It can raise a flag, never clear one, and it is shown as still being
     //    checked until the product has been identified and its real ingredients read.
-    const strangers = named.map((n, i) => (!n.product && n.text.trim() ? i : -1)).filter((i) => i >= 0).slice(0, 12);
+    //    A detector outlines a whole shelf at once, so every distinct front is asked about (a row of one product
+    //    once), the nearest packages first, up to FIRST_COLOUR_MAX.
+    const strangers = hard.length ? frontsToAsk(named.map((n) => ({ text: n.product ? "" : n.text, box: n.box })), FIRST_COLOUR_MAX) : [];
     const first = new Map<number, { state: "not_fit" | "cant_tell"; reason: string }>();
-    if (hard.length && strangers.length) {
-      const fronts = strangers.map((i) => named[i].text);
-      const judged = await timed("firstColour", judgeItems(frontItems(fronts), hard));
-      frontHints(fronts, context.rules, judged).forEach((hint, k) => hint && first.set(strangers[k], hint));
+    if (strangers.length) {
+      const fronts = strangers.map((s) => s.text);
+      const judged = await timed("firstColour", judgeItems(frontItems(fronts), hard, FIRST_COLOUR_AT_ONCE));
+      frontHints(fronts, context.rules, judged).forEach((hint, k) => hint && strangers[k].at.forEach((i) => first.set(i, hint)));
+      steps.asked = strangers.length;
+      steps.flagged = first.size;
     }
 
     const boxes: ShelfBox[] = named.map((n, i) => {
