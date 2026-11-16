@@ -425,36 +425,51 @@ export function usePresenceHeartbeat() {
 
 export type LoggedDish = { itemId: string; dishName: string };
 
-/** What was logged from a scan: a dish per thing ordered, empty when nothing was (undefined while loading). */
-export function useMealForScan(scanId: string): LoggedDish[] | undefined {
+function useMealForScanLive(scanId: string): LoggedDish[] | undefined {
   const deviceId = useDeviceId();
-  const s = useStore();
-  const live = useQuery(api.together.mealForScan, TOGETHER_LIVE && deviceId && scanId !== 'sample' ? { deviceId, scanId: scanId as Id<'scans'> } : 'skip');
-  const local = useMemo(() => s.meals.filter((x) => x.scanId === scanId).map(({ itemId, dishName }) => ({ itemId, dishName })), [s.meals, scanId]);
-  const tidied = useMemo(() => live?.map((m) => ({ ...m, dishName: tidyName(m.dishName) })), [live]);
-  return TOGETHER_LIVE ? tidied : local;
+  const live = useQuery(api.together.mealForScan, deviceId && scanId !== 'sample' ? { deviceId, scanId: scanId as Id<'scans'> } : 'skip');
+  return useMemo(() => live?.map((m) => ({ ...m, dishName: tidyName(m.dishName) })), [live]);
 }
+
+function useMealForScanLocal(scanId: string): LoggedDish[] {
+  const s = useStore();
+  return useMemo(() => s.meals.filter((x) => x.scanId === scanId).map(({ itemId, dishName }) => ({ itemId, dishName })), [s.meals, scanId]);
+}
+
+/** What was logged from a scan: a dish per thing ordered, empty when nothing was (undefined while loading). */
+export const useMealForScan: (scanId: string) => LoggedDish[] | undefined = TOGETHER_LIVE ? useMealForScanLive : useMealForScanLocal;
 
 /**
  * Log everything ordered from a scan (logging again replaces what that scan had). Resolves to each dish's fit, in
  * the order given.
  */
-export function useLogMeal(): (scanId: string, dishes: { itemId: string; dishName: string; fit: Fit }[]) => Promise<Fit[]> {
+type LogMeal = (scanId: string, dishes: { itemId: string; dishName: string; fit: Fit }[]) => Promise<Fit[]>;
+
+function useLogMealLive(): LogMeal {
   const deviceId = useDeviceId();
   const log = useMutation(api.together.logMeal);
   return useCallback(
     async (scanId: string, dishes: { itemId: string; dishName: string; fit: Fit }[]) => {
-      if (TOGETHER_LIVE && deviceId) return (await log({ deviceId, scanId: scanId as Id<'scans'>, itemIds: dishes.map((d) => d.itemId) })).fits;
-      update((s) => {
-        // One time for the whole scan, kept from the first logging, so changing the order never moves the day.
-        const at = s.meals.find((m) => m.scanId === scanId)?.at ?? Date.now();
-        return { ...s, meals: [...s.meals.filter((m) => m.scanId !== scanId), ...dishes.map((d) => ({ scanId, ...d, at }))] };
-      });
-      return dishes.map((d) => d.fit);
+      if (deviceId) return (await log({ deviceId, scanId: scanId as Id<'scans'>, itemIds: dishes.map((d) => d.itemId) })).fits;
+      return logMealLocal(scanId, dishes);
     },
     [deviceId, log],
   );
 }
+
+function logMealLocal(scanId: string, dishes: { itemId: string; dishName: string; fit: Fit }[]): Fit[] {
+  update((s) => {
+    // One time for the whole scan, kept from the first logging, so changing the order never moves the day.
+    const at = s.meals.find((m) => m.scanId === scanId)?.at ?? Date.now();
+    return { ...s, meals: [...s.meals.filter((m) => m.scanId !== scanId), ...dishes.map((d) => ({ scanId, ...d, at }))] };
+  });
+  return dishes.map((d) => d.fit);
+}
+
+// One stable function, so a caller that keeps it in a dependency list does not see a new one every render.
+const logMealOffline: LogMeal = async (scanId, dishes) => logMealLocal(scanId, dishes);
+
+export const useLogMeal: () => LogMeal = TOGETHER_LIVE ? useLogMealLive : () => logMealOffline;
 
 /** Live challenges you are in, for "this counts toward …" after logging a meal. */
 export function useActiveChallenges(): ChallengeView[] {

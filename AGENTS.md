@@ -49,6 +49,10 @@ backend only through the public functions in `convex/scans.ts`, `profile.ts`, `r
 - Verdicts are recomputed from items + rules, never stored as truth. Arithmetic happens in code, never in a model.
 - `engine/` has no network calls and no framework imports. Tests are pure-function tests; no DOM shim.
 - New fields on stored records are optional on read.
+- Without `.env.local` there is no Convex provider at all, and `useQuery`/`useMutation`/`useAction` throw even when
+  the arguments are `'skip'`. So a hook that touches Convex is picked at module level, never inside the component:
+  `export const useX = HAS_BACKEND ? useXLive : fallback` (and `TOGETHER_LIVE` for Together), or the component that
+  calls it is rendered behind `HAS_BACKEND`. That is what keeps the bundled-sample fallback working.
 - Profile contents never go to analytics or third-party logging. Model providers get the photo, item text, rule text
   and profile labels; never a name, contact detail or device identifier. The text-recognition service gets the photo
   and nothing else.

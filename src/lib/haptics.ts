@@ -11,6 +11,7 @@ const run = (fn: () => Promise<unknown>) => {
 export const haptic = {
   tap: () => run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)),
   shutter: () => run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)),
+  pop: () => run(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid)),
   select: () => run(() => Haptics.selectionAsync()),
   success: () => run(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)),
   warning: () => run(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)),

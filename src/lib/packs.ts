@@ -18,12 +18,14 @@ const PAID_RETURN = 'secondlook://paid';
 
 const NONE: Pack[] = [];
 
-/** The packs on sale, live. Empty without a backend, while loading, and when nothing is on sale. */
-export function usePacks(): Pack[] {
+function usePacksLive(): Pack[] {
   const deviceId = useDeviceId();
-  const packs = useQuery(api.packs.list, HAS_BACKEND && deviceId ? { deviceId } : 'skip');
+  const packs = useQuery(api.packs.list, deviceId ? { deviceId } : 'skip');
   return packs ?? NONE;
 }
+
+/** The packs on sale, live. Empty without a backend, while loading, and when nothing is on sale. */
+export const usePacks: () => Pack[] = HAS_BACKEND ? usePacksLive : () => NONE;
 
 /** Ask the backend to check with Whop whether this pack has been paid for. Never throws; false when unsure. */
 export async function checkPack(deviceId: string, packId: string): Promise<boolean> {

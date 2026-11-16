@@ -30,20 +30,13 @@ import { useFirstName } from '@/lib/name';
 import { useRecentScans, type RecentScan } from '@/lib/scan';
 import { gutter, radius, space, spring, titleTop, topBar, useTheme } from '@/theme';
 
-const FOOD = {
-  coffee: require('@/assets/food/coffee.webp'),
-  salad: require('@/assets/food/salad.webp'),
-  pasta: require('@/assets/food/pasta.webp'),
-  tea: require('@/assets/food/tea.webp'),
-};
-
-/** The food on Home, by time of day. */
-function foodFor(hour: number): number {
-  if (hour >= 5 && hour < 11) return FOOD.coffee;
-  if (hour >= 11 && hour < 16) return FOOD.salad;
-  if (hour >= 16 && hour < 22) return FOOD.pasta;
-  return FOOD.tea;
-}
+// Home always opens on the salad; a tap cycles to the next one and round again.
+const FOOD = [
+  { name: 'Salad', source: require('@/assets/food/salad.webp') },
+  { name: 'Pasta', source: require('@/assets/food/pasta.webp') },
+  { name: 'Coffee', source: require('@/assets/food/coffee.webp') },
+  { name: 'Tea', source: require('@/assets/food/tea.webp') },
+];
 
 /** How far a scroll stretches the food before it springs back and the scans take over. */
 const PULL = 110;
@@ -79,6 +72,22 @@ export default function HomeScreen() {
     },
   );
 
+  // Tapping the food cycles it. The food layer sits over the scroll view, so it only takes touches at rest.
+  const [food, setFood] = useState(0);
+  const [atTop, setAtTop] = useState(true);
+  useAnimatedReaction(
+    () => scrollY.value > 8,
+    (moved, before) => {
+      if (before !== null && moved !== before) scheduleOnRN(setAtTop, !moved);
+    },
+  );
+  const pop = useSharedValue(0);
+  const onFoodPress = () => {
+    haptic.pop();
+    setFood((i) => (i + 1) % FOOD.length);
+    pop.value = reduced ? 0 : withSequence(withTiming(1, { duration: 110 }), withSpring(0, spring.pop));
+  };
+
   const size = Math.min(width * 0.86, height * 0.42);
   // The food sits below the greeting, however many lines the greeting wraps to.
   const [headlineHeight, setHeadlineHeight] = useState(0);
@@ -96,8 +105,9 @@ export default function HomeScreen() {
         { translateX: turn * 0.5 },
         { rotateX: `${nod}deg` },
         { rotateY: `${turn}deg` },
-        { scaleY: 1 + stretch.value * 0.16 },
-        { scaleX: 1 - stretch.value * 0.05 },
+        { scaleY: 1 + stretch.value * 0.16 - pop.value * 0.1 },
+        { scaleX: 1 - stretch.value * 0.05 + pop.value * 0.12 },
+        { rotateZ: `${pop.value * 4}deg` },
       ],
     };
   });
@@ -130,7 +140,7 @@ export default function HomeScreen() {
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <Animated.View style={[styles.shadow, { top: top + size * 0.86, left: (width - size * 0.5) / 2, width: size * 0.5 }, shadowStyle]} />
         <Animated.View style={[{ position: 'absolute', top, left: (width - size) / 2, width: size, height: size, transformOrigin: 'bottom' }, foodStyle]}>
-          <Image source={foodFor(new Date().getHours())} style={{ width: size, height: size }} contentFit="contain" />
+          <Image source={FOOD[food].source} style={{ width: size, height: size }} contentFit="contain" transition={180} />
         </Animated.View>
       </View>
 
@@ -148,6 +158,16 @@ export default function HomeScreen() {
           <T variant="hero" accessibilityRole="header" style={{ textAlign: 'center' }} onLayout={(e) => setHeadlineHeight(e.nativeEvent.layout.height)}>
             Hello {name} 👋{'\n'}🏃 time to hit the <T variant="heroBold">ground running</T>
           </T>
+          {/* The food is painted behind the scroll view, so its touch target rides along with the content instead. */}
+          {atTop ? (
+            <Tap
+              accessibilityRole="button"
+              accessibilityLabel={`${FOOD[food].name}. Tap for another food.`}
+              scaleTo={1}
+              onPress={onFoodPress}
+              style={{ position: 'absolute', top, left: (width - size) / 2, width: size, height: size }}
+            />
+          ) : null}
         </Animated.View>
         <View style={{ gap: space.sm + 2 }}>
           {recent?.map((s) => (
