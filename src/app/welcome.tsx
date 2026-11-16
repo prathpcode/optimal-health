@@ -18,7 +18,8 @@ export default function WelcomeScreen() {
   const done = () => {
     if (!name) return;
     setFirstName(name);
-    router.replace('/');
+    // Straight to Manage: a new profile is empty, and rules are what the app runs on.
+    router.replace('/me');
   };
 
   return (

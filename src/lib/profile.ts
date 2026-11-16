@@ -1,5 +1,4 @@
 import { useMutation, useQuery } from 'convex/react';
-import * as SecureStore from 'expo-secure-store';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { api } from '@convex/_generated/api';
@@ -34,17 +33,6 @@ export type ProfileState = {
 
 const EMPTY: Profile = { medications: [], conditions: [], allergies: [], diets: [] };
 
-/** A new device starts with a realistic profile so the first scan shows what the app does. Editable in Me. */
-export const STARTER_PROFILE: Profile = {
-  medications: [{ name: 'Simvastatin' }],
-  conditions: [{ name: 'High blood pressure', key: 'hypertension' }],
-  allergies: ['tree_nuts'],
-  diets: [],
-};
-const SEEDED_KEY = 'fit.profileSeeded';
-
-const isEmpty = (p: Profile) => p.allergies.length + p.diets.length + p.medications.length + p.conditions.length === 0;
-
 const LEVEL_ORDER = { never: 0, avoid: 1, limit: 2, keep_steady: 3 } as const;
 
 /**
@@ -76,19 +64,6 @@ function useProfileLive(): ProfileState {
   const [saved, setSaved] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const seeding = useRef(false);
-
-  // First launch on this device: save the starter profile once, so the backend compiles real rules for it.
-  useEffect(() => {
-    if (!deviceId || remote === undefined || !isEmpty(remote) || seeding.current) return;
-    seeding.current = true;
-    SecureStore.getItemAsync(SEEDED_KEY)
-      .then((done) => {
-        if (done) return;
-        return save({ deviceId, profile: STARTER_PROFILE }).then(() => SecureStore.setItemAsync(SEEDED_KEY, '1'));
-      })
-      .catch(() => {});
-  }, [deviceId, remote, save]);
 
   const profile = draft ?? remote ?? EMPTY;
   const stored = useMemo(() => (remoteRules ?? []) as ProfileRule[], [remoteRules]);
@@ -171,7 +146,7 @@ function useProfileLive(): ProfileState {
 // (allergies, diets, conditions); medication rules need the backend's FDA label reading.
 const localRules = (profile: Profile, off: string[], custom: ProfileRule[]) => mergeRules(profile, custom, new Set(off));
 
-let local = { profile: STARTER_PROFILE, off: [] as string[], custom: [] as ProfileRule[], rules: localRules(STARTER_PROFILE, [], []) };
+let local = { profile: EMPTY, off: [] as string[], custom: [] as ProfileRule[], rules: localRules(EMPTY, [], []) };
 const localListeners = new Set<() => void>();
 function setLocal(profile: Profile, off: string[], custom: ProfileRule[] = local.custom) {
   local = { profile, off, custom, rules: localRules(profile, off, custom) };
