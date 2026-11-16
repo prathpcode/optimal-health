@@ -42,6 +42,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="welcome" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="profile" />
+            <Stack.Screen name="packs" />
             {/* Plain stack screens with a fade, not modals: replacing scan with result then cross-fades inside one
                 navigation controller instead of dismissing one modal and presenting another (which flashes Home). */}
             <Stack.Screen name="scan" options={{ animation: 'fade', gestureEnabled: false, contentStyle: { backgroundColor: onPhoto.black } }} />
