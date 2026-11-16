@@ -1,40 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { Rule } from '@engine/types';
 import { Icon } from '@/components/Icon';
 import { T } from '@/components/T';
-import { Tap } from '@/components/Tap';
 import { Button, Card } from '@/components/ui';
 import { useDeviceId } from '@/lib/backend';
 import { buyPack, checkPack, packPrice, type Pack } from '@/lib/packs';
-import { LEVEL_LABEL } from '@/lib/verdict';
-import { space, type Colors, useTheme } from '@/theme';
-
-const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-function levelColor(level: Rule['level'], c: Colors) {
-  if (level === 'never') return { fg: c.notFit, bg: c.notFitSoft };
-  if (level === 'avoid') return { fg: c.okay, bg: c.okaySoft };
-  return { fg: c.textSecondary, bg: c.cantTellSoft };
-}
+import { space, useTheme } from '@/theme';
 
 /**
- * One pack: what it is, the rules it adds (opened on tap, before buying), and the way to get it. Buying opens
+ * One pack: what it is, how many rules it adds, and the way to get it. The rules themselves are not shown before
+ * buying (the backend does not send them): they are what is being sold. Buying opens
  * Whop's checkout; the card turns to "Added" only when the backend has confirmed the payment, which also puts the
  * pack's rules in the list below.
  */
 export function PackCard({ pack }: { pack: Pack }) {
   const { c } = useTheme();
   const deviceId = useDeviceId();
-  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [returned, setReturned] = useState(false);
   const [failed, setFailed] = useState(false);
   const alive = useRef(true);
   useEffect(() => () => void (alive.current = false), []);
   const owned = pack.state === 'owned';
-  const count = `${pack.rules.length} ${pack.rules.length === 1 ? 'rule' : 'rules'}`;
+  const count = `${pack.ruleCount} ${pack.ruleCount === 1 ? 'rule' : 'rules'}`;
 
   const buy = async () => {
     if (!deviceId || busy) return;
@@ -61,43 +50,9 @@ export function PackCard({ pack }: { pack: Pack }) {
           {pack.blurb}
         </T>
       </View>
-      <Tap
-        accessibilityRole="button"
-        accessibilityLabel={`${open ? 'Hide' : 'Show'} the ${count} in the ${pack.label} pack`}
-        accessibilityState={{ expanded: open }}
-        feedback="select"
-        onPress={() => setOpen((v) => !v)}
-        hitSlop={8}
-        style={styles.packToggle}>
-        <T variant="caption" tone="secondary" style={{ fontWeight: '600' }}>
-          {count}
-        </T>
-        <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
-          <Icon name="down" size={12} color={c.textSecondary} weight="bold" />
-        </View>
-      </Tap>
-      {open ? (
-        <View style={{ gap: space.sm }}>
-          {pack.rules.map((r) => {
-            const col = levelColor(r.level, c);
-            return (
-              <View key={r.tag} style={styles.packRule}>
-                <View style={[styles.level, { backgroundColor: col.bg }]}>
-                  <T variant="caption" color={col.fg} style={{ fontWeight: '600' }}>
-                    {LEVEL_LABEL[r.level]}
-                  </T>
-                </View>
-                <T variant="body" style={{ flex: 1 }}>
-                  {capital(r.label)}
-                </T>
-              </View>
-            );
-          })}
-          <T variant="caption" tone="tertiary">
-            Source: {pack.source.title}
-          </T>
-        </View>
-      ) : null}
+      <T variant="caption" tone="secondary" style={{ fontWeight: '600' }}>
+        {count}
+      </T>
       {owned ? (
         <View style={styles.packOwned} accessibilityLabel={`${pack.label} pack added. Its rules are in your list.`}>
           <Icon name="check" size={13} color={c.textSecondary} weight="bold" />
@@ -124,8 +79,5 @@ export function PackCard({ pack }: { pack: Pack }) {
 }
 
 const styles = StyleSheet.create({
-  level: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, minWidth: 70, alignItems: 'center' },
-  packToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
-  packRule: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   packOwned: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });

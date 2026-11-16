@@ -10,7 +10,7 @@ import { gutter, space, titleTop, topBar, useTheme } from '@/theme';
 
 /**
  * The rule packs on sale, as a page of their own, opened from "Buy dietitian packages" under the rules on Manage.
- * Each pack is the same card it was on Manage: what it is, the rules it adds, and the way to get it.
+ * Each pack is a card: what it is, how many rules it adds, and the way to get it.
  */
 export default function PacksScreen() {
   const { c } = useTheme();
@@ -29,7 +29,7 @@ export default function PacksScreen() {
             Dietitian packages
           </T>
           <T tone="secondary" style={{ textAlign: 'center' }}>
-            Ready-made sets of rules. Buy one once and its rules are added to yours.
+            Ready-made sets of rules from licensed dietitians. Buy one once and its rules are added to yours.
           </T>
         </View>
         <View style={{ gap: space.md }}>

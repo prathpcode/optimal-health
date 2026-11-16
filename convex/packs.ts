@@ -28,7 +28,8 @@ import { recompileRules } from "./profile";
 
 const EMPTY: Profile = { medications: [], conditions: [], allergies: [], diets: [] };
 
-export type PackView = PackInfo & { state: "none" | "pending" | "owned" };
+/** `rules` is filled in only for a pack this device owns; before that the app is told how many there are, not what they are. */
+export type PackView = PackInfo & { state: "none" | "pending" | "owned"; ruleCount: number };
 
 /** The packs on sale and whether this device has each one. Empty until `publish` has run. */
 export const list = query({
@@ -40,7 +41,11 @@ export const list = query({
     const state = new Map(mine.map((p) => [p.packId, p.status === "paid" ? ("owned" as const) : ("pending" as const)]));
     return packList()
       .filter((p) => onSale.has(p.id))
-      .map((p) => ({ ...p, state: state.get(p.id) ?? "none" }));
+      .map((p) => {
+        const mineIs = state.get(p.id) ?? "none";
+        // What is in a pack is what is being sold, so it is not sent to a phone that has not bought it.
+        return { ...p, rules: mineIs === "owned" ? p.rules : [], ruleCount: p.rules.length, state: mineIs };
+      });
   },
 });
 

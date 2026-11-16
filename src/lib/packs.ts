@@ -10,7 +10,8 @@ import { convex, HAS_BACKEND, useDeviceId } from './backend';
  * phone, like the profile, so buying one needs no sign-in. Its rules arrive in the ordinary rule list
  * (useProfile) the moment the backend has confirmed the payment with Whop.
  */
-export type Pack = PackInfo & { state: 'none' | 'pending' | 'owned' };
+/** `rules` is empty until the pack is owned; `ruleCount` says how many it adds. */
+export type Pack = PackInfo & { state: 'none' | 'pending' | 'owned'; ruleCount: number };
 
 /** Where Whop's checkout hands back to the app (convex/http.ts, /whop/paid). */
 const PAID_RETURN = 'secondlook://paid';

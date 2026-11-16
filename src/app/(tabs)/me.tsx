@@ -19,7 +19,7 @@ import { HAS_BACKEND } from '@/lib/backend';
 import { usePacks } from '@/lib/packs';
 import { useProfile, type MedStatus, type ProfileRule } from '@/lib/profile';
 import { LEVEL_LABEL } from '@/lib/verdict';
-import { duration, enterAt, gutter, radius, space, titleTop, topBar, type Colors, useTheme } from '@/theme';
+import { duration, enterAt, gutter, onPhoto, radius, space, titleTop, topBar, type Colors, useTheme } from '@/theme';
 
 const ALLERGIES = allergyOptions().map((a) => ({ key: a.tag, label: capital(a.label) }));
 const DIETS = dietOptions();
@@ -278,15 +278,17 @@ function MedicineSearch({ onAdd, taken }: { onAdd: (name: string) => void; taken
  * on sale. The packs themselves are on their own page, so Manage stays about the person's own rules.
  */
 function Packs() {
-  const { c } = useTheme();
+  const { c, dark } = useTheme();
   const packs = usePacks();
   if (packs.length === 0) return null;
   return (
-    <Tap accessibilityRole="button" accessibilityLabel="Buy dietitian packages" feedback="tap" scaleTo={0.98} onPress={() => router.push('/packs')} style={styles.packsLink}>
-      <T variant="heading" style={{ flex: 1 }}>
+    <Tap accessibilityRole="button" accessibilityLabel="Buy dietitian packages" feedback="tap" scaleTo={0.98} onPress={() => router.push('/packs')} style={[styles.packsLink, dark ? { borderWidth: 1, borderColor: c.hairline } : null]}>
+      <T variant="heading" color={onPhoto.text} style={{ flex: 1 }}>
         Buy dietitian packages
       </T>
-      <Icon name="chevron" size={15} color={c.textTertiary} />
+      <View style={styles.packsArrow}>
+        <Icon name="chevron" size={15} color={onPhoto.black} weight="bold" />
+      </View>
     </Tap>
   );
 }
@@ -515,6 +517,8 @@ const styles = StyleSheet.create({
   result: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg, paddingVertical: space.md + 2 },
   addRule: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, height: 48, borderRadius: radius.button, borderWidth: 1.5, borderStyle: 'dashed', marginTop: space.md },
   picked: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  packsLink: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.xxxl, paddingVertical: space.sm },
+  // A solid black button in both themes, with its arrow in a white disc so it reads at a glance.
+  packsLink: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.xxxl, height: 62, paddingLeft: space.xl, paddingRight: space.md, borderRadius: radius.button, backgroundColor: onPhoto.black },
+  packsArrow: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: onPhoto.text },
   formButton: { flex: 1, height: 48, borderRadius: radius.button, alignItems: 'center', justifyContent: 'center' },
 });
